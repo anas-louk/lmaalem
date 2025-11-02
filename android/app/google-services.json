@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "891462076223",
+    "project_id": "lmaalem-23777",
+    "storage_bucket": "lmaalem-23777.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:891462076223:android:3cc2c868adbb1bb4d3758a",
+        "android_client_info": {
+          "package_name": "com.example.lmaalem"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "891462076223-ce1305lsi204p7qaqrean02gk14erd0u.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.lmaalem",
+            "certificate_hash": "98d4bb76e404aeb160bde01a6fcbfec1647b6808"
+          }
+        },
+        {
+          "client_id": "891462076223-rjjavkpnvg9aijka1ib0trr3vupmse57.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7LtlliMMPK7VnlMdu49SOJrv62qfDyeU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "891462076223-rjjavkpnvg9aijka1ib0trr3vupmse57.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "891462076223-r79te2shla18oh1aavp7cff5gmbreif2.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.lmaalem"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
