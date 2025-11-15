@@ -194,6 +194,38 @@ class AuthController extends GetxController {
     }
   }
 
+  /// Passer directement de Client à Employee si l'Employee existe déjà
+  Future<bool> switchToEmployeeDirectly() async {
+    try {
+      if (currentUser.value == null) {
+        errorMessage.value = 'Aucun utilisateur connecté';
+        return false;
+      }
+
+      isLoading.value = true;
+      errorMessage.value = '';
+
+      final success = await _authService.switchToEmployeeDirectly(
+        userId: currentUser.value!.id,
+      );
+
+      if (success) {
+        // Recharger l'utilisateur pour mettre à jour le type
+        await loadUser(currentUser.value!.id);
+        Get.snackbar('Succès', 'Vous êtes maintenant un employé');
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      errorMessage.value = e.toString();
+      Get.snackbar('Erreur', errorMessage.value);
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   /// Passer de Client à Employee
   Future<bool> switchToEmployee({
     required String categorieId,
@@ -278,6 +310,65 @@ class AuthController extends GetxController {
     } catch (e) {
       // Si l'Employee n'existe pas, retourner null
       return null;
+    }
+  }
+
+  /// Mettre à jour les informations de l'utilisateur
+  Future<bool> updateUserInfo({
+    required String nomComplet,
+    required String localisation,
+    required String tel,
+    String? ville,
+    String? competence,
+    String? bio,
+    String? categorieId,
+  }) async {
+    try {
+      if (currentUser.value == null) {
+        errorMessage.value = 'Aucun utilisateur connecté';
+        return false;
+      }
+
+      isLoading.value = true;
+      errorMessage.value = '';
+
+      // Mettre à jour le UserModel
+      final updatedUser = currentUser.value!.copyWith(
+        nomComplet: nomComplet,
+        localisation: localisation,
+        tel: tel,
+        updatedAt: DateTime.now(),
+      );
+
+      await _userRepository.updateUser(updatedUser);
+      currentUser.value = updatedUser;
+
+      // Si c'est un employé, mettre à jour aussi l'EmployeeModel
+      if (currentUser.value!.type.toLowerCase() == 'employee') {
+        final existingEmployee = await _employeeRepository.getEmployeeById(currentUser.value!.id);
+        if (existingEmployee != null) {
+          final updatedEmployee = existingEmployee.copyWith(
+            nomComplet: nomComplet,
+            localisation: localisation,
+            tel: tel,
+            ville: ville ?? existingEmployee.ville,
+            competence: competence ?? existingEmployee.competence,
+            bio: bio ?? existingEmployee.bio,
+            categorieId: categorieId ?? existingEmployee.categorieId,
+            updatedAt: DateTime.now(),
+          );
+          await _employeeRepository.updateEmployee(updatedEmployee);
+        }
+      }
+
+      Get.snackbar('Succès', 'Informations mises à jour avec succès');
+      return true;
+    } catch (e) {
+      errorMessage.value = e.toString();
+      Get.snackbar('Erreur', errorMessage.value);
+      return false;
+    } finally {
+      isLoading.value = false;
     }
   }
 }

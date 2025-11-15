@@ -7,7 +7,6 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
 import '../../components/loading_widget.dart';
 import '../../components/empty_state.dart';
-import '../../components/custom_button.dart';
 import 'notification_screen.dart';
 import 'history_screen.dart';
 
@@ -153,20 +152,7 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Switch to Client Button
-                Obx(
-                  () => CustomButton(
-                    onPressed: _authController.isLoading.value
-                        ? null
-                        : () {
-                            _showSwitchToClientDialog(context, _authController);
-                          },
-                    text: 'Devenir Client',
-                    isLoading: _authController.isLoading.value,
-                    backgroundColor: AppColors.secondary,
-                  ),
-                ),
-                const SizedBox(height: 24),
+
 
                 // Missions Section
                 Text(
@@ -254,46 +240,4 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
     }
   }
 
-  void _showSwitchToClientDialog(
-    BuildContext context,
-    AuthController authController,
-  ) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Devenir Client'),
-        content: const Text(
-          'Êtes-vous sûr de vouloir passer en mode Client ?\n\n'
-          'Votre profil employé sera conservé et vous pourrez le réactiver à tout moment.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Annuler'),
-          ),
-          Obx(
-            () => ElevatedButton(
-              onPressed: authController.isLoading.value
-                  ? null
-                  : () async {
-                      final success = await authController.switchToClient();
-
-                      if (success) {
-                        Get.back(); // Close dialog
-                        // The redirect will happen automatically via loadUser
-                      }
-                    },
-              child: authController.isLoading.value
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Confirmer'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

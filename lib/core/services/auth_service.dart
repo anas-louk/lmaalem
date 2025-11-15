@@ -338,6 +338,50 @@ Si le problème persiste :
     }
   }
 
+  /// Passer directement de Client à Employee si l'Employee existe déjà
+  /// Utilise les données existantes de l'Employee
+  Future<bool> switchToEmployeeDirectly({
+    required String userId,
+  }) async {
+    try {
+      // Récupérer l'utilisateur
+      final user = await _userRepository.getUserById(userId);
+      if (user == null) {
+        throw 'Utilisateur non trouvé';
+      }
+
+      // Vérifier si l'Employee existe déjà
+      final existingEmployee =
+          await _employeeRepository.getEmployeeById(userId);
+
+      if (existingEmployee != null) {
+        // L'employé existe déjà, réactiver simplement
+        final updatedEmployee = existingEmployee.copyWith(
+          disponibilite: true, // Réactiver la disponibilité
+          updatedAt: DateTime.now(),
+        );
+
+        // Mettre à jour le document Employee
+        await _employeeRepository.updateEmployee(updatedEmployee);
+
+        // Mettre à jour le type de l'utilisateur
+        await _userRepository.updateUser(
+          user.copyWith(
+            type: 'Employee',
+            updatedAt: DateTime.now(),
+          ),
+        );
+
+        return true;
+      }
+
+      // Si l'Employee n'existe pas, retourner false pour indiquer qu'il faut le formulaire
+      return false;
+    } catch (e) {
+      throw 'Erreur lors du passage à Employee: $e';
+    }
+  }
+
   /// Passer de Employee à Client
   /// Note: L'Employee document est conservé pour permettre un retour facile
   Future<bool> switchToClient({
