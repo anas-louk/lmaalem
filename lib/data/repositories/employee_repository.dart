@@ -67,7 +67,7 @@ class EmployeeRepository {
       final data = await _firestoreService.readAll(
         collection: _collection,
         queryBuilder: (q) => q
-            .where('disponabilite', isEqualTo: true)
+            .where('disponibilite', isEqualTo: true)
             .orderBy('createdAt', descending: true),
       );
 
@@ -83,8 +83,8 @@ class EmployeeRepository {
       final data = await _firestoreService.readAll(
         collection: _collection,
         queryBuilder: (q) => q
-            .where('categorieIds', arrayContains: categoryId)
-            .orderBy('createdAt', descending: true),
+            .where('categorieId', isEqualTo: categoryId)
+            .where('disponibilite', isEqualTo: true),
       );
 
       return data.map((map) => EmployeeModel.fromMap(map)).toList();
@@ -123,6 +123,18 @@ class EmployeeRepository {
       return data.map((map) => EmployeeModel.fromMap(map)).toList();
     } catch (e) {
       throw 'Erreur lors de la recherche: $e';
+    }
+  }
+
+  /// Supprimer un employé
+  Future<void> deleteEmployee(String employeeId) async {
+    try {
+      await _firestoreService.delete(
+        collection: _collection,
+        docId: employeeId,
+      );
+    } catch (e) {
+      throw 'Erreur lors de la suppression de l\'employé: $e';
     }
   }
 }

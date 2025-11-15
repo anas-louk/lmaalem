@@ -29,4 +29,8 @@ class AppRoutes {
 
   // Category Routes
   static const String categories = '/categories';
+
+  // Navigation Routes
+  static const String notifications = '/notifications';
+  static const String history = '/history';
 }

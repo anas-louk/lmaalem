@@ -5,20 +5,98 @@ import '../../controllers/mission_controller.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
-import '../../components/custom_button.dart';
-import '../../components/custom_text_field.dart';
 import '../../components/loading_widget.dart';
 import '../../components/empty_state.dart';
+import 'history_screen.dart';
+import 'categories_screen.dart';
 
-/// Dashboard Client
-class ClientDashboardScreen extends StatelessWidget {
+/// Dashboard Client with Bottom Navigation
+class ClientDashboardScreen extends StatefulWidget {
   const ClientDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final AuthController _authController = Get.find<AuthController>();
-    final MissionController _missionController = Get.put(MissionController());
+  State<ClientDashboardScreen> createState() => _ClientDashboardScreenState();
+}
 
+class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
+  int _currentIndex = 1; // Default to Home (middle)
+
+  final List<Widget> _screens = [
+    const HistoryScreen(),
+    const _ClientHomeScreen(),
+    const CategoriesScreen(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.textSecondary,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.history_outlined),
+            activeIcon: Icon(Icons.history),
+            label: 'Historique',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Accueil',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.category_outlined),
+            activeIcon: Icon(Icons.category),
+            label: 'Catégories',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Home screen content for Client
+class _ClientHomeScreen extends StatefulWidget {
+  const _ClientHomeScreen();
+
+  @override
+  State<_ClientHomeScreen> createState() => _ClientHomeScreenState();
+}
+
+class _ClientHomeScreenState extends State<_ClientHomeScreen> {
+  final AuthController _authController = Get.find<AuthController>();
+  final MissionController _missionController = Get.put(MissionController());
+  String? _loadedUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadMissions();
+    });
+  }
+
+  void _loadMissions() {
+    final user = _authController.currentUser.value;
+    if (user != null && _loadedUserId != user.id) {
+      _missionController.loadMissionsByClient(user.id);
+      _loadedUserId = user.id;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tableau de bord Client'),
@@ -37,6 +115,13 @@ class ClientDashboardScreen extends StatelessWidget {
 
           if (user == null) {
             return const LoadingWidget();
+          }
+
+          // Reload if user changes
+          if (_loadedUserId != user.id) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _loadMissions();
+            });
           }
 
           return SingleChildScrollView(
@@ -67,15 +152,6 @@ class ClientDashboardScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // Switch to Employee Button
-                CustomButton(
-                  onPressed: () {
-                    _showSwitchToEmployeeDialog(context, _authController);
-                  },
-                  text: 'Devenir Employé',
-                  backgroundColor: AppColors.primary,
-                ),
-                const SizedBox(height: 24),
 
                 // Missions Section
                 Text(
@@ -88,11 +164,6 @@ class ClientDashboardScreen extends StatelessWidget {
                   () {
                     if (_missionController.isLoading.value) {
                       return const LoadingWidget();
-                    }
-
-                    // Charger les missions du client
-                    if (user.id.isNotEmpty) {
-                      _missionController.loadMissionsByClient(user.id);
                     }
 
                     if (_missionController.missions.isEmpty) {
@@ -146,79 +217,4 @@ class ClientDashboardScreen extends StatelessWidget {
     );
   }
 
-  void _showSwitchToEmployeeDialog(
-    BuildContext context,
-    AuthController authController,
-  ) {
-    final villeController = TextEditingController();
-    final competenceController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Devenir Employé'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CustomTextField(
-              controller: villeController,
-              label: 'Ville',
-              hint: 'Ex: Casablanca',
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'La ville est requise';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            CustomTextField(
-              controller: competenceController,
-              label: 'Compétence',
-              hint: 'Ex: Plomberie, Électricité, etc.',
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'La compétence est requise';
-                }
-                return null;
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Annuler'),
-          ),
-          Obx(
-            () => ElevatedButton(
-              onPressed: authController.isLoading.value
-                  ? null
-                  : () async {
-                      if (villeController.text.isNotEmpty &&
-                          competenceController.text.isNotEmpty) {
-                        final success = await authController.switchToEmployee(
-                          ville: villeController.text,
-                          competence: competenceController.text,
-                        );
-
-                        if (success) {
-                          Get.back();
-                        }
-                      }
-                    },
-              child: authController.isLoading.value
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Confirmer'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
-

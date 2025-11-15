@@ -4,12 +4,13 @@ import 'user_model.dart';
 /// Modèle de données pour un employé (hérite de UserModel)
 class EmployeeModel extends UserModel {
   final String? image;
+  final String categorieId; // Reference to Categorie collection (document ID)
   final String ville;
-  final bool disponabilite;
+  final bool disponibilite; // Note: UML uses "Disponibilite"
   final String competence;
   final String? bio;
   final String? gallery;
-  final List<String>? categorieIds; // IDs des catégories
+  final String userId; // Reference to User collection (document ID)
 
   EmployeeModel({
     required super.id,
@@ -19,16 +20,37 @@ class EmployeeModel extends UserModel {
     required super.createdAt,
     required super.updatedAt,
     this.image,
+    required this.categorieId,
     required this.ville,
-    required this.disponabilite,
+    required this.disponibilite,
     required this.competence,
     this.bio,
     this.gallery,
-    this.categorieIds,
+    required this.userId,
   }) : super(type: 'Employee');
 
   /// Créer un EmployeeModel depuis un Map (Firestore)
   factory EmployeeModel.fromMap(Map<String, dynamic> map) {
+    // Handle DocumentReference for categorieId
+    String categorieId = '';
+    if (map['categorieId'] != null) {
+      if (map['categorieId'] is DocumentReference) {
+        categorieId = (map['categorieId'] as DocumentReference).id;
+      } else {
+        categorieId = map['categorieId'].toString();
+      }
+    }
+    
+    // Handle DocumentReference for userId
+    String userId = '';
+    if (map['userId'] != null) {
+      if (map['userId'] is DocumentReference) {
+        userId = (map['userId'] as DocumentReference).id;
+      } else {
+        userId = map['userId'].toString();
+      }
+    }
+
     return EmployeeModel(
       id: map['id'] ?? '',
       nomComplet: map['nomComplet'] ?? '',
@@ -37,14 +59,13 @@ class EmployeeModel extends UserModel {
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       image: map['image'],
+      categorieId: categorieId,
       ville: map['ville'] ?? '',
-      disponabilite: map['disponabilite'] ?? false,
+      disponibilite: map['disponibilite'] ?? false,
       competence: map['competence'] ?? '',
       bio: map['bio'],
       gallery: map['gallery'],
-      categorieIds: map['categorieIds'] != null
-          ? List<String>.from(map['categorieIds'])
-          : null,
+      userId: userId,
     );
   }
 
@@ -60,12 +81,12 @@ class EmployeeModel extends UserModel {
   /// Créer depuis un UserModel (pour la conversion)
   factory EmployeeModel.fromUserModel(UserModel user, {
     String? image,
+    required String categorieId,
     required String ville,
-    required bool disponabilite,
+    required bool disponibilite,
     required String competence,
     String? bio,
     String? gallery,
-    List<String>? categorieIds,
   }) {
     return EmployeeModel(
       id: user.id,
@@ -75,27 +96,45 @@ class EmployeeModel extends UserModel {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       image: image,
+      categorieId: categorieId,
       ville: ville,
-      disponabilite: disponabilite,
+      disponibilite: disponibilite,
       competence: competence,
       bio: bio,
       gallery: gallery,
-      categorieIds: categorieIds,
+      userId: user.id,
     );
   }
 
   /// Convertir en Map pour Firestore
   @override
   Map<String, dynamic> toMap() {
+    final FirebaseFirestore firestore = FirebaseFirestore.instance;
     return {
       ...super.toMap(),
       'image': image,
+      'categorieId': firestore.collection('categories').doc(categorieId),
       'ville': ville,
-      'disponabilite': disponabilite,
+      'disponibilite': disponibilite,
       'competence': competence,
       'bio': bio,
       'gallery': gallery,
-      'categorieIds': categorieIds,
+      'userId': firestore.collection('users').doc(userId),
+    };
+  }
+  
+  /// Convertir en Map pour Firestore (avec IDs seulement, sans DocumentReference)
+  Map<String, dynamic> toMapWithIds() {
+    return {
+      ...super.toMap(),
+      'image': image,
+      'categorieId': categorieId,
+      'ville': ville,
+      'disponibilite': disponibilite,
+      'competence': competence,
+      'bio': bio,
+      'gallery': gallery,
+      'userId': userId,
     };
   }
 
@@ -110,12 +149,13 @@ class EmployeeModel extends UserModel {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? image,
+    String? categorieId,
     String? ville,
-    bool? disponabilite,
+    bool? disponibilite,
     String? competence,
     String? bio,
     String? gallery,
-    List<String>? categorieIds,
+    String? userId,
   }) {
     return EmployeeModel(
       id: id ?? this.id,
@@ -125,12 +165,13 @@ class EmployeeModel extends UserModel {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       image: image ?? this.image,
+      categorieId: categorieId ?? this.categorieId,
       ville: ville ?? this.ville,
-      disponabilite: disponabilite ?? this.disponabilite,
+      disponibilite: disponibilite ?? this.disponibilite,
       competence: competence ?? this.competence,
       bio: bio ?? this.bio,
       gallery: gallery ?? this.gallery,
-      categorieIds: categorieIds ?? this.categorieIds,
+      userId: userId ?? this.userId,
     );
   }
 

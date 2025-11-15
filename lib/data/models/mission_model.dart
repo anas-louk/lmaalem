@@ -3,15 +3,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// Modèle de données pour une mission
 class MissionModel {
   final String id;
-  final double prixMission;
-  final DateTime dateStart;
-  final DateTime dateEnd;
-  final String? qrMission;
-  final String statutMission; // 'Pending', 'In Progress', 'Completed', 'Cancelled'
-  final String? commentaire;
-  final double? rating;
-  final String employeeId; // ID de l'employé assigné
-  final String clientId; // ID du client qui a créé la mission
+  final double prixMission; // UML: PrixMission
+  final DateTime dateStart; // UML: DateStart
+  final DateTime dateEnd; // UML: DateEnd
+  final String objMission; // UML: ObjMission (objectif de la mission)
+  final String statutMission; // UML: StatutMission - 'Pending', 'In Progress', 'Completed', 'Cancelled'
+  final String? commentaire; // UML: Commentaire
+  final double? rating; // UML: Rating
+  final String employeeId; // Reference to Employee collection (document ID)
+  final String clientId; // Reference to Client collection (document ID)
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -20,7 +20,7 @@ class MissionModel {
     required this.prixMission,
     required this.dateStart,
     required this.dateEnd,
-    this.qrMission,
+    required this.objMission,
     required this.statutMission,
     this.commentaire,
     this.rating,
@@ -32,17 +32,37 @@ class MissionModel {
 
   /// Créer un MissionModel depuis un Map (Firestore)
   factory MissionModel.fromMap(Map<String, dynamic> map) {
+    // Handle DocumentReference for employeeId
+    String employeeId = '';
+    if (map['employeeId'] != null) {
+      if (map['employeeId'] is DocumentReference) {
+        employeeId = (map['employeeId'] as DocumentReference).id;
+      } else {
+        employeeId = map['employeeId'].toString();
+      }
+    }
+    
+    // Handle DocumentReference for clientId
+    String clientId = '';
+    if (map['clientId'] != null) {
+      if (map['clientId'] is DocumentReference) {
+        clientId = (map['clientId'] as DocumentReference).id;
+      } else {
+        clientId = map['clientId'].toString();
+      }
+    }
+
     return MissionModel(
       id: map['id'] ?? '',
       prixMission: (map['prixMission'] as num?)?.toDouble() ?? 0.0,
       dateStart: (map['dateStart'] as Timestamp?)?.toDate() ?? DateTime.now(),
       dateEnd: (map['dateEnd'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      qrMission: map['qrMission'],
+      objMission: map['objMission'] ?? '',
       statutMission: map['statutMission'] ?? 'Pending',
       commentaire: map['commentaire'],
       rating: (map['rating'] as num?)?.toDouble(),
-      employeeId: map['employeeId'] ?? '',
-      clientId: map['clientId'] ?? '',
+      employeeId: employeeId,
+      clientId: clientId,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -59,12 +79,31 @@ class MissionModel {
 
   /// Convertir en Map pour Firestore
   Map<String, dynamic> toMap() {
+    final FirebaseFirestore firestore = FirebaseFirestore.instance;
     return {
       'id': id,
       'prixMission': prixMission,
       'dateStart': Timestamp.fromDate(dateStart),
       'dateEnd': Timestamp.fromDate(dateEnd),
-      'qrMission': qrMission,
+      'objMission': objMission,
+      'statutMission': statutMission,
+      'commentaire': commentaire,
+      'rating': rating,
+      'employeeId': firestore.collection('employees').doc(employeeId),
+      'clientId': firestore.collection('clients').doc(clientId),
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
+  
+  /// Convertir en Map pour Firestore (avec IDs seulement, sans DocumentReference)
+  Map<String, dynamic> toMapWithIds() {
+    return {
+      'id': id,
+      'prixMission': prixMission,
+      'dateStart': Timestamp.fromDate(dateStart),
+      'dateEnd': Timestamp.fromDate(dateEnd),
+      'objMission': objMission,
       'statutMission': statutMission,
       'commentaire': commentaire,
       'rating': rating,
@@ -81,7 +120,7 @@ class MissionModel {
     double? prixMission,
     DateTime? dateStart,
     DateTime? dateEnd,
-    String? qrMission,
+    String? objMission,
     String? statutMission,
     String? commentaire,
     double? rating,
@@ -95,7 +134,7 @@ class MissionModel {
       prixMission: prixMission ?? this.prixMission,
       dateStart: dateStart ?? this.dateStart,
       dateEnd: dateEnd ?? this.dateEnd,
-      qrMission: qrMission ?? this.qrMission,
+      objMission: objMission ?? this.objMission,
       statutMission: statutMission ?? this.statutMission,
       commentaire: commentaire ?? this.commentaire,
       rating: rating ?? this.rating,

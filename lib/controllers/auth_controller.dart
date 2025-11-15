@@ -1,13 +1,16 @@
 import 'package:get/get.dart';
-import '../../core/services/auth_service.dart';
-import '../../data/models/user_model.dart';
-import '../../data/repositories/user_repository.dart';
-import '../../core/constants/app_routes.dart' as AppRoutes;
+import '../core/services/auth_service.dart';
+import '../data/models/user_model.dart';
+import '../data/models/employee_model.dart';
+import '../data/repositories/user_repository.dart';
+import '../data/repositories/employee_repository.dart';
+import '../core/constants/app_routes.dart' as AppRoutes;
 
 /// Controller pour gérer l'authentification (GetX)
 class AuthController extends GetxController {
   final AuthService _authService = AuthService();
   final UserRepository _userRepository = UserRepository();
+  final EmployeeRepository _employeeRepository = EmployeeRepository();
 
   // Observable states
   final Rx<UserModel?> currentUser = Rx<UserModel?>(null);
@@ -193,12 +196,12 @@ class AuthController extends GetxController {
 
   /// Passer de Client à Employee
   Future<bool> switchToEmployee({
+    required String categorieId,
     required String ville,
     required String competence,
     String? image,
     String? bio,
     String? gallery,
-    List<String>? categorieIds,
   }) async {
     try {
       if (currentUser.value == null) {
@@ -211,12 +214,12 @@ class AuthController extends GetxController {
 
       final success = await _authService.switchToEmployee(
         userId: currentUser.value!.id,
+        categorieId: categorieId,
         ville: ville,
         competence: competence,
         image: image,
         bio: bio,
         gallery: gallery,
-        categorieIds: categorieIds,
       );
 
       if (success) {
@@ -235,5 +238,46 @@ class AuthController extends GetxController {
       isLoading.value = false;
     }
   }
-}
 
+  /// Passer de Employee à Client
+  Future<bool> switchToClient() async {
+    try {
+      if (currentUser.value == null) {
+        errorMessage.value = 'Aucun utilisateur connecté';
+        return false;
+      }
+
+      isLoading.value = true;
+      errorMessage.value = '';
+
+      final success = await _authService.switchToClient(
+        userId: currentUser.value!.id,
+      );
+
+      if (success) {
+        // Recharger l'utilisateur pour mettre à jour le type
+        await loadUser(currentUser.value!.id);
+        Get.snackbar('Succès', 'Vous êtes maintenant un client');
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      errorMessage.value = e.toString();
+      Get.snackbar('Erreur', errorMessage.value);
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// Récupérer l'Employee existant pour un utilisateur
+  Future<EmployeeModel?> getExistingEmployee(String userId) async {
+    try {
+      return await _employeeRepository.getEmployeeById(userId);
+    } catch (e) {
+      // Si l'Employee n'existe pas, retourner null
+      return null;
+    }
+  }
+}

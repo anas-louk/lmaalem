@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:flutter/scheduler.dart';
 import '../../data/models/mission_model.dart';
 import '../../data/repositories/mission_repository.dart';
 
@@ -23,12 +24,20 @@ class MissionController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       final missionList = await _missionRepository.getMissionsByClientId(clientId);
-      missions.assignAll(missionList);
+      // Defer state updates to avoid calling during build
+      Future.microtask(() {
+        missions.assignAll(missionList);
+        isLoading.value = false;
+      });
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('Erreur', errorMessage.value);
-    } finally {
-      isLoading.value = false;
+      // Defer snackbar and isLoading update to avoid calling during build
+      Future.microtask(() {
+        isLoading.value = false;
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          Get.snackbar('Erreur', errorMessage.value);
+        });
+      });
     }
   }
 
@@ -38,12 +47,20 @@ class MissionController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       final missionList = await _missionRepository.getMissionsByEmployeeId(employeeId);
-      missions.assignAll(missionList);
+      // Defer state updates to avoid calling during build
+      Future.microtask(() {
+        missions.assignAll(missionList);
+        isLoading.value = false;
+      });
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('Erreur', errorMessage.value);
-    } finally {
-      isLoading.value = false;
+      // Defer snackbar and isLoading update to avoid calling during build
+      Future.microtask(() {
+        isLoading.value = false;
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          Get.snackbar('Erreur', errorMessage.value);
+        });
+      });
     }
   }
 
@@ -53,12 +70,20 @@ class MissionController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       final missionList = await _missionRepository.getMissionsByStatut(statut);
-      missions.assignAll(missionList);
+      // Defer state updates to avoid calling during build
+      Future.microtask(() {
+        missions.assignAll(missionList);
+        isLoading.value = false;
+      });
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('Erreur', errorMessage.value);
-    } finally {
-      isLoading.value = false;
+      // Defer snackbar and isLoading update to avoid calling during build
+      Future.microtask(() {
+        isLoading.value = false;
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          Get.snackbar('Erreur', errorMessage.value);
+        });
+      });
     }
   }
 

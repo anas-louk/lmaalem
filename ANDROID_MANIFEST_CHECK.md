@@ -59,3 +59,6 @@ Les fichiers dans le dossier `build/` sont générés automatiquement et ne doiv
 Aucune action requise de votre part concernant les permissions Internet. Le problème `ApiException: 7` est lié à la configuration OAuth dans Firebase Console (voir `FIX_GOOGLE_SIGNIN.md`).
 
 
+
+
+

@@ -6,6 +6,9 @@ import '../views/screens/home_screen.dart';
 import '../views/screens/profile_screen.dart';
 import '../views/screens/client_dashboard_screen.dart';
 import '../views/screens/employee_dashboard_screen.dart';
+import '../views/screens/notification_screen.dart';
+import '../views/screens/history_screen.dart';
+import '../views/screens/categories_screen.dart';
 import '../core/constants/app_routes.dart' as route_constants;
 
 /// Gestionnaire de routes de l'application
@@ -42,6 +45,18 @@ class AppRoutes {
       GetPage(
         name: route_constants.AppRoutes.profile,
         page: () => const ProfileScreen(),
+      ),
+      GetPage(
+        name: route_constants.AppRoutes.notifications,
+        page: () => const NotificationScreen(),
+      ),
+      GetPage(
+        name: route_constants.AppRoutes.history,
+        page: () => const HistoryScreen(),
+      ),
+      GetPage(
+        name: route_constants.AppRoutes.categories,
+        page: () => const CategoriesScreen(),
       ),
       // Ajouter d'autres routes ici
     ];

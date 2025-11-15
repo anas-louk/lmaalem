@@ -86,11 +86,11 @@ class EmployeeCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: employee.disponabilite ? AppColors.success : AppColors.error,
+                            color: employee.disponibilite ? AppColors.success : AppColors.error,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            employee.disponabilite ? 'Disponible' : 'Indisponible',
+                            employee.disponibilite ? 'Disponible' : 'Indisponible',
                             style: AppTextStyles.caption.copyWith(
                               color: AppColors.white,
                             ),

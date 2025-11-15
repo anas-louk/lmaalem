@@ -237,7 +237,7 @@ Si le problème persiste :
           id: firebaseUser.uid,
           nomComplet: firebaseUser.displayName ?? '',
           localisation: '',
-          type: 'client',
+          type: 'Client', // Par défaut, on crée un Client
           tel: '',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
@@ -251,50 +251,64 @@ Si le problème persiste :
   }
 
   /// Passer de Client à Employee
+  /// Si l'Employee existe déjà, met à jour les données et réactive
   Future<bool> switchToEmployee({
     required String userId,
+    required String categorieId,
     required String ville,
     required String competence,
     String? image,
     String? bio,
     String? gallery,
-    List<String>? categorieIds,
   }) async {
     try {
-      // Vérifier si l'Employee existe déjà
-      final existingEmployee =
-          await _employeeRepository.getEmployeeById(userId);
-
-      if (existingEmployee != null) {
-        // L'employé existe déjà, juste mettre à jour le type
-        final user = await _userRepository.getUserById(userId);
-        if (user != null) {
-          await _userRepository.updateUser(
-            user.copyWith(
-              type: 'employee',
-              updatedAt: DateTime.now(),
-            ),
-          );
-        }
-        return true;
-      }
-
       // Récupérer l'utilisateur
       final user = await _userRepository.getUserById(userId);
       if (user == null) {
         throw 'Utilisateur non trouvé';
       }
 
-      // Créer l'Employee
+      // Vérifier si l'Employee existe déjà
+      final existingEmployee =
+          await _employeeRepository.getEmployeeById(userId);
+
+      if (existingEmployee != null) {
+        // L'employé existe déjà, mettre à jour les données avec les nouvelles valeurs
+        final updatedEmployee = existingEmployee.copyWith(
+          categorieId: categorieId,
+          ville: ville,
+          competence: competence,
+          disponibilite: true, // Réactiver la disponibilité
+          image: image ?? existingEmployee.image,
+          bio: bio ?? existingEmployee.bio,
+          gallery: gallery ?? existingEmployee.gallery,
+          updatedAt: DateTime.now(),
+        );
+
+        // Mettre à jour le document Employee
+        await _employeeRepository.updateEmployee(updatedEmployee);
+
+        // Mettre à jour le type de l'utilisateur
+        await _userRepository.updateUser(
+          user.copyWith(
+            type: 'Employee',
+            updatedAt: DateTime.now(),
+          ),
+        );
+
+        return true;
+      }
+
+      // Créer un nouvel Employee
       final employeeModel = EmployeeModel.fromUserModel(
         user,
         image: image,
+        categorieId: categorieId,
         ville: ville,
-        disponabilite: true,
+        disponibilite: true,
         competence: competence,
         bio: bio,
         gallery: gallery,
-        categorieIds: categorieIds,
       );
 
       // Créer le document Employee
@@ -303,7 +317,7 @@ Si le problème persiste :
       // Mettre à jour le type de l'utilisateur
       await _userRepository.updateUser(
         user.copyWith(
-          type: 'employee',
+          type: 'Employee',
           updatedAt: DateTime.now(),
         ),
       );
@@ -321,6 +335,33 @@ Si le problème persiste :
       return user?.type.toLowerCase() == 'employee';
     } catch (e) {
       return false;
+    }
+  }
+
+  /// Passer de Employee à Client
+  /// Note: L'Employee document est conservé pour permettre un retour facile
+  Future<bool> switchToClient({
+    required String userId,
+  }) async {
+    try {
+      // Récupérer l'utilisateur
+      final user = await _userRepository.getUserById(userId);
+      if (user == null) {
+        throw 'Utilisateur non trouvé';
+      }
+
+      // Mettre à jour le type de l'utilisateur seulement
+      // L'Employee document est conservé pour permettre un retour facile
+      await _userRepository.updateUser(
+        user.copyWith(
+          type: 'Client',
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      return true;
+    } catch (e) {
+      throw 'Erreur lors du passage à Client: $e';
     }
   }
 

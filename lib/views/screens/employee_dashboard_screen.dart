@@ -7,16 +7,97 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
 import '../../components/loading_widget.dart';
 import '../../components/empty_state.dart';
+import '../../components/custom_button.dart';
+import 'notification_screen.dart';
+import 'history_screen.dart';
 
-/// Dashboard Employee
-class EmployeeDashboardScreen extends StatelessWidget {
+/// Dashboard Employee with Bottom Navigation
+class EmployeeDashboardScreen extends StatefulWidget {
   const EmployeeDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final AuthController _authController = Get.find<AuthController>();
-    final MissionController _missionController = Get.put(MissionController());
+  State<EmployeeDashboardScreen> createState() => _EmployeeDashboardScreenState();
+}
 
+class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
+  int _currentIndex = 1; // Default to Home (middle)
+
+  final List<Widget> _screens = [
+    const NotificationScreen(),
+    const _EmployeeHomeScreen(),
+    const HistoryScreen(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.textSecondary,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notifications_outlined),
+            activeIcon: Icon(Icons.notifications),
+            label: 'Notifications',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Accueil',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.history_outlined),
+            activeIcon: Icon(Icons.history),
+            label: 'Historique',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Home screen content for Employee
+class _EmployeeHomeScreen extends StatefulWidget {
+  const _EmployeeHomeScreen();
+
+  @override
+  State<_EmployeeHomeScreen> createState() => _EmployeeHomeScreenState();
+}
+
+class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
+  final AuthController _authController = Get.find<AuthController>();
+  final MissionController _missionController = Get.put(MissionController());
+  String? _loadedUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadMissions();
+    });
+  }
+
+  void _loadMissions() {
+    final user = _authController.currentUser.value;
+    if (user != null && _loadedUserId != user.id) {
+      _missionController.loadMissionsByEmployee(user.id);
+      _loadedUserId = user.id;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tableau de bord Employé'),
@@ -35,6 +116,13 @@ class EmployeeDashboardScreen extends StatelessWidget {
 
           if (user == null) {
             return const LoadingWidget();
+          }
+
+          // Reload if user changes
+          if (_loadedUserId != user.id) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _loadMissions();
+            });
           }
 
           return SingleChildScrollView(
@@ -65,6 +153,21 @@ class EmployeeDashboardScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
+                // Switch to Client Button
+                Obx(
+                  () => CustomButton(
+                    onPressed: _authController.isLoading.value
+                        ? null
+                        : () {
+                            _showSwitchToClientDialog(context, _authController);
+                          },
+                    text: 'Devenir Client',
+                    isLoading: _authController.isLoading.value,
+                    backgroundColor: AppColors.secondary,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
                 // Missions Section
                 Text(
                   'Mes Missions Assignées',
@@ -76,11 +179,6 @@ class EmployeeDashboardScreen extends StatelessWidget {
                   () {
                     if (_missionController.isLoading.value) {
                       return const LoadingWidget();
-                    }
-
-                    // Charger les missions de l'employé
-                    if (user.id.isNotEmpty) {
-                      _missionController.loadMissionsByEmployee(user.id);
                     }
 
                     if (_missionController.missions.isEmpty) {
@@ -155,5 +253,47 @@ class EmployeeDashboardScreen extends StatelessWidget {
         return AppColors.grey;
     }
   }
-}
 
+  void _showSwitchToClientDialog(
+    BuildContext context,
+    AuthController authController,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Devenir Client'),
+        content: const Text(
+          'Êtes-vous sûr de vouloir passer en mode Client ?\n\n'
+          'Votre profil employé sera conservé et vous pourrez le réactiver à tout moment.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Annuler'),
+          ),
+          Obx(
+            () => ElevatedButton(
+              onPressed: authController.isLoading.value
+                  ? null
+                  : () async {
+                      final success = await authController.switchToClient();
+
+                      if (success) {
+                        Get.back(); // Close dialog
+                        // The redirect will happen automatically via loadUser
+                      }
+                    },
+              child: authController.isLoading.value
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Confirmer'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
