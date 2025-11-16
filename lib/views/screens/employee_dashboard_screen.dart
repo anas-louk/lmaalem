@@ -200,8 +200,8 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
       final employee = await _employeeController.getEmployeeByUserId(user.id);
       if (employee != null) {
         _loadedUserId = user.id;
-        // Load missions using employee document ID
-        _missionController.loadMissionsByEmployee(employee.id);
+        // Stream missions using employee document ID for real-time updates
+        _missionController.streamMissionsByEmployee(employee.id);
       }
     } catch (e) {
       // Handle error

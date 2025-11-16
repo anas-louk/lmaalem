@@ -136,7 +136,8 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
       // Get client document ID from user ID
       final client = await _clientRepository.getClientByUserId(userId);
       if (client != null) {
-        _missionController.loadMissionsByClient(client.id);
+        // Stream missions for real-time updates
+        _missionController.streamMissionsByClient(client.id);
       } else {
         // If client not found, clear missions
         _missionController.missions.clear();

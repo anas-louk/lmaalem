@@ -359,8 +359,11 @@ class RequestController extends GetxController {
 
       await _requestRepository.updateRequest(updatedRequest);
       
-      // Recharger les demandes
-      await loadRequestsByCategorie(request.categorieId);
+      // Don't reload if stream is active - stream will update automatically
+      // Only reload if no stream is active
+      if (_currentCategorieId == null) {
+        await loadRequestsByCategorie(request.categorieId);
+      }
 
       Get.snackbar('success'.tr, 'request_accepted_success'.tr);
       return true;
@@ -403,8 +406,11 @@ class RequestController extends GetxController {
 
       await _requestRepository.updateRequest(updatedRequest);
       
-      // Recharger les demandes
-      await loadRequestsByCategorie(request.categorieId);
+      // Don't reload if stream is active - stream will update automatically
+      // Only reload if no stream is active
+      if (_currentCategorieId == null) {
+        await loadRequestsByCategorie(request.categorieId);
+      }
 
       Get.snackbar('success'.tr, 'request_refused'.tr);
       return true;
@@ -448,8 +454,11 @@ class RequestController extends GetxController {
 
       await _requestRepository.updateRequest(updatedRequest);
       
-      // Recharger les demandes du client
-      await loadRequestsByClient(request.clientId);
+      // Don't reload if stream is active for this client - stream will update automatically
+      // Only reload if no stream is active or stream is for a different client
+      if (_currentClientId != request.clientId) {
+        await loadRequestsByClient(request.clientId);
+      }
 
       Get.snackbar('success'.tr, 'employee_accepted'.tr);
       return true;
@@ -483,8 +492,11 @@ class RequestController extends GetxController {
 
       await _requestRepository.updateRequest(updatedRequest);
       
-      // Recharger les demandes du client
-      await loadRequestsByClient(request.clientId);
+      // Don't reload if stream is active for this client - stream will update automatically
+      // Only reload if no stream is active or stream is for a different client
+      if (_currentClientId != request.clientId) {
+        await loadRequestsByClient(request.clientId);
+      }
 
       Get.snackbar('success'.tr, 'employee_rejected'.tr);
       return true;
@@ -523,8 +535,9 @@ class RequestController extends GetxController {
 
       await _requestRepository.updateRequest(cancelledRequest);
       
-      // Recharger les demandes du client
-      if (request.clientId.isNotEmpty) {
+      // Don't reload if stream is active for this client - stream will update automatically
+      // Only reload if no stream is active or stream is for a different client
+      if (request.clientId.isNotEmpty && _currentClientId != request.clientId) {
         await loadRequestsByClient(request.clientId);
       }
 

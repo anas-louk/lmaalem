@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:flutter/scheduler.dart';
+import 'dart:async';
 import '../../data/models/mission_model.dart';
 import '../../data/repositories/mission_repository.dart';
 import '../../core/utils/logger.dart';
@@ -13,10 +14,21 @@ class MissionController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   final Rx<MissionModel?> selectedMission = Rx<MissionModel?>(null);
+  
+  // Stream subscription management
+  StreamSubscription<List<MissionModel>>? _missionsStreamSubscription;
+  String? _currentClientId;
+  String? _currentEmployeeId;
 
   @override
   void onInit() {
     super.onInit();
+  }
+  
+  @override
+  void onClose() {
+    _missionsStreamSubscription?.cancel();
+    super.onClose();
   }
 
   /// Charger les missions d'un client
@@ -102,16 +114,56 @@ class MissionController extends GetxController {
 
   /// Stream des missions d'un client (temps réel)
   void streamMissionsByClient(String clientId) {
-    _missionRepository.streamMissionsByClientId(clientId).listen((missionList) {
-      missions.assignAll(missionList);
-    });
+    // Cancel existing subscription if switching to a different client
+    if (_currentClientId != clientId) {
+      _missionsStreamSubscription?.cancel();
+      _currentClientId = clientId;
+      _currentEmployeeId = null;
+      
+      _missionsStreamSubscription = _missionRepository.streamMissionsByClientId(clientId).listen(
+        (missionList) {
+          missions.assignAll(missionList);
+          isLoading.value = false;
+        },
+        onError: (error) {
+          errorMessage.value = error.toString();
+          Logger.logError('MissionController.streamMissionsByClient', error, StackTrace.current);
+          isLoading.value = false;
+        },
+      );
+      isLoading.value = true;
+    }
   }
 
   /// Stream des missions d'un employé (temps réel)
   void streamMissionsByEmployee(String employeeId) {
-    _missionRepository.streamMissionsByEmployeeId(employeeId).listen((missionList) {
-      missions.assignAll(missionList);
-    });
+    // Cancel existing subscription if switching to a different employee
+    if (_currentEmployeeId != employeeId) {
+      _missionsStreamSubscription?.cancel();
+      _currentEmployeeId = employeeId;
+      _currentClientId = null;
+      
+      _missionsStreamSubscription = _missionRepository.streamMissionsByEmployeeId(employeeId).listen(
+        (missionList) {
+          missions.assignAll(missionList);
+          isLoading.value = false;
+        },
+        onError: (error) {
+          errorMessage.value = error.toString();
+          Logger.logError('MissionController.streamMissionsByEmployee', error, StackTrace.current);
+          isLoading.value = false;
+        },
+      );
+      isLoading.value = true;
+    }
+  }
+  
+  /// Arrêter le stream actif
+  void stopStreaming() {
+    _missionsStreamSubscription?.cancel();
+    _missionsStreamSubscription = null;
+    _currentClientId = null;
+    _currentEmployeeId = null;
   }
 
   /// Créer une mission
