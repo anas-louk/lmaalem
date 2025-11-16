@@ -10,6 +10,7 @@ import '../../data/models/mission_model.dart';
 import '../../data/models/client_model.dart';
 import '../../data/repositories/client_repository.dart';
 import '../../data/repositories/user_repository.dart';
+import '../../data/repositories/mission_repository.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../components/loading_widget.dart';
@@ -36,10 +37,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   final EmployeeController _employeeController = Get.put(EmployeeController());
   final MissionController _missionController = Get.put(MissionController());
   final ClientRepository _clientRepository = ClientRepository();
+  final MissionRepository _missionRepository = MissionRepository();
   
   RequestModel? _request;
   bool _isLoading = true;
   List<EmployeeModel> _acceptedEmployees = [];
+  MissionModel? _mission;
 
   @override
   void initState() {
@@ -60,6 +63,11 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         // Load accepted employees
         if (request.acceptedEmployeeIds.isNotEmpty) {
           await _loadAcceptedEmployees(request.acceptedEmployeeIds);
+        }
+        
+        // Load mission if request is accepted
+        if (request.statut.toLowerCase() == 'accepted' && request.employeeId != null) {
+          await _loadMission(request);
         }
       }
     } catch (e) {
@@ -174,6 +182,208 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     if (success) {
       await _loadRequest(); // Reload to update UI
     }
+  }
+
+  Future<void> _loadMission(RequestModel request) async {
+    try {
+      if (request.employeeId == null) return;
+      
+      // Get client document ID
+      final client = await _clientRepository.getClientByUserId(request.clientId);
+      if (client == null) return;
+      
+      // Get all missions for this client and find the one with matching employeeId
+      final missions = await _missionRepository.getMissionsByClientId(client.id);
+      final mission = missions.firstWhere(
+        (m) => m.employeeId == request.employeeId && m.statutMission.toLowerCase() != 'completed',
+        orElse: () => missions.firstWhere(
+          (m) => m.employeeId == request.employeeId,
+          orElse: () => missions.isNotEmpty ? missions.first : throw StateError('No mission found'),
+        ),
+      );
+      
+      setState(() {
+        _mission = mission;
+      });
+    } catch (e) {
+      // Mission might not exist yet or not found
+      setState(() {
+        _mission = null;
+      });
+    }
+  }
+
+  Future<void> _finishRequest() async {
+    if (_request == null || _mission == null) return;
+    
+    // Show dialog for price feedback
+    final result = await _showFinishDialog();
+    if (result == null) return;
+    
+    final price = result['price'] as double;
+    final rating = result['rating'] as double?;
+    final comment = result['comment'] as String?;
+    
+    try {
+      // Update mission
+      final updatedMission = _mission!.copyWith(
+        prixMission: price,
+        statutMission: 'Completed',
+        rating: rating,
+        commentaire: comment,
+        dateEnd: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      
+      await _missionController.updateMission(updatedMission);
+      
+      // Update request status
+      final updatedRequest = _request!.copyWith(
+        statut: 'Completed',
+        updatedAt: DateTime.now(),
+      );
+      
+      await _requestController.updateRequest(updatedRequest);
+      
+      // Reload data
+      await _loadRequest();
+      
+      Get.snackbar('Succès', 'Demande terminée avec succès');
+      
+      // Navigate back and trigger refresh
+      Get.back(result: true);
+    } catch (e, stackTrace) {
+      Logger.logError('RequestDetailScreen._finishRequest', e, stackTrace);
+      Get.snackbar('Erreur', 'Erreur lors de la finalisation: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>?> _showFinishDialog() async {
+    final priceController = TextEditingController(text: _mission?.prixMission.toStringAsFixed(2) ?? '0.00');
+    final commentController = TextEditingController();
+    final selectedRating = ValueNotifier<double?>(null);
+    
+    return await Get.dialog<Map<String, dynamic>>(
+      Dialog(
+        child: StatefulBuilder(
+          builder: (context, setDialogState) {
+            Widget buildRatingStars() {
+              return ValueListenableBuilder<double?>(
+                valueListenable: selectedRating,
+                builder: (context, rating, _) {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      final starRating = (index + 1).toDouble();
+                      final isSelected = rating != null && starRating <= rating;
+                      return IconButton(
+                        icon: Icon(
+                          isSelected ? Icons.star : Icons.star_border,
+                          color: isSelected ? AppColors.warning : AppColors.grey,
+                        ),
+                        onPressed: () {
+                          selectedRating.value = selectedRating.value == starRating ? null : starRating;
+                        },
+                      );
+                    }),
+                  );
+                },
+              );
+            }
+            
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Finaliser la demande',
+                    style: AppTextStyles.h3,
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Price input
+                  TextField(
+                    controller: priceController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Prix final (€)',
+                      prefixIcon: const Icon(Icons.attach_money),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Rating
+                  Text(
+                    'Note (optionnel)',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  buildRatingStars(),
+                  const SizedBox(height: 16),
+                  
+                  // Comment
+                  TextField(
+                    controller: commentController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: 'Commentaire (optionnel)',
+                      hintText: 'Donnez votre avis sur le service...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Get.back(),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text('Annuler'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: CustomButton(
+                          onPressed: () {
+                            final price = double.tryParse(priceController.text);
+                            if (price == null || price < 0) {
+                              Get.snackbar('Erreur', 'Veuillez entrer un prix valide');
+                              return;
+                            }
+                            Get.back(result: {
+                              'price': price,
+                              'rating': selectedRating.value,
+                              'comment': commentController.text.trim().isEmpty 
+                                  ? null 
+                                  : commentController.text.trim(),
+                            });
+                          },
+                          text: 'Terminer',
+                          backgroundColor: AppColors.success,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -531,6 +741,20 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                         ),
                                       ],
                                     ),
+                                    const SizedBox(height: 16),
+                                    
+                                    // Finish button (only show if mission is not completed)
+                                    if (_mission != null && _mission!.statutMission.toLowerCase() != 'completed')
+                                      Obx(
+                                        () => CustomButton(
+                                          onPressed: _missionController.isLoading.value
+                                              ? null
+                                              : _finishRequest,
+                                          text: 'Terminer la demande',
+                                          backgroundColor: AppColors.success,
+                                          isLoading: _missionController.isLoading.value,
+                                        ),
+                                      ),
                                   ],
                                 ),
                               ),

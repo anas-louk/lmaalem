@@ -4,6 +4,7 @@ import '../../controllers/auth_controller.dart';
 import '../../controllers/mission_controller.dart';
 import '../../controllers/request_controller.dart';
 import '../../data/models/request_model.dart';
+import '../../data/repositories/client_repository.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
@@ -76,26 +77,73 @@ class _ClientHomeScreen extends StatefulWidget {
   State<_ClientHomeScreen> createState() => _ClientHomeScreenState();
 }
 
-class _ClientHomeScreenState extends State<_ClientHomeScreen> {
+class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindingObserver {
   final AuthController _authController = Get.find<AuthController>();
   final MissionController _missionController = Get.put(MissionController());
   final RequestController _requestController = Get.put(RequestController());
+  final ClientRepository _clientRepository = ClientRepository();
   String? _loadedUserId;
+  DateTime? _lastRefreshTime;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
+      _lastRefreshTime = DateTime.now();
     });
   }
 
-  void _loadData() {
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh when app comes back to foreground
+      _refreshData();
+    }
+  }
+
+  void _loadData({bool forceRefresh = false}) {
     final user = _authController.currentUser.value;
-    if (user != null && _loadedUserId != user.id) {
-      _missionController.loadMissionsByClient(user.id);
-      _requestController.loadRequestsByClient(user.id);
-      _loadedUserId = user.id;
+    if (user != null) {
+      // Always reload if forceRefresh is true, otherwise only if user changed
+      if (forceRefresh || _loadedUserId != user.id) {
+        // Get client document ID for missions
+        _loadClientAndRefresh(user.id);
+        _requestController.loadRequestsByClient(user.id);
+        _loadedUserId = user.id;
+        _lastRefreshTime = DateTime.now();
+      }
+    }
+  }
+
+  void _refreshData() {
+    // Only refresh if enough time has passed since last refresh (debounce)
+    if (_lastRefreshTime == null || 
+        DateTime.now().difference(_lastRefreshTime!).inSeconds > 1) {
+      _loadData(forceRefresh: true);
+    }
+  }
+
+  Future<void> _loadClientAndRefresh(String userId) async {
+    try {
+      // Get client document ID from user ID
+      final client = await _clientRepository.getClientByUserId(userId);
+      if (client != null) {
+        _missionController.loadMissionsByClient(client.id);
+      } else {
+        // If client not found, clear missions
+        _missionController.missions.clear();
+      }
+    } catch (e) {
+      // If error, missions will be empty
+      _missionController.missions.clear();
     }
   }
 
@@ -127,6 +175,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> {
               _loadData();
             });
           }
+
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -261,12 +310,16 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> {
                                   size: 16,
                                   color: AppColors.primary,
                                 ),
-                                onTap: () {
+                                onTap: () async {
                                   _requestController.selectRequest(request);
-                                  Get.toNamed(
+                                  final result = await Get.toNamed(
                                     AppRoutes.AppRoutes.requestDetail,
                                     arguments: request.id,
                                   );
+                                  // Refresh data when coming back from request detail
+                                  if (result == true || mounted) {
+                                    _refreshData();
+                                  }
                                 },
                               ),
                               // Cancel button for active requests
