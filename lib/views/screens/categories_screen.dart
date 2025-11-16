@@ -63,9 +63,11 @@ class CategoriesScreen extends StatelessWidget {
                     color: AppColors.primary,
                   ),
                   onTap: () {
-                    // Charger les employés de cette catégorie et naviguer vers home
-                    _employeeController.loadEmployeesByCategory(categorie.id);
-                    Get.toNamed(AppRoutes.AppRoutes.home);
+                    // Naviguer vers la page de soumission de demande
+                    Get.toNamed(
+                      AppRoutes.AppRoutes.requestSubmission,
+                      arguments: categorie.id,
+                    );
                   },
                 ),
               );

@@ -9,6 +9,7 @@ import '../views/screens/employee_dashboard_screen.dart';
 import '../views/screens/notification_screen.dart';
 import '../views/screens/history_screen.dart';
 import '../views/screens/categories_screen.dart';
+import '../views/screens/request_submission_screen.dart';
 import '../core/constants/app_routes.dart' as route_constants;
 
 /// Gestionnaire de routes de l'application
@@ -57,6 +58,17 @@ class AppRoutes {
       GetPage(
         name: route_constants.AppRoutes.categories,
         page: () => const CategoriesScreen(),
+      ),
+      GetPage(
+        name: route_constants.AppRoutes.requestSubmission,
+        page: () {
+          final categorieId = Get.arguments as String?;
+          if (categorieId == null) {
+            Get.back();
+            return const CategoriesScreen();
+          }
+          return RequestSubmissionScreen(categorieId: categorieId);
+        },
       ),
       // Ajouter d'autres routes ici
     ];

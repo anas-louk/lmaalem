@@ -70,5 +70,23 @@ class StorageService {
       throw 'Erreur lors de l\'upload de l\'image de profil: $e';
     }
   }
+
+  /// Uploader une image de demande
+  Future<String> uploadRequestImage({
+    required String requestId,
+    required File imageFile,
+    required int index,
+  }) async {
+    try {
+      final fileName = 'request_${requestId}_${DateTime.now().millisecondsSinceEpoch}_$index.jpg';
+      return await uploadFile(
+        path: 'requests/$requestId',
+        file: imageFile,
+        fileName: fileName,
+      );
+    } catch (e) {
+      throw 'Erreur lors de l\'upload de l\'image de demande: $e';
+    }
+  }
 }
 

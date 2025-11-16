@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/mission_controller.dart';
+import '../../controllers/request_controller.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
@@ -77,20 +78,22 @@ class _ClientHomeScreen extends StatefulWidget {
 class _ClientHomeScreenState extends State<_ClientHomeScreen> {
   final AuthController _authController = Get.find<AuthController>();
   final MissionController _missionController = Get.put(MissionController());
+  final RequestController _requestController = Get.put(RequestController());
   String? _loadedUserId;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadMissions();
+      _loadData();
     });
   }
 
-  void _loadMissions() {
+  void _loadData() {
     final user = _authController.currentUser.value;
     if (user != null && _loadedUserId != user.id) {
       _missionController.loadMissionsByClient(user.id);
+      _requestController.loadRequestsByClient(user.id);
       _loadedUserId = user.id;
     }
   }
@@ -120,7 +123,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> {
           // Reload if user changes
           if (_loadedUserId != user.id) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              _loadMissions();
+              _loadData();
             });
           }
 
@@ -153,7 +156,121 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> {
                 const SizedBox(height: 24),
 
 
-                // Missions Section
+                // Requests Section
+                Text(
+                  'Mes Demandes',
+                  style: AppTextStyles.h3,
+                ),
+                const SizedBox(height: 16),
+
+                Obx(
+                  () {
+                    if (_requestController.isLoading.value) {
+                      return const LoadingWidget();
+                    }
+
+                    if (_requestController.requests.isEmpty) {
+                      return EmptyState(
+                        icon: Icons.request_quote_outlined,
+                        title: 'Aucune demande',
+                        message: 'Vous n\'avez pas encore de demandes',
+                      );
+                    }
+
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _requestController.requests.length,
+                      itemBuilder: (context, index) {
+                        final request = _requestController.requests[index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: _getStatusColor(request.statut),
+                              child: Icon(
+                                _getStatusIcon(request.statut),
+                                color: AppColors.white,
+                                size: 20,
+                              ),
+                            ),
+                            title: Text(
+                              'Demande #${request.id.substring(0, 8)}',
+                              style: AppTextStyles.h4,
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Text(
+                                  request.description,
+                                  style: AppTextStyles.bodySmall,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.location_on,
+                                      size: 14,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        request.address,
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _getStatusColor(request.statut),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    _getStatusText(request.statut),
+                                    style: const TextStyle(
+                                      color: AppColors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            trailing: Icon(
+                              Icons.arrow_forward_ios,
+                              size: 16,
+                              color: AppColors.primary,
+                            ),
+                            onTap: () {
+                              // TODO: Navigate to request detail page
+                              Get.snackbar(
+                                'Demande',
+                                'Détails de la demande #${request.id.substring(0, 8)}',
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
+
+                // Missions Section (Completed/Accepted requests)
                 Text(
                   'Mes Missions',
                   style: AppTextStyles.h3,
@@ -170,7 +287,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> {
                       return EmptyState(
                         icon: Icons.work_outline,
                         title: 'Aucune mission',
-                        message: 'Vous n\'avez pas encore de missions',
+                        message: 'Vous n\'avez pas encore de missions acceptées',
                       );
                     }
 
@@ -183,6 +300,14 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> {
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: _getMissionStatusColor(mission.statutMission),
+                              child: Icon(
+                                _getMissionStatusIcon(mission.statutMission),
+                                color: AppColors.white,
+                                size: 20,
+                              ),
+                            ),
                             title: Text('Mission #${mission.id.substring(0, 8)}'),
                             subtitle: Text(
                               'Prix: ${mission.prixMission.toStringAsFixed(2)} €\n'
@@ -208,13 +333,81 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Get.toNamed(AppRoutes.AppRoutes.addMission);
-        },
-        child: const Icon(Icons.add),
-      ),
     );
   }
 
+  Color _getStatusColor(String statut) {
+    switch (statut.toLowerCase()) {
+      case 'pending':
+        return AppColors.warning;
+      case 'accepted':
+        return AppColors.info;
+      case 'completed':
+        return AppColors.success;
+      case 'cancelled':
+        return AppColors.error;
+      default:
+        return AppColors.grey;
+    }
+  }
+
+  IconData _getStatusIcon(String statut) {
+    switch (statut.toLowerCase()) {
+      case 'pending':
+        return Icons.pending;
+      case 'accepted':
+        return Icons.check_circle_outline;
+      case 'completed':
+        return Icons.check_circle;
+      case 'cancelled':
+        return Icons.cancel;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  String _getStatusText(String statut) {
+    switch (statut.toLowerCase()) {
+      case 'pending':
+        return 'En attente';
+      case 'accepted':
+        return 'Acceptée';
+      case 'completed':
+        return 'Terminée';
+      case 'cancelled':
+        return 'Annulée';
+      default:
+        return statut;
+    }
+  }
+
+  Color _getMissionStatusColor(String statut) {
+    switch (statut.toLowerCase()) {
+      case 'pending':
+        return AppColors.warning;
+      case 'in progress':
+        return AppColors.info;
+      case 'completed':
+        return AppColors.success;
+      case 'cancelled':
+        return AppColors.error;
+      default:
+        return AppColors.grey;
+    }
+  }
+
+  IconData _getMissionStatusIcon(String statut) {
+    switch (statut.toLowerCase()) {
+      case 'pending':
+        return Icons.pending;
+      case 'in progress':
+        return Icons.work;
+      case 'completed':
+        return Icons.check_circle;
+      case 'cancelled':
+        return Icons.cancel;
+      default:
+        return Icons.help;
+    }
+  }
 }
