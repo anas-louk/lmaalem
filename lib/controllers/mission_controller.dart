@@ -40,7 +40,7 @@ class MissionController extends GetxController {
       Future.microtask(() {
         isLoading.value = false;
         SchedulerBinding.instance.addPostFrameCallback((_) {
-          Get.snackbar('Erreur', errorMessage.value);
+          Get.snackbar('error'.tr, errorMessage.value);
         });
       });
     }
@@ -67,7 +67,7 @@ class MissionController extends GetxController {
       Future.microtask(() {
         isLoading.value = false;
         SchedulerBinding.instance.addPostFrameCallback((_) {
-          Get.snackbar('Erreur', errorMessage.value);
+          Get.snackbar('error'.tr, errorMessage.value);
         });
       });
     }
@@ -94,7 +94,7 @@ class MissionController extends GetxController {
       Future.microtask(() {
         isLoading.value = false;
         SchedulerBinding.instance.addPostFrameCallback((_) {
-          Get.snackbar('Erreur', errorMessage.value);
+          Get.snackbar('error'.tr, errorMessage.value);
         });
       });
     }
@@ -120,7 +120,7 @@ class MissionController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       await _missionRepository.createMission(mission);
-      Get.snackbar('Succès', 'Mission créée avec succès');
+      Get.snackbar('success'.tr, 'mission_created'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
@@ -138,7 +138,7 @@ class MissionController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       await _missionRepository.updateMission(mission);
-      Get.snackbar('Succès', 'Mission mise à jour avec succès');
+      Get.snackbar('success'.tr, 'mission_updated'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
@@ -156,7 +156,7 @@ class MissionController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       await _missionRepository.deleteMission(missionId);
-      Get.snackbar('Succès', 'Mission supprimée avec succès');
+      Get.snackbar('success'.tr, 'mission_deleted'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();

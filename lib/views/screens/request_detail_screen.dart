@@ -71,7 +71,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         }
       }
     } catch (e) {
-      Get.snackbar('Erreur', 'Erreur lors du chargement: $e');
+      Get.snackbar('error'.tr, '${'error_loading'.tr}: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -167,7 +167,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       await _missionController.createMission(mission);
     } catch (e, stackTrace) {
       Logger.logError('RequestDetailScreen._createMission', e, stackTrace);
-      Get.snackbar('Erreur', 'Erreur lors de la création de la mission: $e');
+      Get.snackbar('error'.tr, '${'error_creating_mission'.tr}: $e');
     }
   }
 
@@ -248,13 +248,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       // Reload data
       await _loadRequest();
       
-      Get.snackbar('Succès', 'Demande terminée avec succès');
+      Get.snackbar('success'.tr, 'request_completed_success'.tr);
       
       // Navigate back and trigger refresh
       Get.back(result: true);
     } catch (e, stackTrace) {
       Logger.logError('RequestDetailScreen._finishRequest', e, stackTrace);
-      Get.snackbar('Erreur', 'Erreur lors de la finalisation: $e');
+      Get.snackbar('error'.tr, '${'error_finishing'.tr}: $e');
     }
   }
 
@@ -298,7 +298,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Finaliser la demande',
+                    'finish_dialog_title'.tr,
                     style: AppTextStyles.h3,
                   ),
                   const SizedBox(height: 24),
@@ -308,7 +308,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                     controller: priceController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
-                      labelText: 'Prix final (€)',
+                      labelText: '${'price'.tr} (€)',
                       prefixIcon: const Icon(Icons.attach_money),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -319,7 +319,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                   
                   // Rating
                   Text(
-                    'Note (optionnel)',
+                    '${'rating'.tr} (${'optional'.tr})',
                     style: AppTextStyles.bodyMedium.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -333,8 +333,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                     controller: commentController,
                     maxLines: 3,
                     decoration: InputDecoration(
-                      labelText: 'Commentaire (optionnel)',
-                      hintText: 'Donnez votre avis sur le service...',
+                      labelText: 'comment_hint'.tr,
+                      hintText: 'comment_hint'.tr,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -351,7 +351,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          child: const Text('Annuler'),
+                          child: Text('cancel'.tr),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -360,7 +360,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                           onPressed: () {
                             final price = double.tryParse(priceController.text);
                             if (price == null || price < 0) {
-                              Get.snackbar('Erreur', 'Veuillez entrer un prix valide');
+                              Get.snackbar('error'.tr, 'enter_valid_price'.tr);
                               return;
                             }
                             Get.back(result: {
@@ -371,7 +371,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                   : commentController.text.trim(),
                             });
                           },
-                          text: 'Terminer',
+                          text: 'finish'.tr,
                           backgroundColor: AppColors.success,
                         ),
                       ),
@@ -393,7 +393,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Détails de la demande'),
+        title: Text('request_details'.tr),
       ),
       body: _isLoading
           ? const LoadingWidget()
@@ -409,7 +409,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Demande non trouvée',
+                        'request_not_found'.tr,
                         style: AppTextStyles.h3,
                       ),
                     ],
@@ -431,7 +431,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      'Demande #${_request!.id.substring(0, 8)}',
+                                      '${'request'.tr} #${_request!.id.substring(0, 8)}',
                                       style: AppTextStyles.h3,
                                     ),
                                   ),
@@ -456,7 +456,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'Description',
+                                'description'.tr,
                                 style: AppTextStyles.h4.copyWith(
                                   color: AppColors.textSecondary,
                                 ),
@@ -486,7 +486,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                               if (_request!.images.isNotEmpty) ...[
                                 const SizedBox(height: 16),
                                 Text(
-                                  'Images (${_request!.images.length})',
+                                  'images_count_detail'.tr.replaceAll('{count}', _request!.images.length.toString()),
                                   style: AppTextStyles.h4.copyWith(
                                     color: AppColors.textSecondary,
                                   ),
@@ -534,7 +534,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text(
-                              'Employés ayant accepté',
+                              'accepted_employees'.tr,
                               style: AppTextStyles.h3,
                             ),
                             const SizedBox(height: 16),
@@ -551,7 +551,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
-                                        'Aucun employé n\'a encore accepté',
+                                        'no_employee_accepted'.tr,
                                         style: AppTextStyles.bodyMedium.copyWith(
                                           color: AppColors.textSecondary,
                                         ),
@@ -648,7 +648,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                                   foregroundColor: AppColors.error,
                                                   side: const BorderSide(color: AppColors.error),
                                                 ),
-                                                child: const Text('Refuser'),
+                                                child: Text('refuse'.tr),
                                               ),
                                             ),
                                             const SizedBox(width: 12),
@@ -658,7 +658,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                                   onPressed: _requestController.isLoading.value
                                                       ? null
                                                       : () => _acceptEmployee(employee.id),
-                                                  text: 'Accepter',
+                                                  text: 'accept'.tr,
                                                   isLoading: _requestController.isLoading.value,
                                                   backgroundColor: AppColors.success,
                                                 ),
@@ -697,7 +697,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Employé assigné',
+                                      'assigned_employee'.tr,
                                       style: AppTextStyles.h3,
                                     ),
                                     const SizedBox(height: 16),
@@ -750,7 +750,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                           onPressed: _missionController.isLoading.value
                                               ? null
                                               : _finishRequest,
-                                          text: 'Terminer la demande',
+                                          text: 'finish_request'.tr,
                                           backgroundColor: AppColors.success,
                                           isLoading: _missionController.isLoading.value,
                                         ),
@@ -785,13 +785,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   String _getStatusText(String statut) {
     switch (statut.toLowerCase()) {
       case 'pending':
-        return 'En attente';
+        return 'status_pending'.tr;
       case 'accepted':
-        return 'Acceptée';
+        return 'status_accepted'.tr;
       case 'completed':
-        return 'Terminée';
+        return 'status_completed'.tr;
       case 'cancelled':
-        return 'Annulée';
+        return 'status_cancelled'.tr;
       default:
         return statut;
     }

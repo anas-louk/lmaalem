@@ -34,7 +34,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String? _confirmPasswordValidator(String? value) {
     if (value != _passwordController.text) {
-      return 'Les mots de passe ne correspondent pas';
+      return 'passwords_dont_match'.tr;
     }
     return null;
   }
@@ -49,7 +49,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (!success) {
         Get.snackbar(
-          'Erreur',
+          'error'.tr,
           _authController.errorMessage.value,
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: AppColors.error,
@@ -63,7 +63,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('S\'inscrire'),
+        title: Text('register'.tr),
       ),
       body: SafeArea(
         child: Center(
@@ -75,7 +75,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Créer un compte',
+                    'create_account'.tr,
                     style: AppTextStyles.h2,
                     textAlign: TextAlign.center,
                   ),
@@ -84,8 +84,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   // Name field
                   CustomTextField(
                     controller: _nameController,
-                    label: 'Nom complet',
-                    hint: 'John Doe',
+                    label: 'full_name'.tr,
+                    hint: 'name_hint'.tr,
                     validator: Validator.name,
                     prefixIcon: Icons.person_outlined,
                   ),
@@ -94,8 +94,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   // Email field
                   CustomTextField(
                     controller: _emailController,
-                    label: 'Email',
-                    hint: 'votre@email.com',
+                    label: 'email'.tr,
+                    hint: 'email_hint'.tr,
                     keyboardType: TextInputType.emailAddress,
                     validator: Validator.email,
                     prefixIcon: Icons.email_outlined,
@@ -105,8 +105,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   // Password field
                   CustomTextField(
                     controller: _passwordController,
-                    label: 'Mot de passe',
-                    hint: '••••••••',
+                    label: 'password'.tr,
+                    hint: 'password_hint'.tr,
                     obscureText: true,
                     validator: Validator.password,
                     prefixIcon: Icons.lock_outlined,
@@ -116,8 +116,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   // Confirm password field
                   CustomTextField(
                     controller: _confirmPasswordController,
-                    label: 'Confirmer le mot de passe',
-                    hint: '••••••••',
+                    label: 'confirm_password'.tr,
+                    hint: 'password_hint'.tr,
                     obscureText: true,
                     validator: _confirmPasswordValidator,
                     prefixIcon: Icons.lock_outlined,
@@ -128,7 +128,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Obx(
                     () => CustomButton(
                       onPressed: _handleRegister,
-                      text: 'S\'inscrire',
+                      text: 'sign_up'.tr,
                       isLoading: _authController.isLoading.value,
                     ),
                   ),

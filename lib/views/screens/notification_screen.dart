@@ -26,36 +26,37 @@ class _NotificationScreenState extends State<NotificationScreen> {
   final EmployeeController _employeeController = Get.put(EmployeeController());
   String? _loadedUserId;
   String? _currentEmployeeDocumentId;
-  bool _isLoadingRequests = false;
+  String? _currentCategorieId;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadRequests();
+      _startStreaming();
     });
   }
+  
+  @override
+  void dispose() {
+    // Don't stop streaming here as it might be used by other screens
+    // The controller will manage its own lifecycle
+    super.dispose();
+  }
 
-  Future<void> _loadRequests() async {
+  Future<void> _startStreaming() async {
     final user = _authController.currentUser.value;
     if (user == null) {
-      debugPrint('[NotificationScreen] No user, skipping load');
+      debugPrint('[NotificationScreen] No user, skipping stream');
       return;
     }
     
-    if (_loadedUserId == user.id && _isLoadingRequests == false) {
-      debugPrint('[NotificationScreen] Already loaded for user ${user.id}, skipping');
-      return;
-    }
-    
-    if (_isLoadingRequests) {
-      debugPrint('[NotificationScreen] Already loading requests, skipping');
+    if (_loadedUserId == user.id && _currentCategorieId != null) {
+      debugPrint('[NotificationScreen] Already streaming for user ${user.id}, skipping');
       return;
     }
 
     try {
-      _isLoadingRequests = true;
-      debugPrint('[NotificationScreen] Loading requests for user: ${user.id}');
+      debugPrint('[NotificationScreen] Starting stream for user: ${user.id}');
       
       // Set loaded user ID early to prevent multiple calls
       _loadedUserId = user.id;
@@ -64,36 +65,33 @@ class _NotificationScreenState extends State<NotificationScreen> {
       final employee = await _employeeController.getEmployeeByUserId(user.id);
       if (employee != null) {
         _currentEmployeeDocumentId = employee.id;
+        _currentCategorieId = employee.categorieId;
         
         // Debug: Log category ID
         debugPrint('[NotificationScreen] Employee category ID: ${employee.categorieId}, Employee ID: ${employee.id}');
         
-        // Load requests for this category
-        await _requestController.loadRequestsByCategorie(employee.categorieId);
+        // Start real-time streaming for this category
+        _requestController.streamRequestsByCategorie(employee.categorieId);
         
-        // Wait a bit for the microtask to complete
-        await Future.delayed(const Duration(milliseconds: 100));
-        
-        // Debug: Log loaded requests
-        debugPrint('[NotificationScreen] Loaded ${_requestController.requests.length} requests');
-        for (var request in _requestController.requests) {
-          debugPrint('[NotificationScreen] Request ${request.id}: categorieId=${request.categorieId}, statut=${request.statut}, clientId=${request.clientId}');
-        }
-        
-        // Debug: Log filtered requests
-        final filtered = _getFilteredRequests();
-        debugPrint('[NotificationScreen] Filtered ${filtered.length} requests (user.id=${user.id})');
-        for (var request in filtered) {
-          debugPrint('[NotificationScreen] Filtered Request ${request.id}: categorieId=${request.categorieId}, statut=${request.statut}, clientId=${request.clientId}');
-        }
+        debugPrint('[NotificationScreen] Started streaming requests for category: ${employee.categorieId}');
       } else {
         debugPrint('[NotificationScreen] Employee not found for user: ${user.id}');
       }
     } catch (e, stackTrace) {
-      debugPrint('[NotificationScreen] Error loading requests: $e');
+      debugPrint('[NotificationScreen] Error starting stream: $e');
       debugPrint('[NotificationScreen] StackTrace: $stackTrace');
-    } finally {
-      _isLoadingRequests = false;
+    }
+  }
+  
+  Future<void> _refreshRequests() async {
+    // Refresh by restarting the stream
+    final user = _authController.currentUser.value;
+    if (user == null) return;
+    
+    final employee = await _employeeController.getEmployeeByUserId(user.id);
+    if (employee != null) {
+      _currentCategorieId = null; // Reset to force restart
+      _startStreaming();
     }
   }
 
@@ -113,7 +111,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text('notifications'.tr),
       ),
       body: Obx(
         () {
@@ -123,10 +121,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
             return const LoadingWidget();
           }
 
-          // Reload if user changes
+          // Restart stream if user changes
           if (_loadedUserId != user.id) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              _loadRequests();
+              _startStreaming();
             });
           }
 
@@ -137,17 +135,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
           final filteredRequests = _getFilteredRequests();
 
           if (filteredRequests.isEmpty) {
-            return const Center(
+            return Center(
               child: EmptyState(
                 icon: Icons.notifications_none,
-                title: 'Aucune notification',
-                message: 'Vous n\'avez pas de nouvelles demandes',
+                title: 'no_notifications'.tr,
+                message: 'no_notifications_message'.tr,
               ),
             );
           }
 
           return RefreshIndicator(
-            onRefresh: _loadRequests,
+            onRefresh: _refreshRequests,
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: filteredRequests.length,
@@ -188,14 +186,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Nouvelle demande',
+                                      'new_request'.tr,
                                       style: AppTextStyles.h4.copyWith(
                                         color: AppColors.primary,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      'Demande #${request.id.substring(0, 8)}',
+                                      '${'request'.tr} #${request.id.substring(0, 8)}',
                                       style: AppTextStyles.bodySmall.copyWith(
                                         color: AppColors.textSecondary,
                                       ),
@@ -212,9 +210,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                   color: AppColors.warning,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Text(
-                                  'En attente',
-                                  style: TextStyle(
+                                child: Text(
+                                  'pending'.tr,
+                                  style: const TextStyle(
                                     color: AppColors.white,
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
@@ -272,7 +270,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           ],
                           const SizedBox(height: 8),
                           Text(
-                            'Créée le ${_formatDate(request.createdAt)}',
+                            '${'created_on'.tr} ${_formatDate(request.createdAt)}',
                             style: AppTextStyles.bodySmall.copyWith(
                               color: AppColors.textTertiary,
                               fontSize: 11,
@@ -292,7 +290,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                       foregroundColor: AppColors.error,
                                       side: const BorderSide(color: AppColors.error),
                                     ),
-                                    child: const Text('Refuser'),
+                                    child: Text('refuse'.tr),
                                   ),
                                 ),
                               ),
@@ -304,8 +302,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                         ? null
                                         : () => _acceptRequest(request.id),
                                     text: _isRequestAccepted(request)
-                                        ? 'Accepté'
-                                        : 'Accepter',
+                                        ? 'accepted'.tr
+                                        : 'accept'.tr,
                                     isLoading: _requestController.isLoading.value,
                                     backgroundColor: AppColors.success,
                                     height: 40,
@@ -336,20 +334,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
     final user = _authController.currentUser.value;
     if (user == null) return;
 
-    final success = await _requestController.acceptRequestByEmployee(requestId, user.id);
-    if (success) {
-      await _loadRequests(); // Reload to update UI
-    }
+    await _requestController.acceptRequestByEmployee(requestId, user.id);
+    // No need to reload - stream will update automatically
   }
 
   Future<void> _refuseRequest(String requestId) async {
     final user = _authController.currentUser.value;
     if (user == null) return;
 
-    final success = await _requestController.refuseRequestByEmployee(requestId, user.id);
-    if (success) {
-      await _loadRequests(); // Reload to update UI
-    }
+    await _requestController.refuseRequestByEmployee(requestId, user.id);
+    // No need to reload - stream will update automatically
   }
 
   String _formatDate(DateTime date) {

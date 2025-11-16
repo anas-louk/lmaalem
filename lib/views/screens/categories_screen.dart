@@ -19,7 +19,7 @@ class CategoriesScreen extends StatelessWidget {
 
     final user = _authController.currentUser.value;
     if (user == null) {
-      Get.snackbar('Erreur', 'Vous devez être connecté');
+      Get.snackbar('error'.tr, 'must_be_connected'.tr);
       return;
     }
 
@@ -29,12 +29,12 @@ class CategoriesScreen extends StatelessWidget {
     if (hasActive) {
       final activeRequest = await _requestController.getActiveRequest(user.id);
       final statusText = activeRequest?.statut.toLowerCase() == 'pending' 
-          ? 'en attente' 
-          : 'acceptée';
+          ? 'status_pending'.tr 
+          : 'status_accepted'.tr;
       
       Get.snackbar(
-        'Demande en cours',
-        'Vous avez déjà une demande $statusText. Veuillez attendre qu\'elle soit terminée avant d\'en créer une nouvelle.',
+        'request_in_progress'.tr,
+        'request_in_progress_message'.tr.replaceAll('{status}', statusText),
         duration: const Duration(seconds: 4),
         backgroundColor: AppColors.warning.withOpacity(0.9),
         colorText: AppColors.white,
@@ -55,7 +55,7 @@ class CategoriesScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Catégories'),
+        title: Text('categories'.tr),
       ),
       body: Obx(
         () {
@@ -66,8 +66,8 @@ class CategoriesScreen extends StatelessWidget {
           if (_categorieController.categories.isEmpty) {
             return EmptyState(
               icon: Icons.category_outlined,
-              title: 'Aucune catégorie',
-              message: 'Aucune catégorie disponible pour le moment',
+              title: 'no_categories'.tr,
+              message: 'no_categories_message'.tr,
             );
           }
 

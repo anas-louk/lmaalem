@@ -198,7 +198,7 @@ class AuthController extends GetxController {
   Future<bool> switchToEmployeeDirectly() async {
     try {
       if (currentUser.value == null) {
-        errorMessage.value = 'Aucun utilisateur connecté';
+        errorMessage.value = 'user_not_connected'.tr;
         return false;
       }
 
@@ -212,14 +212,14 @@ class AuthController extends GetxController {
       if (success) {
         // Recharger l'utilisateur pour mettre à jour le type
         await loadUser(currentUser.value!.id);
-        Get.snackbar('Succès', 'Vous êtes maintenant un employé');
+        Get.snackbar('success'.tr, 'now_employee'.tr);
         return true;
       }
 
       return false;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('Erreur', errorMessage.value);
+      Get.snackbar('error'.tr, errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -237,7 +237,7 @@ class AuthController extends GetxController {
   }) async {
     try {
       if (currentUser.value == null) {
-        errorMessage.value = 'Aucun utilisateur connecté';
+        errorMessage.value = 'user_not_connected'.tr;
         return false;
       }
 
@@ -257,14 +257,14 @@ class AuthController extends GetxController {
       if (success) {
         // Recharger l'utilisateur pour mettre à jour le type
         await loadUser(currentUser.value!.id);
-        Get.snackbar('Succès', 'Vous êtes maintenant un employé');
+        Get.snackbar('success'.tr, 'now_employee'.tr);
         return true;
       }
 
       return false;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('Erreur', errorMessage.value);
+      Get.snackbar('error'.tr, errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -275,7 +275,7 @@ class AuthController extends GetxController {
   Future<bool> switchToClient() async {
     try {
       if (currentUser.value == null) {
-        errorMessage.value = 'Aucun utilisateur connecté';
+        errorMessage.value = 'user_not_connected'.tr;
         return false;
       }
 
@@ -289,14 +289,14 @@ class AuthController extends GetxController {
       if (success) {
         // Recharger l'utilisateur pour mettre à jour le type
         await loadUser(currentUser.value!.id);
-        Get.snackbar('Succès', 'Vous êtes maintenant un client');
+        Get.snackbar('success'.tr, 'now_client'.tr);
         return true;
       }
 
       return false;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('Erreur', errorMessage.value);
+      Get.snackbar('error'.tr, errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -325,7 +325,7 @@ class AuthController extends GetxController {
   }) async {
     try {
       if (currentUser.value == null) {
-        errorMessage.value = 'Aucun utilisateur connecté';
+        errorMessage.value = 'user_not_connected'.tr;
         return false;
       }
 
@@ -361,11 +361,11 @@ class AuthController extends GetxController {
         }
       }
 
-      Get.snackbar('Succès', 'Informations mises à jour avec succès');
+      Get.snackbar('success'.tr, 'profile_updated'.tr);
       return true;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('Erreur', errorMessage.value);
+      Get.snackbar('error'.tr, errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;

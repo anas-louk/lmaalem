@@ -29,7 +29,7 @@ class EmployeeController extends GetxController {
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('EmployeeController', e, stackTrace);
-      Get.snackbar('Erreur', errorMessage.value);
+      Get.snackbar('error'.tr, errorMessage.value);
     } finally {
       isLoading.value = false;
     }
@@ -45,7 +45,7 @@ class EmployeeController extends GetxController {
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('EmployeeController', e, stackTrace);
-      Get.snackbar('Erreur', errorMessage.value);
+      Get.snackbar('error'.tr, errorMessage.value);
     } finally {
       isLoading.value = false;
     }
@@ -61,7 +61,7 @@ class EmployeeController extends GetxController {
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('EmployeeController', e, stackTrace);
-      Get.snackbar('Erreur', errorMessage.value);
+      Get.snackbar('error'.tr, errorMessage.value);
     } finally {
       isLoading.value = false;
     }
@@ -77,7 +77,7 @@ class EmployeeController extends GetxController {
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('EmployeeController', e, stackTrace);
-      Get.snackbar('Erreur', errorMessage.value);
+      Get.snackbar('error'.tr, errorMessage.value);
     } finally {
       isLoading.value = false;
     }
@@ -112,11 +112,11 @@ class EmployeeController extends GetxController {
       errorMessage.value = '';
       await _employeeRepository.createEmployee(employee);
       await loadAvailableEmployees();
-      Get.snackbar('Succès', 'Employé créé avec succès');
+      Get.snackbar('success'.tr, 'employee_created'.tr);
       return true;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('Erreur', errorMessage.value);
+      Get.snackbar('error'.tr, errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -130,11 +130,11 @@ class EmployeeController extends GetxController {
       errorMessage.value = '';
       await _employeeRepository.updateEmployee(employee);
       await loadAvailableEmployees();
-      Get.snackbar('Succès', 'Employé mis à jour avec succès');
+      Get.snackbar('success'.tr, 'employee_updated'.tr);
       return true;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('Erreur', errorMessage.value);
+      Get.snackbar('error'.tr, errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;

@@ -47,21 +47,21 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
         type: BottomNavigationBarType.fixed,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.textSecondary,
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.history_outlined),
-            activeIcon: Icon(Icons.history),
-            label: 'Historique',
+            icon: const Icon(Icons.history_outlined),
+            activeIcon: const Icon(Icons.history),
+            label: 'history'.tr,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Accueil',
+            icon: const Icon(Icons.home_outlined),
+            activeIcon: const Icon(Icons.home),
+            label: 'home'.tr,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.category_outlined),
-            activeIcon: Icon(Icons.category),
-            label: 'Catégories',
+            icon: const Icon(Icons.category_outlined),
+            activeIcon: const Icon(Icons.category),
+            label: 'categories'.tr,
           ),
         ],
       ),
@@ -151,7 +151,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tableau de bord Client'),
+        title: Text('client_dashboard'.tr),
         actions: [
           IconButton(
             icon: const Icon(Icons.person),
@@ -189,12 +189,12 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                     child: Column(
                       children: [
                         Text(
-                          'Bonjour, ${user.nomComplet}',
+                          '${'hello'.tr}, ${user.nomComplet}',
                           style: AppTextStyles.h2,
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Vous êtes connecté en tant que Client',
+                          'welcome_client'.tr,
                           style: AppTextStyles.bodyMedium.copyWith(
                             color: AppColors.textSecondary,
                           ),
@@ -208,7 +208,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
 
                 // Requests Section
                 Text(
-                  'Mes Demandes',
+                  'my_requests'.tr,
                   style: AppTextStyles.h3,
                 ),
                 const SizedBox(height: 16),
@@ -222,8 +222,8 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                     if (_requestController.requests.isEmpty) {
                       return EmptyState(
                         icon: Icons.request_quote_outlined,
-                        title: 'Aucune demande',
-                        message: 'Vous n\'avez pas encore de demandes',
+                        title: 'no_requests'.tr,
+                        message: 'no_requests_message'.tr,
                       );
                     }
 
@@ -250,7 +250,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                                   ),
                                 ),
                                 title: Text(
-                                  'Demande #${request.id.substring(0, 8)}',
+                                  '${'request'.tr} #${request.id.substring(0, 8)}',
                                   style: AppTextStyles.h4,
                                 ),
                                 subtitle: Column(
@@ -337,7 +337,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                                             ? null
                                             : () => _showCancelRequestDialog(context, request),
                                         icon: const Icon(Icons.cancel_outlined),
-                                        label: const Text('Annuler la demande'),
+                                        label: Text('cancel_request'.tr),
                                         style: OutlinedButton.styleFrom(
                                           foregroundColor: AppColors.error,
                                           side: const BorderSide(color: AppColors.error),
@@ -357,7 +357,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
 
                 // Missions Section (Completed/Accepted requests)
                 Text(
-                  'Mes Missions',
+                  'my_missions'.tr,
                   style: AppTextStyles.h3,
                 ),
                 const SizedBox(height: 16),
@@ -371,8 +371,8 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                     if (_missionController.missions.isEmpty) {
                       return EmptyState(
                         icon: Icons.work_outline,
-                        title: 'Aucune mission',
-                        message: 'Vous n\'avez pas encore de missions acceptées',
+                        title: 'no_missions_client'.tr,
+                        message: 'no_missions_client_message'.tr,
                       );
                     }
 
@@ -393,10 +393,10 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                                 size: 20,
                               ),
                             ),
-                            title: Text('Mission #${mission.id.substring(0, 8)}'),
+                            title: Text('${'mission'.tr} #${mission.id.substring(0, 8)}'),
                             subtitle: Text(
-                              'Prix: ${mission.prixMission.toStringAsFixed(2)} €\n'
-                              'Statut: ${mission.statutMission}',
+                              '${'mission_price'.tr}: ${mission.prixMission.toStringAsFixed(2)} €\n'
+                              '${'mission_status'.tr}: ${_getMissionStatusText(mission.statutMission)}',
                             ),
                             trailing: Icon(
                               Icons.arrow_forward_ios,
@@ -454,13 +454,13 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
   String _getStatusText(String statut) {
     switch (statut.toLowerCase()) {
       case 'pending':
-        return 'En attente';
+        return 'status_pending'.tr;
       case 'accepted':
-        return 'Acceptée';
+        return 'status_accepted'.tr;
       case 'completed':
-        return 'Terminée';
+        return 'status_completed'.tr;
       case 'cancelled':
-        return 'Annulée';
+        return 'status_cancelled'.tr;
       default:
         return statut;
     }
@@ -496,19 +496,31 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
     }
   }
 
+  String _getMissionStatusText(String statut) {
+    switch (statut.toLowerCase()) {
+      case 'pending':
+        return 'status_pending'.tr;
+      case 'in progress':
+        return 'status_in_progress'.tr;
+      case 'completed':
+        return 'status_completed'.tr;
+      case 'cancelled':
+        return 'status_cancelled'.tr;
+      default:
+        return statut;
+    }
+  }
+
   void _showCancelRequestDialog(BuildContext context, RequestModel request) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Annuler la demande'),
-        content: Text(
-          'Êtes-vous sûr de vouloir annuler cette demande ?\n\n'
-          'Cette action est irréversible et vous pourrez créer une nouvelle demande une fois celle-ci annulée.',
-        ),
+        title: Text('cancel_request_dialog_title'.tr),
+        content: Text('cancel_request_dialog_content'.tr),
         actions: [
           TextButton(
             onPressed: () => Get.back(),
-            child: const Text('Non'),
+            child: Text('no'.tr),
           ),
           Obx(
             () => ElevatedButton(
@@ -537,7 +549,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                         valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
                       ),
                     )
-                  : const Text('Oui, annuler'),
+                  : Text('yes_cancel'.tr),
             ),
           ),
         ],

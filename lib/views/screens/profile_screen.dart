@@ -6,6 +6,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../components/custom_button.dart';
 import '../../components/custom_text_field.dart';
+import '../../components/language_switcher.dart';
 import '../../data/models/user_model.dart';
 
 /// Écran de profil
@@ -18,15 +19,19 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profil'),
+        title: Text('profile'.tr),
+        actions: const [
+          LanguageSwitcher(),
+          SizedBox(width: 8),
+        ],
       ),
       body: Obx(
         () {
           final user = _authController.currentUser.value;
 
           if (user == null) {
-            return const Center(
-              child: Text('Utilisateur non connecté'),
+            return Center(
+              child: Text('user_not_connected'.tr),
             );
           }
 
@@ -57,7 +62,7 @@ class ProfileScreen extends StatelessWidget {
 
                 // Type
                 Text(
-                  'Type: ${user.type}',
+                  '${'user_type'.tr}: ${user.type.toLowerCase() == 'client' ? 'client_type'.tr : 'employee_type'.tr}',
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -65,7 +70,7 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 // Localisation
                 Text(
-                  'Localisation: ${user.localisation}',
+                  '${'user_location'.tr}: ${user.localisation}',
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -73,7 +78,7 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 // Téléphone
                 Text(
-                  'Téléphone: ${user.tel}',
+                  '${'phone_number'.tr}: ${user.tel}',
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -88,7 +93,7 @@ class ProfileScreen extends StatelessWidget {
                         : () {
                             _showUpdateInfoDialog(context, _authController, user);
                           },
-                    text: 'Modifier mes informations',
+                    text: 'edit_profile'.tr,
                     isLoading: _authController.isLoading.value,
                     backgroundColor: AppColors.primary,
                   ),
@@ -112,7 +117,7 @@ class ProfileScreen extends StatelessWidget {
                                 _showSwitchToEmployeeDialog(context, _authController);
                               }
                             },
-                      text: 'Devenir Employé',
+                      text: 'switch_to_employee'.tr,
                       isLoading: _authController.isLoading.value,
                       backgroundColor: AppColors.primary,
                     ),
@@ -128,7 +133,7 @@ class ProfileScreen extends StatelessWidget {
                           : () {
                               _showSwitchToClientDialog(context, _authController);
                             },
-                      text: 'Devenir Client',
+                      text: 'switch_to_client'.tr,
                       isLoading: _authController.isLoading.value,
                       backgroundColor: AppColors.secondary,
                     ),
@@ -141,7 +146,7 @@ class ProfileScreen extends StatelessWidget {
                     onPressed: () async {
                       await _authController.signOut();
                     },
-                    text: 'Se déconnecter',
+                    text: 'logout'.tr,
                     isLoading: _authController.isLoading.value,
                     backgroundColor: AppColors.error,
                   ),
@@ -184,16 +189,16 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Devenir Employé'),
+          title: Text('become_employee_title'.tr),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Obx(
                   () => DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(
-                      labelText: 'Catégorie',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: 'category'.tr,
+                      border: const OutlineInputBorder(),
                     ),
                     value: selectedCategorieId.value,
                     items: categorieController.categories.map((categorie) {
@@ -209,7 +214,7 @@ class ProfileScreen extends StatelessWidget {
                     },
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'La catégorie est requise';
+                        return 'category_required'.tr;
                       }
                       return null;
                     },
@@ -218,11 +223,11 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 CustomTextField(
                   controller: villeController,
-                  label: 'Ville',
-                  hint: 'Ex: Casablanca',
+                  label: 'city'.tr,
+                  hint: 'city_hint'.tr,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'La ville est requise';
+                      return 'city_required'.tr;
                     }
                     return null;
                   },
@@ -230,11 +235,11 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 CustomTextField(
                   controller: competenceController,
-                  label: 'Compétence',
-                  hint: 'Ex: Plomberie, Électricité, etc.',
+                  label: 'competence'.tr,
+                  hint: 'competence_hint'.tr,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'La compétence est requise';
+                      return 'competence_required'.tr;
                     }
                     return null;
                   },
@@ -267,8 +272,8 @@ class ProfileScreen extends StatelessWidget {
                           }
                         } else {
                           Get.snackbar(
-                            'Erreur',
-                            'Veuillez remplir tous les champs',
+                            'error'.tr,
+                            'fill_all_fields'.tr,
                           );
                         }
                       },
@@ -278,7 +283,7 @@ class ProfileScreen extends StatelessWidget {
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Confirmer'),
+                    : Text('confirm'.tr),
               ),
             ),
           ],
@@ -294,15 +299,12 @@ class ProfileScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Devenir Client'),
-        content: const Text(
-          'Êtes-vous sûr de vouloir passer en mode Client ?\n\n'
-          'Votre profil employé sera conservé et vous pourrez le réactiver à tout moment.',
-        ),
+        title: Text('become_client_title'.tr),
+        content: Text('become_client_message'.tr),
         actions: [
           TextButton(
             onPressed: () => Get.back(),
-            child: const Text('Annuler'),
+            child: Text('cancel'.tr),
           ),
           Obx(
             () => ElevatedButton(
@@ -371,18 +373,18 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Modifier mes informations'),
+          title: Text('update_info_title'.tr),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 CustomTextField(
                   controller: nomCompletController,
-                  label: 'Nom complet',
-                  hint: 'Ex: Ahmed Benali',
+                  label: 'full_name'.tr,
+                  hint: 'name_hint_profile'.tr,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Le nom complet est requis';
+                      return 'name_required'.tr;
                     }
                     return null;
                   },
@@ -390,11 +392,11 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 CustomTextField(
                   controller: localisationController,
-                  label: 'Localisation',
-                  hint: 'Ex: Casablanca, Maroc',
+                  label: 'location'.tr,
+                  hint: 'location_hint'.tr,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'La localisation est requise';
+                      return 'location_required_field'.tr;
                     }
                     return null;
                   },
@@ -402,11 +404,11 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 CustomTextField(
                   controller: telController,
-                  label: 'Téléphone',
-                  hint: 'Ex: +212612345678',
+                  label: 'phone'.tr,
+                  hint: 'phone_hint'.tr,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Le téléphone est requis';
+                      return 'phone_required'.tr;
                     }
                     return null;
                   },
@@ -415,9 +417,9 @@ class ProfileScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   Obx(
                     () => DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(
-                        labelText: 'Catégorie',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: 'category'.tr,
+                        border: const OutlineInputBorder(),
                       ),
                       value: selectedCategorieId.value,
                       items: categorieController.categories.map((categorie) {
@@ -433,7 +435,7 @@ class ProfileScreen extends StatelessWidget {
                       },
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'La catégorie est requise';
+                          return 'category_required'.tr;
                         }
                         return null;
                       },
@@ -442,11 +444,11 @@ class ProfileScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   CustomTextField(
                     controller: villeController,
-                    label: 'Ville',
-                    hint: 'Ex: Casablanca',
+                    label: 'city'.tr,
+                    hint: 'city_hint'.tr,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'La ville est requise';
+                        return 'city_required'.tr;
                       }
                       return null;
                     },
@@ -454,11 +456,11 @@ class ProfileScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   CustomTextField(
                     controller: competenceController,
-                    label: 'Compétence',
-                    hint: 'Ex: Plomberie, Électricité, etc.',
+                    label: 'competence'.tr,
+                    hint: 'competence_hint'.tr,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'La compétence est requise';
+                        return 'competence_required'.tr;
                       }
                       return null;
                     },
@@ -466,8 +468,8 @@ class ProfileScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   CustomTextField(
                     controller: bioController,
-                    label: 'Bio (optionnel)',
-                    hint: 'Décrivez-vous...',
+                    label: 'bio_optional'.tr,
+                    hint: 'bio_hint'.tr,
                     maxLines: 3,
                   ),
                 ],
@@ -489,8 +491,8 @@ class ProfileScreen extends StatelessWidget {
                             localisationController.text.isEmpty ||
                             telController.text.isEmpty) {
                           Get.snackbar(
-                            'Erreur',
-                            'Veuillez remplir tous les champs obligatoires',
+                            'error'.tr,
+                            'fill_required_fields'.tr,
                           );
                           return;
                         }
@@ -528,7 +530,7 @@ class ProfileScreen extends StatelessWidget {
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Enregistrer'),
+                    : Text('save'.tr),
               ),
             ),
           ],

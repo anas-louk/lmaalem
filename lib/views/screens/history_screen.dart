@@ -46,7 +46,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Historique'),
+        title: Text('history'.tr),
       ),
       body: Obx(
         () {
@@ -68,8 +68,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
           if (_missionController.missions.isEmpty) {
             return EmptyState(
               icon: Icons.history,
-              title: 'Aucun historique',
-              message: 'Vous n\'avez pas encore de missions',
+              title: 'no_history'.tr,
+              message: 'no_history_message'.tr,
             );
           }
 
@@ -89,7 +89,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
                   ),
                   title: Text(
-                    'Mission #${mission.id.substring(0, 8)}',
+                    '${'mission'.tr} #${mission.id.substring(0, 8)}',
                     style: AppTextStyles.h4,
                   ),
                   subtitle: Column(
@@ -97,14 +97,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     children: [
                       const SizedBox(height: 4),
                       Text(
-                        'Objectif: ${mission.objMission}',
+                        '${'mission_objective'.tr}: ${mission.objMission}',
                         style: AppTextStyles.bodySmall,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Prix: ${mission.prixMission.toStringAsFixed(2)} €',
+                        '${'mission_price'.tr}: ${mission.prixMission.toStringAsFixed(2)} €',
                         style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.primary,
                           fontWeight: FontWeight.bold,
@@ -112,7 +112,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Date: ${_formatDate(mission.dateStart)}',
+                        '${'mission_date'.tr}: ${_formatDate(mission.dateStart)}',
                         style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -129,7 +129,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      mission.statutMission,
+                      _getStatusText(mission.statutMission),
                       style: const TextStyle(
                         color: AppColors.white,
                         fontSize: 12,
@@ -176,6 +176,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
         return Icons.cancel;
       default:
         return Icons.help;
+    }
+  }
+
+  String _getStatusText(String statut) {
+    switch (statut.toLowerCase()) {
+      case 'pending':
+        return 'status_pending'.tr;
+      case 'in progress':
+        return 'status_in_progress'.tr;
+      case 'completed':
+        return 'status_completed'.tr;
+      case 'cancelled':
+        return 'status_cancelled'.tr;
+      default:
+        return statut;
     }
   }
 

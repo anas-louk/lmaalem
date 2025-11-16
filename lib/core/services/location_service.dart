@@ -1,47 +1,82 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:get/get.dart';
+
+/// Exception personnalisée pour les erreurs de localisation
+class LocationException implements Exception {
+  final String message;
+  final bool canOpenSettings;
+  
+  LocationException(this.message, {this.canOpenSettings = false});
+  
+  @override
+  String toString() => message;
+}
 
 /// Service pour gérer la localisation
 class LocationService {
+  /// Vérifier si les services de localisation sont activés
+  Future<bool> isLocationServiceEnabled() async {
+    return await Geolocator.isLocationServiceEnabled();
+  }
+  
+  /// Ouvrir les paramètres de localisation
+  Future<bool> openLocationSettings() async {
+    return await Geolocator.openLocationSettings();
+  }
+  
+  /// Ouvrir les paramètres de l'application pour les permissions
+  Future<bool> openAppSettings() async {
+    return await Geolocator.openAppSettings();
+  }
+
   /// Vérifier et demander les permissions de localisation
   Future<bool> requestLocationPermission() async {
-    try {
-      // Vérifier si les services de localisation sont activés
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        throw 'Les services de localisation sont désactivés. Veuillez les activer dans les paramètres.';
-      }
-
-      // Vérifier les permissions
-      LocationPermission permission = await Geolocator.checkPermission();
-      
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          throw 'Les permissions de localisation sont refusées.';
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        throw 'Les permissions de localisation sont définitivement refusées. Veuillez les activer dans les paramètres.';
-      }
-
-      return true;
-    } catch (e) {
-      throw 'Erreur lors de la demande de permission: $e';
+    // Vérifier si les services de localisation sont activés
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw LocationException(
+        'location_gps_disabled'.tr,
+        canOpenSettings: true,
+      );
     }
+
+    // Vérifier les permissions
+    LocationPermission permission = await Geolocator.checkPermission();
+    
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw LocationException(
+          'location_permission_denied'.tr,
+          canOpenSettings: true,
+        );
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw LocationException(
+        'location_permission_denied_forever'.tr,
+        canOpenSettings: true,
+      );
+    }
+
+    return true;
   }
 
   /// Obtenir la position actuelle
   Future<Position> getCurrentPosition() async {
+    await requestLocationPermission();
+    
     try {
-      await requestLocationPermission();
-      
       return await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
     } catch (e) {
-      throw 'Erreur lors de la récupération de la position: $e';
+      if (e is LocationException) {
+        rethrow;
+      }
+      throw LocationException('Erreur lors de la récupération de la position: $e');
     }
   }
 
@@ -104,7 +139,10 @@ class LocationService {
         'address': address,
       };
     } catch (e) {
-      throw 'Erreur lors de la récupération de la localisation: $e';
+      if (e is LocationException) {
+        rethrow;
+      }
+      throw LocationException('Erreur lors de la récupération de la localisation: $e');
     }
   }
 }

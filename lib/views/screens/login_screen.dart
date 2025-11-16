@@ -38,7 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!success) {
         Get.snackbar(
-          'Erreur',
+          'error'.tr,
           _authController.errorMessage.value,
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: AppColors.error,
@@ -53,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!success && _authController.errorMessage.value.isNotEmpty) {
       Get.snackbar(
-        'Erreur',
+        'error'.tr,
         _authController.errorMessage.value,
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: AppColors.error,
@@ -83,13 +83,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Bienvenue',
+                    'welcome'.tr,
                     style: AppTextStyles.h1,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Connectez-vous à votre compte',
+                    'connect_to_account'.tr,
                     style: AppTextStyles.bodyMedium.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -103,7 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: _authController.isLoading.value
                           ? null
                           : _handleGoogleSignIn,
-                      text: 'Continuer avec Google',
+                      text: 'continue_with_google'.tr,
                       isLoading: _authController.isLoading.value,
                       backgroundColor: AppColors.white,
                       textColor: AppColors.textPrimary,
@@ -118,7 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
-                          'OU',
+                          'or'.tr,
                           style: AppTextStyles.bodySmall,
                         ),
                       ),
@@ -130,8 +130,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Email field
                   CustomTextField(
                     controller: _emailController,
-                    label: 'Email',
-                    hint: 'votre@email.com',
+                    label: 'email'.tr,
+                    hint: 'email_hint'.tr,
                     keyboardType: TextInputType.emailAddress,
                     validator: Validator.email,
                     prefixIcon: Icons.email_outlined,
@@ -141,8 +141,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Password field
                   CustomTextField(
                     controller: _passwordController,
-                    label: 'Mot de passe',
-                    hint: '••••••••',
+                    label: 'password'.tr,
+                    hint: 'password_hint'.tr,
                     obscureText: true,
                     validator: Validator.password,
                     prefixIcon: Icons.lock_outlined,
@@ -156,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: () {
                         Get.toNamed(AppRoutes.AppRoutes.forgotPassword);
                       },
-                      child: const Text('Mot de passe oublié ?'),
+                      child: Text('forgot_password_question'.tr),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -167,7 +167,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: _authController.isLoading.value
                           ? null
                           : _handleLogin,
-                      text: 'Se connecter',
+                      text: 'sign_in'.tr,
                       isLoading: _authController.isLoading.value,
                     ),
                   ),
@@ -178,14 +178,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'Pas de compte ? ',
+                        'no_account'.tr,
                         style: AppTextStyles.bodyMedium,
                       ),
                       TextButton(
                         onPressed: () {
                           Get.toNamed(AppRoutes.AppRoutes.register);
                         },
-                        child: const Text('S\'inscrire'),
+                        child: Text('sign_up'.tr),
                       ),
                     ],
                   ),

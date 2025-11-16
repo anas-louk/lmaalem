@@ -27,7 +27,7 @@ class CategorieController extends GetxController {
       categories.assignAll(categorieList);
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('Erreur', errorMessage.value);
+      Get.snackbar('error'.tr, errorMessage.value);
     } finally {
       isLoading.value = false;
     }
@@ -47,11 +47,11 @@ class CategorieController extends GetxController {
       errorMessage.value = '';
       await _categorieRepository.createCategorie(categorie);
       await loadAllCategories();
-      Get.snackbar('Succès', 'Catégorie créée avec succès');
+      Get.snackbar('success'.tr, 'category_created'.tr);
       return true;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('Erreur', errorMessage.value);
+      Get.snackbar('error'.tr, errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -65,11 +65,11 @@ class CategorieController extends GetxController {
       errorMessage.value = '';
       await _categorieRepository.updateCategorie(categorie);
       await loadAllCategories();
-      Get.snackbar('Succès', 'Catégorie mise à jour avec succès');
+      Get.snackbar('success'.tr, 'category_updated'.tr);
       return true;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('Erreur', errorMessage.value);
+      Get.snackbar('error'.tr, errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -83,11 +83,11 @@ class CategorieController extends GetxController {
       errorMessage.value = '';
       await _categorieRepository.deleteCategorie(categorieId);
       await loadAllCategories();
-      Get.snackbar('Succès', 'Catégorie supprimée avec succès');
+      Get.snackbar('success'.tr, 'category_deleted'.tr);
       return true;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('Erreur', errorMessage.value);
+      Get.snackbar('error'.tr, errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;

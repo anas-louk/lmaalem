@@ -1,9 +1,11 @@
 import 'package:get/get.dart';
 import 'package:flutter/scheduler.dart';
+import 'dart:async';
 import '../../data/models/request_model.dart';
 import '../../data/repositories/request_repository.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../core/utils/logger.dart';
+import 'auth_controller.dart';
 
 /// Controller pour gérer les demandes (GetX)
 class RequestController extends GetxController {
@@ -14,10 +16,38 @@ class RequestController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   final Rx<RequestModel?> selectedRequest = Rx<RequestModel?>(null);
+  
+  // Stream subscription management
+  StreamSubscription<List<RequestModel>>? _requestsStreamSubscription;
+  String? _currentCategorieId;
+  String? _currentClientId;
+  
+  // Notification count for employees (pending requests excluding own requests)
+  int get notificationCount {
+    try {
+      final authController = Get.find<AuthController>();
+      final user = authController.currentUser.value;
+      if (user == null) return 0;
+      
+      return requests.where((request) {
+        return request.statut.toLowerCase() == 'pending' &&
+               request.clientId != user.id; // Don't show own requests
+      }).length;
+    } catch (e) {
+      // AuthController not found or not initialized
+      return 0;
+    }
+  }
 
   @override
   void onInit() {
     super.onInit();
+  }
+  
+  @override
+  void onClose() {
+    _requestsStreamSubscription?.cancel();
+    super.onClose();
   }
 
   /// Charger les demandes d'un client
@@ -36,7 +66,7 @@ class RequestController extends GetxController {
       Future.microtask(() {
         isLoading.value = false;
         SchedulerBinding.instance.addPostFrameCallback((_) {
-          Get.snackbar('Erreur', errorMessage.value);
+          Get.snackbar('error'.tr, errorMessage.value);
         });
       });
     }
@@ -58,7 +88,7 @@ class RequestController extends GetxController {
       Future.microtask(() {
         isLoading.value = false;
         SchedulerBinding.instance.addPostFrameCallback((_) {
-          Get.snackbar('Erreur', errorMessage.value);
+          Get.snackbar('error'.tr, errorMessage.value);
         });
       });
     }
@@ -80,7 +110,7 @@ class RequestController extends GetxController {
       Future.microtask(() {
         isLoading.value = false;
         SchedulerBinding.instance.addPostFrameCallback((_) {
-          Get.snackbar('Erreur', errorMessage.value);
+          Get.snackbar('error'.tr, errorMessage.value);
         });
       });
     }
@@ -88,16 +118,56 @@ class RequestController extends GetxController {
 
   /// Stream des demandes d'un client (temps réel)
   void streamRequestsByClient(String clientId) {
-    _requestRepository.streamRequestsByClientId(clientId).listen((requestList) {
-      requests.assignAll(requestList);
-    });
+    // Cancel existing subscription if switching to a different client
+    if (_currentClientId != clientId) {
+      _requestsStreamSubscription?.cancel();
+      _currentClientId = clientId;
+      _currentCategorieId = null;
+      
+      _requestsStreamSubscription = _requestRepository.streamRequestsByClientId(clientId).listen(
+        (requestList) {
+          requests.assignAll(requestList);
+          isLoading.value = false;
+        },
+        onError: (error) {
+          errorMessage.value = error.toString();
+          Logger.logError('RequestController.streamRequestsByClient', error, StackTrace.current);
+          isLoading.value = false;
+        },
+      );
+      isLoading.value = true;
+    }
   }
 
   /// Stream des demandes par catégorie (temps réel)
   void streamRequestsByCategorie(String categorieId) {
-    _requestRepository.streamRequestsByCategorieId(categorieId).listen((requestList) {
-      requests.assignAll(requestList);
-    });
+    // Cancel existing subscription if switching to a different category
+    if (_currentCategorieId != categorieId) {
+      _requestsStreamSubscription?.cancel();
+      _currentCategorieId = categorieId;
+      _currentClientId = null;
+      
+      _requestsStreamSubscription = _requestRepository.streamRequestsByCategorieId(categorieId).listen(
+        (requestList) {
+          requests.assignAll(requestList);
+          isLoading.value = false;
+        },
+        onError: (error) {
+          errorMessage.value = error.toString();
+          Logger.logError('RequestController.streamRequestsByCategorie', error, StackTrace.current);
+          isLoading.value = false;
+        },
+      );
+      isLoading.value = true;
+    }
+  }
+  
+  /// Arrêter le stream actif
+  void stopStreaming() {
+    _requestsStreamSubscription?.cancel();
+    _requestsStreamSubscription = null;
+    _currentCategorieId = null;
+    _currentClientId = null;
   }
 
   /// Créer une demande
@@ -106,7 +176,7 @@ class RequestController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       await _requestRepository.createRequest(request);
-      Get.snackbar('Succès', 'Demande créée avec succès');
+      Get.snackbar('success'.tr, 'request_created'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
@@ -124,7 +194,7 @@ class RequestController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       await _requestRepository.updateRequest(request);
-      Get.snackbar('Succès', 'Demande mise à jour avec succès');
+      Get.snackbar('success'.tr, 'request_updated'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
@@ -142,7 +212,7 @@ class RequestController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       await _requestRepository.deleteRequest(requestId);
-      Get.snackbar('Succès', 'Demande supprimée avec succès');
+      Get.snackbar('success'.tr, 'request_deleted'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
@@ -242,7 +312,7 @@ class RequestController extends GetxController {
       // Recharger les demandes
       await loadRequestsByCategorie(request.categorieId);
 
-      Get.snackbar('Succès', 'Demande acceptée avec succès');
+      Get.snackbar('success'.tr, 'request_accepted_success'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
@@ -286,7 +356,7 @@ class RequestController extends GetxController {
       // Recharger les demandes
       await loadRequestsByCategorie(request.categorieId);
 
-      Get.snackbar('Succès', 'Demande refusée');
+      Get.snackbar('success'.tr, 'request_refused'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
@@ -331,7 +401,7 @@ class RequestController extends GetxController {
       // Recharger les demandes du client
       await loadRequestsByClient(request.clientId);
 
-      Get.snackbar('Succès', 'Employé accepté avec succès');
+      Get.snackbar('success'.tr, 'employee_accepted'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
@@ -366,7 +436,7 @@ class RequestController extends GetxController {
       // Recharger les demandes du client
       await loadRequestsByClient(request.clientId);
 
-      Get.snackbar('Succès', 'Employé refusé');
+      Get.snackbar('success'.tr, 'employee_rejected'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
@@ -408,7 +478,7 @@ class RequestController extends GetxController {
         await loadRequestsByClient(request.clientId);
       }
 
-      Get.snackbar('Succès', 'Demande annulée avec succès');
+      Get.snackbar('success'.tr, 'request_cancelled'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();

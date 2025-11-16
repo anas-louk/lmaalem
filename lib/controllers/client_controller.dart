@@ -20,7 +20,7 @@ class ClientController extends GetxController {
       currentClient.value = client;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('Erreur', errorMessage.value);
+      Get.snackbar('error'.tr, errorMessage.value);
     } finally {
       isLoading.value = false;
     }
@@ -32,11 +32,11 @@ class ClientController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       await _clientRepository.createClient(client);
-      Get.snackbar('Succès', 'Client créé avec succès');
+      Get.snackbar('success'.tr, 'client_created'.tr);
       return true;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('Erreur', errorMessage.value);
+      Get.snackbar('error'.tr, errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -50,11 +50,11 @@ class ClientController extends GetxController {
       errorMessage.value = '';
       await _clientRepository.updateClient(client);
       await loadClient(client.id);
-      Get.snackbar('Succès', 'Client mis à jour avec succès');
+      Get.snackbar('success'.tr, 'client_updated'.tr);
       return true;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('Erreur', errorMessage.value);
+      Get.snackbar('error'.tr, errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;

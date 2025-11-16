@@ -75,7 +75,7 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
         });
       }
     } catch (e) {
-      Get.snackbar('Erreur', 'Erreur lors de la sélection des images: $e');
+      Get.snackbar('error'.tr, '${'error_selecting_images'.tr}: $e');
     }
   }
 
@@ -94,12 +94,50 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
         _isLoadingLocation = false;
       });
 
-      Get.snackbar('Succès', 'Localisation récupérée avec succès');
+      Get.snackbar('success'.tr, 'location_retrieved'.tr);
     } catch (e) {
       setState(() {
         _isLoadingLocation = false;
       });
-      Get.snackbar('Erreur', e.toString());
+      
+      // Handle LocationException with dialog to open settings
+      if (e is LocationException && e.canOpenSettings) {
+        _showLocationErrorDialog(e.message);
+      } else {
+        Get.snackbar('error'.tr, e.toString());
+      }
+    }
+  }
+  
+  Future<void> _showLocationErrorDialog(String message) async {
+      final result = await Get.dialog<bool>(
+      AlertDialog(
+        title: Text('location_required_title'.tr),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text('cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+            ),
+            child: Text('open_settings'.tr),
+          ),
+        ],
+      ),
+    );
+    
+    if (result == true) {
+      // Check if GPS is disabled, then open appropriate settings
+      final isGpsEnabled = await _locationService.isLocationServiceEnabled();
+      if (!isGpsEnabled) {
+        await _locationService.openLocationSettings();
+      } else {
+        await _locationService.openAppSettings();
+      }
     }
   }
 
@@ -109,12 +147,12 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
     }
 
     if (_latitude == null || _longitude == null || _address == null) {
-      Get.snackbar('Erreur', 'Veuillez récupérer votre localisation');
+      Get.snackbar('error'.tr, 'location_required'.tr);
       return;
     }
 
     if (_authController.currentUser.value == null) {
-      Get.snackbar('Erreur', 'Vous devez être connecté');
+      Get.snackbar('error'.tr, 'must_be_connected'.tr);
       return;
     }
 
@@ -128,12 +166,12 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
         _authController.currentUser.value!.id,
       );
       final statusText = activeRequest?.statut.toLowerCase() == 'pending' 
-          ? 'en attente' 
-          : 'acceptée';
+          ? 'status_pending'.tr 
+          : 'status_accepted'.tr;
       
       Get.snackbar(
-        'Demande en cours',
-        'Vous avez déjà une demande $statusText. Veuillez attendre qu\'elle soit terminée avant d\'en créer une nouvelle.',
+        'request_in_progress'.tr,
+        'request_in_progress_message'.tr.replaceAll('{status}', statusText),
         duration: const Duration(seconds: 4),
         backgroundColor: AppColors.warning.withOpacity(0.9),
         colorText: AppColors.white,
@@ -179,10 +217,10 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
       if (success) {
         // Naviguer vers le dashboard client (home)
         Get.offAllNamed(AppRoutes.AppRoutes.clientDashboard);
-        Get.snackbar('Succès', 'Votre demande a été soumise avec succès');
+        Get.snackbar('success'.tr, 'request_submitted_success'.tr);
       }
     } catch (e) {
-      Get.snackbar('Erreur', 'Erreur lors de la soumission: $e');
+      Get.snackbar('error'.tr, '${'error_submitting'.tr}: $e');
     }
   }
 
@@ -190,7 +228,7 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_categorie?.nom ?? 'Nouvelle demande'),
+        title: Text(_categorie?.nom ?? 'new_request_title'.tr),
       ),
       body: Obx(() {
         if (_requestController.isLoading.value) {
@@ -240,15 +278,15 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
                 // Description field
                 CustomTextField(
                   controller: _descriptionController,
-                  label: 'Description de la demande',
-                  hint: 'Décrivez votre demande en détail...',
+                  label: 'request_description_label'.tr,
+                  hint: 'request_description_hint'.tr,
                   maxLines: 5,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'La description est requise';
+                      return 'description_required'.tr;
                     }
                     if (value.trim().length < 10) {
-                      return 'La description doit contenir au moins 10 caractères';
+                      return 'description_too_short'.tr;
                     }
                     return null;
                   },
@@ -257,7 +295,7 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
 
                 // Images section
                 Text(
-                  'Images (optionnel)',
+                  'images_optional'.tr,
                   style: AppTextStyles.bodyMedium.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -286,7 +324,7 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Ajouter des images',
+                            'add_images'.tr,
                             style: AppTextStyles.bodyMedium.copyWith(
                               color: AppColors.grey,
                             ),
@@ -350,7 +388,7 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
                       TextButton.icon(
                         onPressed: _pickImages,
                         icon: const Icon(Icons.add_photo_alternate),
-                        label: const Text('Ajouter plus d\'images'),
+                        label: Text('add_more_images'.tr),
                       ),
                     ],
                   ),
@@ -358,7 +396,7 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
 
                 // Location section
                 Text(
-                  'Localisation',
+                  'location'.tr,
                   style: AppTextStyles.bodyMedium.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -372,7 +410,7 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
                       children: [
                         if (_address == null)
                           Text(
-                            'Aucune localisation sélectionnée',
+                            'no_location_selected'.tr,
                             style: AppTextStyles.bodyMedium.copyWith(
                               color: AppColors.textSecondary,
                             ),
@@ -410,8 +448,8 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
                         CustomButton(
                           onPressed: _isLoadingLocation ? null : _getCurrentLocation,
                           text: _isLoadingLocation
-                              ? 'Récupération de la localisation...'
-                              : 'Obtenir ma localisation',
+                              ? 'getting_location'.tr
+                              : 'get_location'.tr,
                           isLoading: _isLoadingLocation,
                           backgroundColor: AppColors.secondary,
                           height: 45,
@@ -425,7 +463,7 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
                 // Submit button
                 CustomButton(
                   onPressed: _submitRequest,
-                  text: 'Soumettre la demande',
+                  text: 'submit_request_button'.tr,
                   isLoading: _requestController.isLoading.value,
                 ),
                 const SizedBox(height: 16),
