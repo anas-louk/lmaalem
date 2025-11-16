@@ -118,6 +118,29 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
       return;
     }
 
+    // Vérifier si le client a déjà une demande active
+    final hasActive = await _requestController.hasActiveRequest(
+      _authController.currentUser.value!.id,
+    );
+
+    if (hasActive) {
+      final activeRequest = await _requestController.getActiveRequest(
+        _authController.currentUser.value!.id,
+      );
+      final statusText = activeRequest?.statut.toLowerCase() == 'pending' 
+          ? 'en attente' 
+          : 'acceptée';
+      
+      Get.snackbar(
+        'Demande en cours',
+        'Vous avez déjà une demande $statusText. Veuillez attendre qu\'elle soit terminée avant d\'en créer une nouvelle.',
+        duration: const Duration(seconds: 4),
+        backgroundColor: AppColors.warning.withOpacity(0.9),
+        colorText: AppColors.white,
+      );
+      return;
+    }
+
     try {
       // Créer l'ID de la demande
       final requestId = FirebaseFirestore.instance.collection('requests').doc().id;

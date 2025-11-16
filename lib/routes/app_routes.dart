@@ -10,6 +10,7 @@ import '../views/screens/notification_screen.dart';
 import '../views/screens/history_screen.dart';
 import '../views/screens/categories_screen.dart';
 import '../views/screens/request_submission_screen.dart';
+import '../views/screens/request_detail_screen.dart';
 import '../core/constants/app_routes.dart' as route_constants;
 
 /// Gestionnaire de routes de l'application
@@ -68,6 +69,17 @@ class AppRoutes {
             return const CategoriesScreen();
           }
           return RequestSubmissionScreen(categorieId: categorieId);
+        },
+      ),
+      GetPage(
+        name: route_constants.AppRoutes.requestDetail,
+        page: () {
+          final requestId = Get.arguments as String?;
+          if (requestId == null) {
+            Get.back();
+            return const CategoriesScreen();
+          }
+          return RequestDetailScreen(requestId: requestId);
         },
       ),
       // Ajouter d'autres routes ici

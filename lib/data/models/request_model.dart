@@ -11,7 +11,8 @@ class RequestModel {
   final String categorieId; // ID de la catégorie
   final String clientId; // ID du client
   final String statut; // Statut: 'Pending', 'Accepted', 'Completed', 'Cancelled'
-  final String? employeeId; // ID de l'employé (null si pas encore assigné)
+  final String? employeeId; // ID de l'employé finalement accepté par le client
+  final List<String> acceptedEmployeeIds; // IDs des employés qui ont accepté la demande
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -26,12 +27,24 @@ class RequestModel {
     required this.clientId,
     this.statut = 'Pending',
     this.employeeId,
+    List<String>? acceptedEmployeeIds,
     required this.createdAt,
     required this.updatedAt,
-  }) : images = images ?? [];
+  }) : images = images ?? [],
+       acceptedEmployeeIds = acceptedEmployeeIds ?? [];
 
   /// Créer un RequestModel depuis un Map (Firestore)
   factory RequestModel.fromMap(Map<String, dynamic> map) {
+    // Handle DocumentReference for categorieId (backward compatibility)
+    String categorieId = '';
+    if (map['categorieId'] != null) {
+      if (map['categorieId'] is DocumentReference) {
+        categorieId = (map['categorieId'] as DocumentReference).id;
+      } else {
+        categorieId = map['categorieId'].toString();
+      }
+    }
+    
     return RequestModel(
       id: map['id'] ?? '',
       description: map['description'] ?? '',
@@ -39,10 +52,11 @@ class RequestModel {
       latitude: (map['latitude'] as num?)?.toDouble() ?? 0.0,
       longitude: (map['longitude'] as num?)?.toDouble() ?? 0.0,
       address: map['address'] ?? '',
-      categorieId: map['categorieId'] ?? '',
+      categorieId: categorieId,
       clientId: map['clientId'] ?? '',
       statut: map['statut'] ?? 'Pending',
       employeeId: map['employeeId'],
+      acceptedEmployeeIds: List<String>.from(map['acceptedEmployeeIds'] ?? []),
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -70,6 +84,7 @@ class RequestModel {
       'clientId': clientId,
       'statut': statut,
       'employeeId': employeeId,
+      'acceptedEmployeeIds': acceptedEmployeeIds,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -87,6 +102,7 @@ class RequestModel {
     String? clientId,
     String? statut,
     String? employeeId,
+    List<String>? acceptedEmployeeIds,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -101,6 +117,7 @@ class RequestModel {
       clientId: clientId ?? this.clientId,
       statut: statut ?? this.statut,
       employeeId: employeeId ?? this.employeeId,
+      acceptedEmployeeIds: acceptedEmployeeIds ?? this.acceptedEmployeeIds,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

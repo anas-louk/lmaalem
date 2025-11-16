@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:flutter/scheduler.dart';
 import '../../data/models/mission_model.dart';
 import '../../data/repositories/mission_repository.dart';
+import '../../core/utils/logger.dart';
 
 /// Controller pour gérer les missions (GetX)
 class MissionController extends GetxController {
@@ -21,16 +22,20 @@ class MissionController extends GetxController {
   /// Charger les missions d'un client
   Future<void> loadMissionsByClient(String clientId) async {
     try {
-      isLoading.value = true;
       errorMessage.value = '';
+      // Defer isLoading update to avoid calling during build
+      Future.microtask(() {
+        isLoading.value = true;
+      });
       final missionList = await _missionRepository.getMissionsByClientId(clientId);
       // Defer state updates to avoid calling during build
       Future.microtask(() {
         missions.assignAll(missionList);
         isLoading.value = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
       errorMessage.value = e.toString();
+      Logger.logError('MissionController.loadMissionsByClient', e, stackTrace);
       // Defer snackbar and isLoading update to avoid calling during build
       Future.microtask(() {
         isLoading.value = false;
@@ -44,16 +49,20 @@ class MissionController extends GetxController {
   /// Charger les missions d'un employé
   Future<void> loadMissionsByEmployee(String employeeId) async {
     try {
-      isLoading.value = true;
       errorMessage.value = '';
+      // Defer isLoading update to avoid calling during build
+      Future.microtask(() {
+        isLoading.value = true;
+      });
       final missionList = await _missionRepository.getMissionsByEmployeeId(employeeId);
       // Defer state updates to avoid calling during build
       Future.microtask(() {
         missions.assignAll(missionList);
         isLoading.value = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
       errorMessage.value = e.toString();
+      Logger.logError('MissionController.loadMissionsByEmployee', e, stackTrace);
       // Defer snackbar and isLoading update to avoid calling during build
       Future.microtask(() {
         isLoading.value = false;
@@ -67,16 +76,20 @@ class MissionController extends GetxController {
   /// Charger les missions par statut
   Future<void> loadMissionsByStatut(String statut) async {
     try {
-      isLoading.value = true;
       errorMessage.value = '';
+      // Defer isLoading update to avoid calling during build
+      Future.microtask(() {
+        isLoading.value = true;
+      });
       final missionList = await _missionRepository.getMissionsByStatut(statut);
       // Defer state updates to avoid calling during build
       Future.microtask(() {
         missions.assignAll(missionList);
         isLoading.value = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
       errorMessage.value = e.toString();
+      Logger.logError('MissionController.loadMissionsByStatut', e, stackTrace);
       // Defer snackbar and isLoading update to avoid calling during build
       Future.microtask(() {
         isLoading.value = false;
@@ -109,8 +122,9 @@ class MissionController extends GetxController {
       await _missionRepository.createMission(mission);
       Get.snackbar('Succès', 'Mission créée avec succès');
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
       errorMessage.value = e.toString();
+      Logger.logError('MissionController.createMission', e, stackTrace);
       Get.snackbar('Erreur', errorMessage.value);
       return false;
     } finally {
@@ -126,8 +140,9 @@ class MissionController extends GetxController {
       await _missionRepository.updateMission(mission);
       Get.snackbar('Succès', 'Mission mise à jour avec succès');
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
       errorMessage.value = e.toString();
+      Logger.logError('MissionController.updateMission', e, stackTrace);
       Get.snackbar('Erreur', errorMessage.value);
       return false;
     } finally {
@@ -143,8 +158,9 @@ class MissionController extends GetxController {
       await _missionRepository.deleteMission(missionId);
       Get.snackbar('Succès', 'Mission supprimée avec succès');
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
       errorMessage.value = e.toString();
+      Logger.logError('MissionController.deleteMission', e, stackTrace);
       Get.snackbar('Erreur', errorMessage.value);
       return false;
     } finally {
@@ -161,8 +177,9 @@ class MissionController extends GetxController {
   Future<MissionModel?> getMissionById(String missionId) async {
     try {
       return await _missionRepository.getMissionById(missionId);
-    } catch (e) {
+    } catch (e, stackTrace) {
       errorMessage.value = e.toString();
+      Logger.logError('MissionController.getMissionById', e, stackTrace);
       return null;
     }
   }

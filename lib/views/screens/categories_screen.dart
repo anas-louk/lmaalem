@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/categorie_controller.dart';
-import '../../controllers/employee_controller.dart';
+import '../../controllers/request_controller.dart';
+import '../../controllers/auth_controller.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
@@ -12,10 +13,45 @@ import '../../components/empty_state.dart';
 class CategoriesScreen extends StatelessWidget {
   const CategoriesScreen({super.key});
 
+  Future<void> _checkAndNavigate(String categorieId) async {
+    final AuthController _authController = Get.find<AuthController>();
+    final RequestController _requestController = Get.put(RequestController());
+
+    final user = _authController.currentUser.value;
+    if (user == null) {
+      Get.snackbar('Erreur', 'Vous devez être connecté');
+      return;
+    }
+
+    // Vérifier si le client a déjà une demande active
+    final hasActive = await _requestController.hasActiveRequest(user.id);
+    
+    if (hasActive) {
+      final activeRequest = await _requestController.getActiveRequest(user.id);
+      final statusText = activeRequest?.statut.toLowerCase() == 'pending' 
+          ? 'en attente' 
+          : 'acceptée';
+      
+      Get.snackbar(
+        'Demande en cours',
+        'Vous avez déjà une demande $statusText. Veuillez attendre qu\'elle soit terminée avant d\'en créer une nouvelle.',
+        duration: const Duration(seconds: 4),
+        backgroundColor: AppColors.warning.withOpacity(0.9),
+        colorText: AppColors.white,
+      );
+      return;
+    }
+
+    // Si pas de demande active, naviguer vers la page de soumission
+    Get.toNamed(
+      AppRoutes.AppRoutes.requestSubmission,
+      arguments: categorieId,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final CategorieController _categorieController = Get.put(CategorieController());
-    final EmployeeController _employeeController = Get.put(EmployeeController());
 
     return Scaffold(
       appBar: AppBar(
@@ -63,11 +99,7 @@ class CategoriesScreen extends StatelessWidget {
                     color: AppColors.primary,
                   ),
                   onTap: () {
-                    // Naviguer vers la page de soumission de demande
-                    Get.toNamed(
-                      AppRoutes.AppRoutes.requestSubmission,
-                      arguments: categorie.id,
-                    );
+                    _checkAndNavigate(categorie.id);
                   },
                 ),
               );

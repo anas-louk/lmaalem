@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/mission_controller.dart';
+import '../../controllers/employee_controller.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
@@ -77,6 +78,7 @@ class _EmployeeHomeScreen extends StatefulWidget {
 class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
   final AuthController _authController = Get.find<AuthController>();
   final MissionController _missionController = Get.put(MissionController());
+  final EmployeeController _employeeController = Get.put(EmployeeController());
   String? _loadedUserId;
 
   @override
@@ -87,11 +89,20 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
     });
   }
 
-  void _loadMissions() {
+  Future<void> _loadMissions() async {
     final user = _authController.currentUser.value;
-    if (user != null && _loadedUserId != user.id) {
-      _missionController.loadMissionsByEmployee(user.id);
-      _loadedUserId = user.id;
+    if (user == null || _loadedUserId == user.id) return;
+
+    try {
+      // Get employee document ID from user ID
+      final employee = await _employeeController.getEmployeeByUserId(user.id);
+      if (employee != null) {
+        _loadedUserId = user.id;
+        // Load missions using employee document ID
+        _missionController.loadMissionsByEmployee(employee.id);
+      }
+    } catch (e) {
+      // Handle error
     }
   }
 

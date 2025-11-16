@@ -32,6 +32,7 @@ class AppRoutes {
 
   // Request Routes
   static const String requestSubmission = '/request-submission';
+  static const String requestDetail = '/request-detail';
 
   // Navigation Routes
   static const String notifications = '/notifications';

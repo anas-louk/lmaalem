@@ -24,7 +24,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _loadMissions();
+    // Defer loading until after build phase
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadMissions();
+    });
   }
 
   void _loadMissions() {

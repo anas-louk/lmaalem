@@ -1,5 +1,7 @@
 import '../models/employee_model.dart';
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/logger.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Repository pour gérer les employés dans Firestore
 class EmployeeRepository {
@@ -18,7 +20,8 @@ class EmployeeRepository {
         return EmployeeModel.fromMap({...data, 'id': employeeId});
       }
       return null;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      Logger.logError('EmployeeRepository', e, stackTrace);
       throw 'Erreur lors de la récupération de l\'employé: $e';
     }
   }
@@ -135,6 +138,27 @@ class EmployeeRepository {
       );
     } catch (e) {
       throw 'Erreur lors de la suppression de l\'employé: $e';
+    }
+  }
+
+  /// Récupérer un employé par userId
+  Future<EmployeeModel?> getEmployeeByUserId(String userId) async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection(_collection)
+          .where('userId', isEqualTo: userId)
+          .limit(1)
+          .get();
+      
+      if (snapshot.docs.isNotEmpty) {
+        final doc = snapshot.docs.first;
+        final data = doc.data();
+        return EmployeeModel.fromMap({...data, 'id': doc.id});
+      }
+      return null;
+    } catch (e, stackTrace) {
+      Logger.logError('EmployeeRepository', e, stackTrace);
+      throw 'Erreur lors de la récupération de l\'employé: $e';
     }
   }
 }

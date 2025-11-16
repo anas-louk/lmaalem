@@ -41,13 +41,15 @@ class EmployeeModel extends UserModel {
       }
     }
     
-    // Handle DocumentReference for userId
+    // Read userId directly as string (backward compatible with DocumentReference)
     String userId = '';
     if (map['userId'] != null) {
       if (map['userId'] is DocumentReference) {
+        // Handle old DocumentReference format (backward compatibility)
         userId = (map['userId'] as DocumentReference).id;
       } else {
-        userId = map['userId'].toString();
+        // Read directly as string (new format - stored as string ID)
+        userId = map['userId'] as String;
       }
     }
 
@@ -119,7 +121,7 @@ class EmployeeModel extends UserModel {
       'competence': competence,
       'bio': bio,
       'gallery': gallery,
-      'userId': firestore.collection('users').doc(userId),
+      'userId': userId, // Store as string ID, not DocumentReference
     };
   }
   

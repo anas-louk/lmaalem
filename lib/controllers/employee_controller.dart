@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import '../../data/models/employee_model.dart';
 import '../../data/repositories/employee_repository.dart';
+import '../../core/utils/logger.dart';
 
 /// Controller pour gérer les employés (GetX)
 class EmployeeController extends GetxController {
@@ -25,8 +26,9 @@ class EmployeeController extends GetxController {
       errorMessage.value = '';
       final employeeList = await _employeeRepository.getAvailableEmployees();
       employees.assignAll(employeeList);
-    } catch (e) {
+    } catch (e, stackTrace) {
       errorMessage.value = e.toString();
+      Logger.logError('EmployeeController', e, stackTrace);
       Get.snackbar('Erreur', errorMessage.value);
     } finally {
       isLoading.value = false;
@@ -40,8 +42,9 @@ class EmployeeController extends GetxController {
       errorMessage.value = '';
       final employeeList = await _employeeRepository.getEmployeesByCategory(categoryId);
       employees.assignAll(employeeList);
-    } catch (e) {
+    } catch (e, stackTrace) {
       errorMessage.value = e.toString();
+      Logger.logError('EmployeeController', e, stackTrace);
       Get.snackbar('Erreur', errorMessage.value);
     } finally {
       isLoading.value = false;
@@ -55,8 +58,9 @@ class EmployeeController extends GetxController {
       errorMessage.value = '';
       final employeeList = await _employeeRepository.getEmployeesByVille(ville);
       employees.assignAll(employeeList);
-    } catch (e) {
+    } catch (e, stackTrace) {
       errorMessage.value = e.toString();
+      Logger.logError('EmployeeController', e, stackTrace);
       Get.snackbar('Erreur', errorMessage.value);
     } finally {
       isLoading.value = false;
@@ -70,20 +74,33 @@ class EmployeeController extends GetxController {
       errorMessage.value = '';
       final employeeList = await _employeeRepository.searchEmployees(query);
       employees.assignAll(employeeList);
-    } catch (e) {
+    } catch (e, stackTrace) {
       errorMessage.value = e.toString();
+      Logger.logError('EmployeeController', e, stackTrace);
       Get.snackbar('Erreur', errorMessage.value);
     } finally {
       isLoading.value = false;
     }
   }
 
-  /// Récupérer un employé par ID
+  /// Récupérer un employé par ID (employee document ID)
   Future<EmployeeModel?> getEmployeeById(String employeeId) async {
     try {
       return await _employeeRepository.getEmployeeById(employeeId);
-    } catch (e) {
+    } catch (e, stackTrace) {
       errorMessage.value = e.toString();
+      Logger.logError('EmployeeController.getEmployeeById', e, stackTrace);
+      return null;
+    }
+  }
+
+  /// Récupérer un employé par userId (user document ID)
+  Future<EmployeeModel?> getEmployeeByUserId(String userId) async {
+    try {
+      return await _employeeRepository.getEmployeeByUserId(userId);
+    } catch (e, stackTrace) {
+      errorMessage.value = e.toString();
+      Logger.logError('EmployeeController.getEmployeeByUserId', e, stackTrace);
       return null;
     }
   }

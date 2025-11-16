@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/mission_controller.dart';
 import '../../controllers/request_controller.dart';
+import '../../data/models/request_model.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
@@ -183,85 +184,116 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> {
                       itemCount: _requestController.requests.length,
                       itemBuilder: (context, index) {
                         final request = _requestController.requests[index];
+                        final isActive = request.statut.toLowerCase() == 'pending' || 
+                                        request.statut.toLowerCase() == 'accepted';
+                        
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: _getStatusColor(request.statut),
-                              child: Icon(
-                                _getStatusIcon(request.statut),
-                                color: AppColors.white,
-                                size: 20,
-                              ),
-                            ),
-                            title: Text(
-                              'Demande #${request.id.substring(0, 8)}',
-                              style: AppTextStyles.h4,
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 4),
-                                Text(
-                                  request.description,
-                                  style: AppTextStyles.bodySmall,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                          child: Column(
+                            children: [
+                              ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: _getStatusColor(request.statut),
+                                  child: Icon(
+                                    _getStatusIcon(request.statut),
+                                    color: AppColors.white,
+                                    size: 20,
+                                  ),
                                 ),
-                                const SizedBox(height: 4),
-                                Row(
+                                title: Text(
+                                  'Demande #${request.id.substring(0, 8)}',
+                                  style: AppTextStyles.h4,
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(
-                                      Icons.location_on,
-                                      size: 14,
-                                      color: AppColors.textSecondary,
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      request.description,
+                                      style: AppTextStyles.bodySmall,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: Text(
-                                        request.address,
-                                        style: AppTextStyles.bodySmall.copyWith(
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.location_on,
+                                          size: 14,
                                           color: AppColors.textSecondary,
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            request.address,
+                                            style: AppTextStyles.bodySmall.copyWith(
+                                              color: AppColors.textSecondary,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: _getStatusColor(request.statut),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        _getStatusText(request.statut),
+                                        style: const TextStyle(
+                                          color: AppColors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 4),
-                                Container(
+                                trailing: Icon(
+                                  Icons.arrow_forward_ios,
+                                  size: 16,
+                                  color: AppColors.primary,
+                                ),
+                                onTap: () {
+                                  _requestController.selectRequest(request);
+                                  Get.toNamed(
+                                    AppRoutes.AppRoutes.requestDetail,
+                                    arguments: request.id,
+                                  );
+                                },
+                              ),
+                              // Cancel button for active requests
+                              if (isActive)
+                                Padding(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
+                                    horizontal: 16,
+                                    vertical: 8,
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: _getStatusColor(request.statut),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    _getStatusText(request.statut),
-                                    style: const TextStyle(
-                                      color: AppColors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
+                                  child: Obx(
+                                    () => SizedBox(
+                                      width: double.infinity,
+                                      child: OutlinedButton.icon(
+                                        onPressed: _requestController.isLoading.value
+                                            ? null
+                                            : () => _showCancelRequestDialog(context, request),
+                                        icon: const Icon(Icons.cancel_outlined),
+                                        label: const Text('Annuler la demande'),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: AppColors.error,
+                                          side: const BorderSide(color: AppColors.error),
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
-                            trailing: Icon(
-                              Icons.arrow_forward_ios,
-                              size: 16,
-                              color: AppColors.primary,
-                            ),
-                            onTap: () {
-                              // TODO: Navigate to request detail page
-                              Get.snackbar(
-                                'Demande',
-                                'Détails de la demande #${request.id.substring(0, 8)}',
-                              );
-                            },
+                            ],
                           ),
                         );
                       },
@@ -409,5 +441,54 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> {
       default:
         return Icons.help;
     }
+  }
+
+  void _showCancelRequestDialog(BuildContext context, RequestModel request) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Annuler la demande'),
+        content: Text(
+          'Êtes-vous sûr de vouloir annuler cette demande ?\n\n'
+          'Cette action est irréversible et vous pourrez créer une nouvelle demande une fois celle-ci annulée.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Non'),
+          ),
+          Obx(
+            () => ElevatedButton(
+              onPressed: _requestController.isLoading.value
+                  ? null
+                  : () async {
+                      final success = await _requestController.cancelRequest(request.id);
+                      if (success) {
+                        Get.back(); // Close dialog
+                        // Reload requests
+                        final user = _authController.currentUser.value;
+                        if (user != null) {
+                          await _requestController.loadRequestsByClient(user.id);
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+              ),
+              child: _requestController.isLoading.value
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
+                      ),
+                    )
+                  : const Text('Oui, annuler'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

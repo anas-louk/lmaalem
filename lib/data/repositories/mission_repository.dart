@@ -1,5 +1,7 @@
 import '../models/mission_model.dart';
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/logger.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Repository pour gérer les missions dans Firestore
 class MissionRepository {
@@ -18,7 +20,8 @@ class MissionRepository {
         return MissionModel.fromMap({...data, 'id': missionId});
       }
       return null;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      Logger.logError('MissionRepository.getMissionById', e, stackTrace);
       throw 'Erreur lors de la récupération de la mission: $e';
     }
   }
@@ -43,7 +46,8 @@ class MissionRepository {
         docId: mission.id,
         data: mission.toMap(),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      Logger.logError('MissionRepository.createMission', e, stackTrace);
       throw 'Erreur lors de la création de la mission: $e';
     }
   }
@@ -56,7 +60,8 @@ class MissionRepository {
         docId: mission.id,
         data: mission.copyWith(updatedAt: DateTime.now()).toMap(),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      Logger.logError('MissionRepository.updateMission', e, stackTrace);
       throw 'Erreur lors de la mise à jour de la mission: $e';
     }
   }
@@ -68,7 +73,8 @@ class MissionRepository {
         collection: _collection,
         docId: missionId,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      Logger.logError('MissionRepository.deleteMission', e, stackTrace);
       throw 'Erreur lors de la suppression de la mission: $e';
     }
   }
@@ -76,17 +82,22 @@ class MissionRepository {
   /// Récupérer les missions d'un client
   Future<List<MissionModel>> getMissionsByClientId(String clientId) async {
     try {
+      final firestore = FirebaseFirestore.instance;
+      // Use DocumentReference for querying since missions store clientId as DocumentReference
+      final clientRef = firestore.collection('clients').doc(clientId);
+      
       // Without orderBy - avoids composite index requirement
       final data = await _firestoreService.readAll(
         collection: _collection,
-        queryBuilder: (q) => q.where('clientId', isEqualTo: clientId),
+        queryBuilder: (q) => q.where('clientId', isEqualTo: clientRef),
       );
 
       // Sort in Dart instead of Firestore
       final missions = data.map((map) => MissionModel.fromMap(map)).toList();
       missions.sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Descending
       return missions;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      Logger.logError('MissionRepository.getMissionsByClientId', e, stackTrace);
       throw 'Erreur lors de la récupération des missions: $e';
     }
   }
@@ -94,17 +105,22 @@ class MissionRepository {
   /// Récupérer les missions d'un employé
   Future<List<MissionModel>> getMissionsByEmployeeId(String employeeId) async {
     try {
+      final firestore = FirebaseFirestore.instance;
+      // Use DocumentReference for querying since missions store employeeId as DocumentReference
+      final employeeRef = firestore.collection('employees').doc(employeeId);
+      
       // Without orderBy - avoids composite index requirement
       final data = await _firestoreService.readAll(
         collection: _collection,
-        queryBuilder: (q) => q.where('employeeId', isEqualTo: employeeId),
+        queryBuilder: (q) => q.where('employeeId', isEqualTo: employeeRef),
       );
 
       // Sort in Dart instead of Firestore
       final missions = data.map((map) => MissionModel.fromMap(map)).toList();
       missions.sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Descending
       return missions;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      Logger.logError('MissionRepository.getMissionsByEmployeeId', e, stackTrace);
       throw 'Erreur lors de la récupération des missions: $e';
     }
   }
@@ -122,17 +138,22 @@ class MissionRepository {
       final missions = data.map((map) => MissionModel.fromMap(map)).toList();
       missions.sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Descending
       return missions;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      Logger.logError('MissionRepository.getMissionsByStatut', e, stackTrace);
       throw 'Erreur lors de la récupération des missions: $e';
     }
   }
 
   /// Stream de toutes les missions d'un client
   Stream<List<MissionModel>> streamMissionsByClientId(String clientId) {
+    final firestore = FirebaseFirestore.instance;
+    // Use DocumentReference for querying since missions store clientId as DocumentReference
+    final clientRef = firestore.collection('clients').doc(clientId);
+    
     return _firestoreService
         .streamCollection(
           collection: _collection,
-          queryBuilder: (q) => q.where('clientId', isEqualTo: clientId),
+          queryBuilder: (q) => q.where('clientId', isEqualTo: clientRef),
         )
         .map((snapshot) {
           // Sort in Dart instead of Firestore
@@ -146,10 +167,14 @@ class MissionRepository {
 
   /// Stream de toutes les missions d'un employé
   Stream<List<MissionModel>> streamMissionsByEmployeeId(String employeeId) {
+    final firestore = FirebaseFirestore.instance;
+    // Use DocumentReference for querying since missions store employeeId as DocumentReference
+    final employeeRef = firestore.collection('employees').doc(employeeId);
+    
     return _firestoreService
         .streamCollection(
           collection: _collection,
-          queryBuilder: (q) => q.where('employeeId', isEqualTo: employeeId),
+          queryBuilder: (q) => q.where('employeeId', isEqualTo: employeeRef),
         )
         .map((snapshot) {
           // Sort in Dart instead of Firestore

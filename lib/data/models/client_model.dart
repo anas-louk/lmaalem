@@ -17,13 +17,15 @@ class ClientModel extends UserModel {
 
   /// Créer un ClientModel depuis un Map (Firestore)
   factory ClientModel.fromMap(Map<String, dynamic> map) {
-    // Handle DocumentReference for userId
+    // Read userId directly as string (backward compatible with DocumentReference)
     String userId = '';
     if (map['userId'] != null) {
       if (map['userId'] is DocumentReference) {
+        // Handle old DocumentReference format (backward compatibility)
         userId = (map['userId'] as DocumentReference).id;
       } else {
-        userId = map['userId'].toString();
+        // Read directly as string (new format - stored as string ID)
+        userId = map['userId'] as String;
       }
     }
 
@@ -63,10 +65,9 @@ class ClientModel extends UserModel {
   /// Convertir en Map pour Firestore
   @override
   Map<String, dynamic> toMap() {
-    final FirebaseFirestore firestore = FirebaseFirestore.instance;
     return {
       ...super.toMap(),
-      'userId': firestore.collection('users').doc(userId),
+      'userId': userId, // Store as string ID, not DocumentReference
     };
   }
   

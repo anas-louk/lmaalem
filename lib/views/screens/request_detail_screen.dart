@@ -1,0 +1,576 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import '../../controllers/request_controller.dart';
+import '../../controllers/auth_controller.dart';
+import '../../controllers/employee_controller.dart';
+import '../../controllers/mission_controller.dart';
+import '../../data/models/request_model.dart';
+import '../../data/models/employee_model.dart';
+import '../../data/models/mission_model.dart';
+import '../../data/models/client_model.dart';
+import '../../data/repositories/client_repository.dart';
+import '../../data/repositories/user_repository.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_text_styles.dart';
+import '../../components/loading_widget.dart';
+import '../../components/custom_button.dart';
+import '../../core/utils/logger.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Écran de détails d'une demande
+class RequestDetailScreen extends StatefulWidget {
+  final String requestId;
+
+  const RequestDetailScreen({
+    super.key,
+    required this.requestId,
+  });
+
+  @override
+  State<RequestDetailScreen> createState() => _RequestDetailScreenState();
+}
+
+class _RequestDetailScreenState extends State<RequestDetailScreen> {
+  final RequestController _requestController = Get.put(RequestController());
+  final AuthController _authController = Get.find<AuthController>();
+  final EmployeeController _employeeController = Get.put(EmployeeController());
+  final MissionController _missionController = Get.put(MissionController());
+  final ClientRepository _clientRepository = ClientRepository();
+  
+  RequestModel? _request;
+  bool _isLoading = true;
+  List<EmployeeModel> _acceptedEmployees = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRequest();
+  }
+
+  Future<void> _loadRequest() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final request = await _requestController.getRequestById(widget.requestId);
+      if (request != null) {
+        _request = request;
+        
+        // Load accepted employees
+        if (request.acceptedEmployeeIds.isNotEmpty) {
+          await _loadAcceptedEmployees(request.acceptedEmployeeIds);
+        }
+      }
+    } catch (e) {
+      Get.snackbar('Erreur', 'Erreur lors du chargement: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadAcceptedEmployees(List<String> employeeIds) async {
+    try {
+      final employees = <EmployeeModel>[];
+      for (final employeeId in employeeIds) {
+        final employee = await _employeeController.getEmployeeById(employeeId);
+        if (employee != null) {
+          employees.add(employee);
+        }
+      }
+      setState(() {
+        _acceptedEmployees = employees;
+      });
+    } catch (e) {
+      // Handle error
+    }
+  }
+
+  Future<void> _acceptEmployee(String employeeId) async {
+    if (_request == null) return;
+
+    final success = await _requestController.acceptEmployeeForRequest(
+      _request!.id,
+      employeeId,
+    );
+
+    if (success) {
+      // Create a mission when client accepts an employee
+      await _createMission(employeeId);
+      await _loadRequest(); // Reload to update UI
+    }
+  }
+
+  Future<void> _createMission(String employeeId) async {
+    try {
+      if (_request == null || _authController.currentUser.value == null) return;
+
+      // Get client document ID from user ID
+      // First try to get existing client document
+      var client = await _clientRepository.getClientByUserId(_request!.clientId);
+      
+      // If client document doesn't exist, create it
+      if (client == null) {
+        // Get user data to create client document
+        final userRepository = UserRepository();
+        final user = await userRepository.getUserById(_request!.clientId);
+        
+        if (user == null) {
+          throw 'Utilisateur non trouvé';
+        }
+        
+        // Create client document
+        final clientId = FirebaseFirestore.instance.collection('clients').doc().id;
+        final now = DateTime.now();
+        
+        final newClient = ClientModel(
+          id: clientId,
+          nomComplet: user.nomComplet,
+          localisation: user.localisation,
+          tel: user.tel,
+          userId: _request!.clientId, // Firebase Auth user ID
+          createdAt: now,
+          updatedAt: now,
+        );
+        
+        await _clientRepository.createClient(newClient);
+        client = newClient;
+      }
+
+      final missionId = FirebaseFirestore.instance.collection('missions').doc().id;
+      final now = DateTime.now();
+      
+      // Create mission with default values
+      final mission = MissionModel(
+        id: missionId,
+        prixMission: 0.0, // Will be set later
+        dateStart: now,
+        dateEnd: now.add(const Duration(days: 1)),
+        objMission: _request!.description,
+        statutMission: 'Pending',
+        employeeId: employeeId,
+        clientId: client.id, // Use client document ID
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await _missionController.createMission(mission);
+    } catch (e, stackTrace) {
+      Logger.logError('RequestDetailScreen._createMission', e, stackTrace);
+      Get.snackbar('Erreur', 'Erreur lors de la création de la mission: $e');
+    }
+  }
+
+  Future<void> _rejectEmployee(String employeeId) async {
+    if (_request == null) return;
+
+    final success = await _requestController.rejectEmployeeForRequest(
+      _request!.id,
+      employeeId,
+    );
+
+    if (success) {
+      await _loadRequest(); // Reload to update UI
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = _authController.currentUser.value;
+    final isClient = user != null && user.type.toLowerCase() == 'client';
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Détails de la demande'),
+      ),
+      body: _isLoading
+          ? const LoadingWidget()
+          : _request == null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: AppColors.error,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Demande non trouvée',
+                        style: AppTextStyles.h3,
+                      ),
+                    ],
+                  ),
+                )
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Request Info Card
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Demande #${_request!.id.substring(0, 8)}',
+                                      style: AppTextStyles.h3,
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _getStatusColor(_request!.statut),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      _getStatusText(_request!.statut),
+                                      style: const TextStyle(
+                                        color: AppColors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Description',
+                                style: AppTextStyles.h4.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _request!.description,
+                                style: AppTextStyles.bodyMedium,
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.location_on,
+                                    color: AppColors.primary,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _request!.address,
+                                      style: AppTextStyles.bodyMedium,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (_request!.images.isNotEmpty) ...[
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Images (${_request!.images.length})',
+                                  style: AppTextStyles.h4.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  height: 200,
+                                  child: ListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: _request!.images.length,
+                                    itemBuilder: (context, index) {
+                                      return Padding(
+                                        padding: const EdgeInsets.only(right: 8),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.network(
+                                            _request!.images[index],
+                                            width: 200,
+                                            height: 200,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return Container(
+                                                width: 200,
+                                                height: 200,
+                                                color: AppColors.greyLight,
+                                                child: const Icon(Icons.broken_image),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Accepted Employees Section (for clients)
+                      if (isClient && _request!.statut.toLowerCase() == 'pending')
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'Employés ayant accepté',
+                              style: AppTextStyles.h3,
+                            ),
+                            const SizedBox(height: 16),
+                            if (_acceptedEmployees.isEmpty)
+                              Card(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        Icons.person_outline,
+                                        size: 48,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Aucun employé n\'a encore accepté',
+                                        style: AppTextStyles.bodyMedium.copyWith(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            else
+                              ..._acceptedEmployees.map((employee) {
+                                return Card(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 30,
+                                              backgroundColor: AppColors.primaryLight,
+                                              backgroundImage: employee.image != null
+                                                  ? NetworkImage(employee.image!)
+                                                  : null,
+                                              child: employee.image == null
+                                                  ? Text(
+                                                      employee.nomComplet[0].toUpperCase(),
+                                                      style: const TextStyle(
+                                                        color: AppColors.primary,
+                                                        fontSize: 20,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    )
+                                                  : null,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    employee.nomComplet,
+                                                    style: AppTextStyles.h4,
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    employee.competence,
+                                                    style: AppTextStyles.bodySmall.copyWith(
+                                                      color: AppColors.textSecondary,
+                                                    ),
+                                                    maxLines: 2,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Row(
+                                                    children: [
+                                                      Icon(
+                                                        Icons.location_on,
+                                                        size: 14,
+                                                        color: AppColors.textSecondary,
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        employee.ville,
+                                                        style: AppTextStyles.bodySmall.copyWith(
+                                                          color: AppColors.textSecondary,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        if (employee.bio != null && employee.bio!.isNotEmpty) ...[
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            employee.bio!,
+                                            style: AppTextStyles.bodySmall,
+                                            maxLines: 3,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                        const SizedBox(height: 12),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: OutlinedButton(
+                                                onPressed: () => _rejectEmployee(employee.id),
+                                                style: OutlinedButton.styleFrom(
+                                                  foregroundColor: AppColors.error,
+                                                  side: const BorderSide(color: AppColors.error),
+                                                ),
+                                                child: const Text('Refuser'),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Obx(
+                                                () => CustomButton(
+                                                  onPressed: _requestController.isLoading.value
+                                                      ? null
+                                                      : () => _acceptEmployee(employee.id),
+                                                  text: 'Accepter',
+                                                  isLoading: _requestController.isLoading.value,
+                                                  backgroundColor: AppColors.success,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }),
+                          ],
+                        ),
+
+                      // Show accepted employee info if request is accepted
+                      if (isClient && 
+                          _request!.statut.toLowerCase() == 'accepted' &&
+                          _request!.employeeId != null)
+                        FutureBuilder<EmployeeModel?>(
+                          future: _employeeController.getEmployeeById(_request!.employeeId!),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const LoadingWidget();
+                            }
+                            
+                            final employee = snapshot.data;
+                            if (employee == null) {
+                              return const SizedBox.shrink();
+                            }
+
+                            return Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Employé assigné',
+                                      style: AppTextStyles.h3,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 30,
+                                          backgroundColor: AppColors.primaryLight,
+                                          backgroundImage: employee.image != null
+                                              ? NetworkImage(employee.image!)
+                                              : null,
+                                          child: employee.image == null
+                                              ? Text(
+                                                  employee.nomComplet[0].toUpperCase(),
+                                                  style: const TextStyle(
+                                                    color: AppColors.primary,
+                                                    fontSize: 20,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                )
+                                              : null,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                employee.nomComplet,
+                                                style: AppTextStyles.h4,
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                employee.competence,
+                                                style: AppTextStyles.bodySmall.copyWith(
+                                                  color: AppColors.textSecondary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+    );
+  }
+
+  Color _getStatusColor(String statut) {
+    switch (statut.toLowerCase()) {
+      case 'pending':
+        return AppColors.warning;
+      case 'accepted':
+        return AppColors.info;
+      case 'completed':
+        return AppColors.success;
+      case 'cancelled':
+        return AppColors.error;
+      default:
+        return AppColors.grey;
+    }
+  }
+
+  String _getStatusText(String statut) {
+    switch (statut.toLowerCase()) {
+      case 'pending':
+        return 'En attente';
+      case 'accepted':
+        return 'Acceptée';
+      case 'completed':
+        return 'Terminée';
+      case 'cancelled':
+        return 'Annulée';
+      default:
+        return statut;
+    }
+  }
+}
+

@@ -1,5 +1,7 @@
 import '../models/client_model.dart';
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/logger.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Repository pour gérer les clients dans Firestore
 class ClientRepository {
@@ -18,7 +20,8 @@ class ClientRepository {
         return ClientModel.fromMap({...data, 'id': clientId});
       }
       return null;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      Logger.logError('ClientRepository', e, stackTrace);
       throw 'Erreur lors de la récupération du client: $e';
     }
   }
@@ -75,6 +78,27 @@ class ClientRepository {
       return data.map((map) => ClientModel.fromMap(map)).toList();
     } catch (e) {
       throw 'Erreur lors de la recherche: $e';
+    }
+  }
+
+  /// Récupérer un client par userId
+  Future<ClientModel?> getClientByUserId(String userId) async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection(_collection)
+          .where('userId', isEqualTo: userId)
+          .limit(1)
+          .get();
+      
+      if (snapshot.docs.isNotEmpty) {
+        final doc = snapshot.docs.first;
+        final data = doc.data();
+        return ClientModel.fromMap({...data, 'id': doc.id});
+      }
+      return null;
+    } catch (e, stackTrace) {
+      Logger.logError('ClientRepository', e, stackTrace);
+      throw 'Erreur lors de la récupération du client: $e';
     }
   }
 }
