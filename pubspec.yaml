@@ -65,6 +65,9 @@ dependencies:
   
   # Local Storage
   shared_preferences: ^2.3.3
+  
+  # Local Notifications
+  flutter_local_notifications: ^18.0.1
 
 dev_dependencies:
   flutter_test:

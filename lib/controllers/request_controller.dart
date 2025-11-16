@@ -5,6 +5,7 @@ import '../../data/models/request_model.dart';
 import '../../data/repositories/request_repository.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../core/utils/logger.dart';
+import '../../core/services/local_notification_service.dart';
 import 'auth_controller.dart';
 
 /// Controller pour gérer les demandes (GetX)
@@ -21,6 +22,12 @@ class RequestController extends GetxController {
   StreamSubscription<List<RequestModel>>? _requestsStreamSubscription;
   String? _currentCategorieId;
   String? _currentClientId;
+  
+  // Notification service
+  final LocalNotificationService _notificationService = LocalNotificationService();
+  
+  // Track previous request IDs to detect new ones
+  final Set<String> _previousRequestIds = <String>{};
   
   // Notification count for employees (pending requests excluding own requests)
   int get notificationCount {
@@ -42,6 +49,8 @@ class RequestController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    // Initialize notification service
+    _notificationService.initialize();
   }
   
   @override
@@ -149,6 +158,9 @@ class RequestController extends GetxController {
       
       _requestsStreamSubscription = _requestRepository.streamRequestsByCategorieId(categorieId).listen(
         (requestList) {
+          // Detect new requests and show notifications
+          _detectAndNotifyNewRequests(requestList);
+          
           requests.assignAll(requestList);
           isLoading.value = false;
         },
@@ -168,6 +180,44 @@ class RequestController extends GetxController {
     _requestsStreamSubscription = null;
     _currentCategorieId = null;
     _currentClientId = null;
+    _previousRequestIds.clear();
+  }
+
+  /// Détecter les nouvelles demandes et afficher des notifications
+  void _detectAndNotifyNewRequests(List<RequestModel> newRequests) {
+    try {
+      final authController = Get.find<AuthController>();
+      final user = authController.currentUser.value;
+      if (user == null) return;
+
+      // Filter pending requests not made by current user
+      final pendingRequests = newRequests.where((request) {
+        return request.statut.toLowerCase() == 'pending' &&
+               request.clientId != user.id;
+      }).toList();
+
+      // Find new requests (not in previous list)
+      final newRequestIds = pendingRequests.map((r) => r.id).toSet();
+      final actuallyNewRequests = pendingRequests.where((request) {
+        return !_previousRequestIds.contains(request.id);
+      }).toList();
+
+      // Show notifications for new requests
+      for (final request in actuallyNewRequests) {
+        _notificationService.showNewRequestNotification(
+          requestId: request.id,
+          description: request.description,
+          address: request.address,
+        );
+      }
+
+      // Update previous request IDs
+      _previousRequestIds.clear();
+      _previousRequestIds.addAll(newRequestIds);
+    } catch (e) {
+      // Silently handle errors to avoid breaking the stream
+      Logger.logError('RequestController._detectAndNotifyNewRequests', e, StackTrace.current);
+    }
   }
 
   /// Créer une demande

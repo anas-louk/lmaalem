@@ -284,6 +284,10 @@ class AppTranslations extends Translations {
       'comment_hint': 'Commentaire (optionnel)',
       'optional': 'optionnel',
       'finish': 'Terminer',
+      
+      // Notifications
+      'notifications_channel_description': 'Notifications pour les nouvelles demandes de service',
+      'general_notifications_channel_description': 'Notifications générales de l\'application',
     },
     'ar_SA': {
       // Common
@@ -566,6 +570,10 @@ class AppTranslations extends Translations {
       'comment_hint': 'التعليق (اختياري)',
       'optional': 'اختياري',
       'finish': 'إنهاء',
+      
+      // Notifications
+      'notifications_channel_description': 'إشعارات لطلبات الخدمة الجديدة',
+      'general_notifications_channel_description': 'إشعارات عامة للتطبيق',
     },
   };
 }

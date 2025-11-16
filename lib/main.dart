@@ -6,6 +6,7 @@ import 'theme/app_theme.dart';
 import 'controllers/auth_controller.dart';
 import 'controllers/language_controller.dart';
 import 'core/translations/app_translations.dart';
+import 'core/services/local_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +16,13 @@ void main() async {
     await FirebaseInit.initialize();
   } catch (e) {
     debugPrint('Erreur lors de l\'initialisation de Firebase: $e');
+  }
+
+  // Initialiser le service de notifications locales
+  try {
+    await LocalNotificationService().initialize();
+  } catch (e) {
+    debugPrint('Erreur lors de l\'initialisation des notifications: $e');
   }
 
   runApp(const MyApp());
