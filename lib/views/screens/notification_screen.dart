@@ -58,6 +58,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
         _loadedUserId = user.id;
         _currentEmployeeDocumentId = employee.id;
         _currentCategorieId = employee.categorieId;
+        
+        // Set employee document ID in controller for notification count
+        _requestController.setEmployeeDocumentId(employee.id);
+        
         debugPrint('[NotificationScreen] Loaded employee data: ID=${employee.id}, Category=${employee.categorieId}');
       }
     } catch (e) {
@@ -75,7 +79,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
       // Restart stream - this will be handled by the controller
       _requestController.stopStreaming();
       await Future.delayed(const Duration(milliseconds: 100));
-      await _requestController.streamRequestsByCategorie(employee.categorieId);
+      await _requestController.streamRequestsByCategorie(
+        employee.categorieId,
+        employeeDocumentId: employee.id,
+      );
     }
   }
 
@@ -119,7 +126,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
               // Only start stream if not already active for this category
               // The dashboard should have started it, but this is a safety check
               if (_requestController.requests.isEmpty && !_requestController.isLoading.value && !_requestController.hasReceivedFirstData.value) {
-                await _requestController.streamRequestsByCategorie(currentCategory!);
+                await _requestController.streamRequestsByCategorie(
+                  currentCategory!,
+                  employeeDocumentId: _currentEmployeeDocumentId,
+                );
               }
             });
           }
@@ -136,14 +146,20 @@ class _NotificationScreenState extends State<NotificationScreen> {
             return const LoadingWidget();
           }
 
-          // Filter requests - iterate through the reactive list
+          // Filter requests - only exclude own requests
+          // Keep showing accepted/refused requests, but they won't count in notification counter
           final filteredRequests = <RequestModel>[];
           for (var i = 0; i < requestsLength; i++) {
             final request = requestsList[i];
-            if (request.statut.toLowerCase() == 'pending' &&
-                request.clientId != user.id) {
-              filteredRequests.add(request);
-            }
+            
+            // Only show pending requests
+            if (request.statut.toLowerCase() != 'pending') continue;
+            
+            // Don't show own requests
+            if (request.clientId == user.id) continue;
+            
+            // Show all requests (including accepted/refused) - they just won't count in badge
+            filteredRequests.add(request);
           }
           
           // Debug log to verify updates
@@ -175,7 +191,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
               itemBuilder: (context, index) {
                 final request = filteredRequests[index];
                 final isAccepted = _isRequestAccepted(request);
-                return _buildNotificationCard(context, request, isAccepted, index);
+                final isRefused = _isRequestRefused(request);
+                return _buildNotificationCard(context, request, isAccepted, isRefused, index);
               },
             ),
           );
@@ -188,6 +205,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     BuildContext context,
     RequestModel request,
     bool isAccepted,
+    bool isRefused,
     int index,
   ) {
     return TweenAnimationBuilder<double>(
@@ -476,44 +494,85 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     ),
                     const SizedBox(height: 16),
                   ],
-                  // Action Buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Obx(
-                          () => _buildActionButton(
-                            context: context,
-                            label: isAccepted ? 'cancel_acceptance'.tr : 'refuse'.tr,
-                            icon: isAccepted ? Icons.cancel_outlined : Icons.close_rounded,
-                            color: AppColors.error,
-                            onPressed: _requestController.isLoading.value
-                                ? null
-                                : () => isAccepted
-                                    ? _cancelAcceptance(request.id)
-                                    : _refuseRequest(request.id),
-                            isLoading: false,
-                          ),
+                  // Show refused message if employee refused, otherwise show action buttons
+                  if (isRefused)
+                    // Refused Message
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.error.withOpacity(0.3),
+                          width: 1,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: Obx(
-                          () => _buildActionButton(
-                            context: context,
-                            label: isAccepted ? 'waiting_for_client'.tr : 'accept'.tr,
-                            icon: isAccepted ? Icons.hourglass_empty_rounded : Icons.check_rounded,
-                            color: isAccepted ? AppColors.info : AppColors.success,
-                            onPressed: isAccepted || _requestController.isLoading.value
-                                ? null
-                                : () => _acceptRequest(request.id),
-                            isLoading: _requestController.isLoading.value,
-                            isPrimary: true,
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close_rounded,
+                              color: AppColors.error,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'you_refused_request'.tr,
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: AppColors.error,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    // Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Obx(
+                            () => _buildActionButton(
+                              context: context,
+                              label: isAccepted ? 'cancel_acceptance'.tr : 'refuse'.tr,
+                              icon: isAccepted ? Icons.cancel_outlined : Icons.close_rounded,
+                              color: AppColors.error,
+                              onPressed: _requestController.isLoading.value
+                                  ? null
+                                  : () => isAccepted
+                                      ? _cancelAcceptance(request.id)
+                                      : _refuseRequest(request.id),
+                              isLoading: false,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: Obx(
+                            () => _buildActionButton(
+                              context: context,
+                              label: isAccepted ? 'waiting_for_client'.tr : 'accept'.tr,
+                              icon: isAccepted ? Icons.hourglass_empty_rounded : Icons.check_rounded,
+                              color: isAccepted ? AppColors.info : AppColors.success,
+                              onPressed: isAccepted || _requestController.isLoading.value
+                                  ? null
+                                  : () => _acceptRequest(request.id),
+                              isLoading: _requestController.isLoading.value,
+                              isPrimary: true,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -676,6 +735,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
     return request.acceptedEmployeeIds.contains(_currentEmployeeDocumentId);
   }
 
+  bool _isRequestRefused(RequestModel request) {
+    if (_currentEmployeeDocumentId == null) return false;
+    return request.refusedEmployeeIds.contains(_currentEmployeeDocumentId);
+  }
+
   Future<void> _acceptRequest(String requestId) async {
     final user = _authController.currentUser.value;
     if (user == null) return;
@@ -688,8 +752,56 @@ class _NotificationScreenState extends State<NotificationScreen> {
     final user = _authController.currentUser.value;
     if (user == null) return;
 
-    await _requestController.refuseRequestByEmployee(requestId, user.id);
-    // No need to reload - stream will update automatically
+    // Show confirmation dialog
+    final shouldRefuse = await Get.dialog<bool>(
+      AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text(
+          'refuse_request'.tr,
+          style: AppTextStyles.h4,
+        ),
+        content: Text(
+          'refuse_request_confirmation'.tr,
+          style: AppTextStyles.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text(
+              'cancel'.tr,
+              style: AppTextStyles.buttonMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text('confirm'.tr),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldRefuse == true) {
+      await _requestController.refuseRequestByEmployee(requestId, user.id);
+      Get.snackbar(
+        'success'.tr,
+        'request_refused_success'.tr,
+        backgroundColor: AppColors.success.withOpacity(0.9),
+        colorText: AppColors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      // No need to reload - stream will update automatically
+    }
   }
 
   Future<void> _cancelAcceptance(String requestId) async {

@@ -13,6 +13,7 @@ class RequestModel {
   final String statut; // Statut: 'Pending', 'Accepted', 'Completed', 'Cancelled'
   final String? employeeId; // ID de l'employé finalement accepté par le client
   final List<String> acceptedEmployeeIds; // IDs des employés qui ont accepté la demande
+  final List<String> refusedEmployeeIds; // IDs des employés qui ont refusé la demande
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -28,10 +29,12 @@ class RequestModel {
     this.statut = 'Pending',
     this.employeeId,
     List<String>? acceptedEmployeeIds,
+    List<String>? refusedEmployeeIds,
     required this.createdAt,
     required this.updatedAt,
   }) : images = images ?? [],
-       acceptedEmployeeIds = acceptedEmployeeIds ?? [];
+       acceptedEmployeeIds = acceptedEmployeeIds ?? [],
+       refusedEmployeeIds = refusedEmployeeIds ?? [];
 
   /// Créer un RequestModel depuis un Map (Firestore)
   factory RequestModel.fromMap(Map<String, dynamic> map) {
@@ -57,6 +60,7 @@ class RequestModel {
       statut: map['statut'] ?? 'Pending',
       employeeId: map['employeeId'],
       acceptedEmployeeIds: List<String>.from(map['acceptedEmployeeIds'] ?? []),
+      refusedEmployeeIds: List<String>.from(map['refusedEmployeeIds'] ?? []),
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -85,6 +89,7 @@ class RequestModel {
       'statut': statut,
       'employeeId': employeeId,
       'acceptedEmployeeIds': acceptedEmployeeIds,
+      'refusedEmployeeIds': refusedEmployeeIds,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -103,6 +108,7 @@ class RequestModel {
     String? statut,
     String? employeeId,
     List<String>? acceptedEmployeeIds,
+    List<String>? refusedEmployeeIds,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -118,6 +124,7 @@ class RequestModel {
       statut: statut ?? this.statut,
       employeeId: employeeId ?? this.employeeId,
       acceptedEmployeeIds: acceptedEmployeeIds ?? this.acceptedEmployeeIds,
+      refusedEmployeeIds: refusedEmployeeIds ?? this.refusedEmployeeIds,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

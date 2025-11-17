@@ -25,13 +25,16 @@ class RequestController extends GetxController {
   String? _currentCategorieId;
   String? _currentClientId;
   
+  // Cache employee document ID for notification count calculation
+  String? _currentEmployeeDocumentId;
+  
   // Notification service
   final LocalNotificationService _notificationService = LocalNotificationService();
   
   // Track previous request IDs to detect new ones
   final Set<String> _previousRequestIds = <String>{};
   
-  // Notification count for employees (pending requests excluding own requests)
+  // Notification count for employees (pending requests excluding own requests and already dealt with)
   int get notificationCount {
     try {
       final authController = Get.find<AuthController>();
@@ -39,8 +42,25 @@ class RequestController extends GetxController {
       if (user == null) return 0;
       
       return requests.where((request) {
-        return request.statut.toLowerCase() == 'pending' &&
-               request.clientId != user.id; // Don't show own requests
+        // Only count pending requests
+        if (request.statut.toLowerCase() != 'pending') return false;
+        
+        // Don't count own requests
+        if (request.clientId == user.id) return false;
+        
+        // Don't count requests that employee has already accepted
+        if (_currentEmployeeDocumentId != null && 
+            request.acceptedEmployeeIds.contains(_currentEmployeeDocumentId)) {
+          return false;
+        }
+        
+        // Don't count requests that employee has already refused
+        if (_currentEmployeeDocumentId != null && 
+            request.refusedEmployeeIds.contains(_currentEmployeeDocumentId)) {
+          return false;
+        }
+        
+        return true;
       }).length;
     } catch (e) {
       // AuthController not found or not initialized
@@ -150,8 +170,13 @@ class RequestController extends GetxController {
     }
   }
 
+  /// Set employee document ID for notification count calculation
+  void setEmployeeDocumentId(String? employeeDocumentId) {
+    _currentEmployeeDocumentId = employeeDocumentId;
+  }
+
   /// Stream des demandes par catégorie (temps réel)
-  Future<void> streamRequestsByCategorie(String categorieId) async {
+  Future<void> streamRequestsByCategorie(String categorieId, {String? employeeDocumentId}) async {
     // Only recreate if category changed or stream doesn't exist
     if (_currentCategorieId == categorieId && _requestsStreamSubscription != null) {
       debugPrint('[RequestController] Stream already active for category: $categorieId, skipping');
@@ -164,6 +189,11 @@ class RequestController extends GetxController {
     
     _currentCategorieId = categorieId;
     _currentClientId = null;
+    
+    // Cache employee document ID if provided
+    if (employeeDocumentId != null) {
+      _currentEmployeeDocumentId = employeeDocumentId;
+    }
     
     // Reset first data flag when starting new stream
     hasReceivedFirstData.value = false;
@@ -242,10 +272,28 @@ class RequestController extends GetxController {
       final user = authController.currentUser.value;
       if (user == null) return;
 
-      // Filter pending requests not made by current user
+      // Filter pending requests not made by current user and not already dealt with
+      // Only notify for requests that employee hasn't accepted or refused
       final pendingRequests = newRequests.where((request) {
-        return request.statut.toLowerCase() == 'pending' &&
-               request.clientId != user.id;
+        // Only pending requests
+        if (request.statut.toLowerCase() != 'pending') return false;
+        
+        // Don't notify for own requests
+        if (request.clientId == user.id) return false;
+        
+        // Don't notify for requests that employee has already accepted
+        if (_currentEmployeeDocumentId != null && 
+            request.acceptedEmployeeIds.contains(_currentEmployeeDocumentId)) {
+          return false;
+        }
+        
+        // Don't notify for requests that employee has already refused
+        if (_currentEmployeeDocumentId != null && 
+            request.refusedEmployeeIds.contains(_currentEmployeeDocumentId)) {
+          return false;
+        }
+        
+        return true;
       }).toList();
 
       // Find new requests (not in previous list)
@@ -254,7 +302,7 @@ class RequestController extends GetxController {
         return !_previousRequestIds.contains(request.id);
       }).toList();
 
-      // Show notifications for new requests
+      // Show notifications only for new requests that employee hasn't dealt with
       for (final request in actuallyNewRequests) {
         _notificationService.showNewRequestNotification(
           requestId: request.id,
@@ -263,7 +311,7 @@ class RequestController extends GetxController {
         );
       }
 
-      // Update previous request IDs
+      // Update previous request IDs (only for requests that can trigger notifications)
       _previousRequestIds.clear();
       _previousRequestIds.addAll(newRequestIds);
     } catch (e) {
@@ -387,6 +435,9 @@ class RequestController extends GetxController {
 
       final employeeDocumentId = employee.id;
       
+      // Cache employee document ID for notification count
+      _currentEmployeeDocumentId = employeeDocumentId;
+      
       final request = await _requestRepository.getRequestById(requestId);
       if (request == null) {
         throw 'Demande non trouvée';
@@ -400,6 +451,11 @@ class RequestController extends GetxController {
       // Vérifier que l'employé n'a pas déjà accepté (using employee document ID)
       if (request.acceptedEmployeeIds.contains(employeeDocumentId)) {
         throw 'Vous avez déjà accepté cette demande';
+      }
+
+      // Vérifier que l'employé n'a pas refusé cette demande
+      if (request.refusedEmployeeIds.contains(employeeDocumentId)) {
+        throw 'Vous avez refusé cette demande et ne pouvez plus l\'accepter';
       }
 
       // Ajouter l'employé à la liste des acceptés (using employee document ID)
@@ -444,6 +500,9 @@ class RequestController extends GetxController {
 
       final employeeDocumentId = employee.id;
       
+      // Cache employee document ID for notification count
+      _currentEmployeeDocumentId = employeeDocumentId;
+      
       final request = await _requestRepository.getRequestById(requestId);
       if (request == null) {
         throw 'Demande non trouvée';
@@ -451,8 +510,15 @@ class RequestController extends GetxController {
 
       // Retirer l'employé de la liste des acceptés s'il y est (using employee document ID)
       final updatedAcceptedIds = request.acceptedEmployeeIds.where((id) => id != employeeDocumentId).toList();
+      
+      // Ajouter l'employé à la liste des refusés s'il n'y est pas déjà
+      final updatedRefusedIds = request.refusedEmployeeIds.contains(employeeDocumentId)
+          ? request.refusedEmployeeIds
+          : [...request.refusedEmployeeIds, employeeDocumentId];
+      
       final updatedRequest = request.copyWith(
         acceptedEmployeeIds: updatedAcceptedIds,
+        refusedEmployeeIds: updatedRefusedIds,
         updatedAt: DateTime.now(),
       );
 

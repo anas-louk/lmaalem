@@ -70,8 +70,12 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
         // Start streaming to get real-time updates for badge count
         // This stream will stay active even when navigating between screens
         // Load initial data first, then start stream
-        await _requestController.streamRequestsByCategorie(employee.categorieId);
-        debugPrint('[EmployeeDashboard] Stream started for category: ${employee.categorieId}');
+        // Pass employee document ID so notification count can exclude dealt requests
+        await _requestController.streamRequestsByCategorie(
+          employee.categorieId,
+          employeeDocumentId: employee.id,
+        );
+        debugPrint('[EmployeeDashboard] Stream started for category: ${employee.categorieId}, Employee ID: ${employee.id}');
       }
     } catch (e) {
       debugPrint('[EmployeeDashboard] Error initializing stream: $e');
