@@ -189,10 +189,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               itemCount: filteredRequests.length,
               itemBuilder: (context, index) {
-                final request = filteredRequests[index];
-                final isAccepted = _isRequestAccepted(request);
-                final isRefused = _isRequestRefused(request);
-                return _buildNotificationCard(context, request, isAccepted, isRefused, index);
+              final request = filteredRequests[index];
+              final isAccepted = _isRequestAccepted(request);
+              final isRefused = _isRequestRefused(request);
+              final isRefusedByClient = _isRequestRefusedByClient(request);
+              debugPrint('[NotificationScreen] Request ${request.id}: isAccepted=$isAccepted, isRefused=$isRefused, isRefusedByClient=$isRefusedByClient');
+              return _buildNotificationCard(context, request, isAccepted, isRefused, isRefusedByClient, index);
               },
             ),
           );
@@ -206,6 +208,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     RequestModel request,
     bool isAccepted,
     bool isRefused,
+    bool isRefusedByClient,
     int index,
   ) {
     return TweenAnimationBuilder<double>(
@@ -494,85 +497,95 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     ),
                     const SizedBox(height: 16),
                   ],
-                  // Show refused message if employee refused, otherwise show action buttons
-                  if (isRefused)
-                    // Refused Message
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppColors.error.withOpacity(0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.error.withOpacity(0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.close_rounded,
-                              color: AppColors.error,
-                              size: 20,
-                            ),
+                  // Show refused message if employee refused or client refused, otherwise show action buttons
+                  Obx(() {
+                    // Get the latest request from the reactive list to ensure we have the most up-to-date data
+                    final latestRequest = _requestController.requests.firstWhere(
+                      (r) => r.id == request.id,
+                      orElse: () => request,
+                    );
+                    
+                    // Recalculate these values reactively inside Obx to ensure updates
+                    final currentIsRefused = _isRequestRefused(latestRequest);
+                    final currentIsRefusedByClient = _isRequestRefusedByClient(latestRequest);
+                    final currentIsAccepted = _isRequestAccepted(latestRequest);
+                    
+                    if (currentIsRefused || currentIsRefusedByClient) {
+                      // Refused Message
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.error.withOpacity(0.3),
+                            width: 1,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'you_refused_request'.tr,
-                              style: AppTextStyles.bodyMedium.copyWith(
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withOpacity(0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close_rounded,
                                 color: AppColors.error,
-                                fontWeight: FontWeight.bold,
+                                size: 20,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    // Action Buttons
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Obx(
-                            () => _buildActionButton(
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                currentIsRefusedByClient ? 'client_refused_request'.tr : 'you_refused_request'.tr,
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: AppColors.error,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    } else {
+                      // Action Buttons
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: _buildActionButton(
                               context: context,
-                              label: isAccepted ? 'cancel_acceptance'.tr : 'refuse'.tr,
-                              icon: isAccepted ? Icons.cancel_outlined : Icons.close_rounded,
+                              label: currentIsAccepted ? 'cancel_acceptance'.tr : 'refuse'.tr,
+                              icon: currentIsAccepted ? Icons.cancel_outlined : Icons.close_rounded,
                               color: AppColors.error,
                               onPressed: _requestController.isLoading.value
                                   ? null
-                                  : () => isAccepted
+                                  : () => currentIsAccepted
                                       ? _cancelAcceptance(request.id)
                                       : _refuseRequest(request.id),
                               isLoading: false,
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 2,
-                          child: Obx(
-                            () => _buildActionButton(
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: _buildActionButton(
                               context: context,
-                              label: isAccepted ? 'waiting_for_client'.tr : 'accept'.tr,
-                              icon: isAccepted ? Icons.hourglass_empty_rounded : Icons.check_rounded,
-                              color: isAccepted ? AppColors.info : AppColors.success,
-                              onPressed: isAccepted || _requestController.isLoading.value
+                              label: currentIsAccepted ? 'waiting_for_client'.tr : 'accept'.tr,
+                              icon: currentIsAccepted ? Icons.hourglass_empty_rounded : Icons.check_rounded,
+                              color: currentIsAccepted ? AppColors.info : AppColors.success,
+                              onPressed: currentIsAccepted || _requestController.isLoading.value
                                   ? null
                                   : () => _acceptRequest(request.id),
                               isLoading: _requestController.isLoading.value,
                               isPrimary: true,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      );
+                    }
+                  }),
                 ],
               ),
             ),
@@ -738,6 +751,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
   bool _isRequestRefused(RequestModel request) {
     if (_currentEmployeeDocumentId == null) return false;
     return request.refusedEmployeeIds.contains(_currentEmployeeDocumentId);
+  }
+
+  bool _isRequestRefusedByClient(RequestModel request) {
+    if (_currentEmployeeDocumentId == null) {
+      debugPrint('[NotificationScreen] _isRequestRefusedByClient: _currentEmployeeDocumentId is null');
+      return false;
+    }
+    final isRefused = request.clientRefusedEmployeeIds.contains(_currentEmployeeDocumentId);
+    debugPrint('[NotificationScreen] _isRequestRefusedByClient: Request=${request.id}, EmployeeId=$_currentEmployeeDocumentId, ClientRefusedIds=${request.clientRefusedEmployeeIds}, Result=$isRefused');
+    return isRefused;
   }
 
   Future<void> _acceptRequest(String requestId) async {

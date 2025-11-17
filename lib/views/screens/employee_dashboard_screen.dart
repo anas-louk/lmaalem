@@ -228,7 +228,7 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
       if (employee != null) {
         _loadedUserId = user.id;
         // Stream missions using employee document ID for real-time updates
-        _missionController.streamMissionsByEmployee(employee.id);
+        await _missionController.streamMissionsByEmployee(employee.id);
       }
     } catch (e) {
       // Handle error
@@ -303,11 +303,16 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
 
                 Obx(
                   () {
-                    if (_missionController.isLoading.value) {
+                    final missionsLength = _missionController.missions.length;
+                    final isLoading = _missionController.isLoading.value;
+                    final hasReceivedFirstData = _missionController.hasReceivedFirstData.value;
+
+                    // Show loading if we haven't received first data yet OR if loading and no data
+                    if ((!hasReceivedFirstData && missionsLength == 0) || (isLoading && missionsLength == 0 && !hasReceivedFirstData)) {
                       return const LoadingWidget();
                     }
 
-                    if (_missionController.missions.isEmpty) {
+                    if (missionsLength == 0) {
                       return EmptyState(
                         icon: Icons.work_outline,
                         title: 'no_missions'.tr,

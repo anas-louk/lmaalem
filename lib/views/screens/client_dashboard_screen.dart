@@ -137,7 +137,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
       final client = await _clientRepository.getClientByUserId(userId);
       if (client != null) {
         // Stream missions for real-time updates
-        _missionController.streamMissionsByClient(client.id);
+        await _missionController.streamMissionsByClient(client.id);
       } else {
         // If client not found, clear missions
         _missionController.missions.clear();
@@ -365,11 +365,16 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
 
                 Obx(
                   () {
-                    if (_missionController.isLoading.value) {
+                    final missionsLength = _missionController.missions.length;
+                    final isLoading = _missionController.isLoading.value;
+                    final hasReceivedFirstData = _missionController.hasReceivedFirstData.value;
+
+                    // Show loading if we haven't received first data yet OR if loading and no data
+                    if ((!hasReceivedFirstData && missionsLength == 0) || (isLoading && missionsLength == 0 && !hasReceivedFirstData)) {
                       return const LoadingWidget();
                     }
 
-                    if (_missionController.missions.isEmpty) {
+                    if (missionsLength == 0) {
                       return EmptyState(
                         icon: Icons.work_outline,
                         title: 'no_missions_client'.tr,

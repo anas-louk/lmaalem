@@ -54,12 +54,17 @@ class RequestRepository {
   /// Mettre à jour une demande
   Future<void> updateRequest(RequestModel request) async {
     try {
+      final dataToSave = request.copyWith(updatedAt: DateTime.now()).toMap();
+      Logger.logInfo('RequestRepository.updateRequest', 'Updating request ${request.id}');
+      Logger.logInfo('RequestRepository.updateRequest', 'Data to save: clientRefusedEmployeeIds=${dataToSave['clientRefusedEmployeeIds']}');
       await _firestoreService.update(
         collection: _collection,
         docId: request.id,
-        data: request.copyWith(updatedAt: DateTime.now()).toMap(),
+        data: dataToSave,
       );
+      Logger.logInfo('RequestRepository.updateRequest', 'Request ${request.id} updated successfully');
     } catch (e) {
+      Logger.logError('RequestRepository.updateRequest', e, StackTrace.current);
       throw 'Erreur lors de la mise à jour de la demande: $e';
     }
   }
@@ -108,8 +113,9 @@ class RequestRepository {
       
       final requests = data.map((map) {
         try {
+          Logger.logInfo('RequestRepository.getRequestsByCategorieId', 'Raw map data for ${map['id']}: clientRefusedEmployeeIds=${map['clientRefusedEmployeeIds']}');
           final request = RequestModel.fromMap(map);
-          Logger.logInfo('RequestRepository.getRequestsByCategorieId', 'Parsed request ${request.id}: categorieId=${request.categorieId}, statut=${request.statut}');
+          Logger.logInfo('RequestRepository.getRequestsByCategorieId', 'Parsed request ${request.id}: categorieId=${request.categorieId}, statut=${request.statut}, clientRefusedEmployeeIds=${request.clientRefusedEmployeeIds}');
           return request;
         } catch (e) {
           Logger.logError('RequestRepository.getRequestsByCategorieId', 'Error parsing request: $e');

@@ -121,6 +121,50 @@ class LocalNotificationService {
     );
   }
 
+  /// Afficher une notification lorsqu'un employé accepte une demande
+  Future<void> showEmployeeAcceptedNotification({
+    required String requestId,
+    required String employeeName,
+    required String requestDescription,
+  }) async {
+    if (!_initialized) {
+      await initialize();
+    }
+
+    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'employee_accepted_channel',
+      'employee_accepted'.tr,
+      channelDescription: 'notifications_channel_description'.tr,
+      importance: Importance.high,
+      priority: Priority.high,
+      showWhen: true,
+      icon: '@mipmap/ic_launcher',
+      styleInformation: BigTextStyleInformation(''),
+    );
+
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    final NotificationDetails details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    // Format message
+    final message = 'employee_accepted_notification_message'.tr.replaceAll('{employee}', employeeName);
+    
+    await _notifications.show(
+      ('employee_accepted_$requestId').hashCode, // ID unique pour la notification
+      'employee_accepted'.tr,
+      message,
+      details,
+      payload: requestId, // Passer l'ID de la demande comme payload
+    );
+  }
+
   /// Afficher une notification simple
   Future<void> showNotification({
     required int id,

@@ -467,6 +467,9 @@ class RequestController extends GetxController {
 
       await _requestRepository.updateRequest(updatedRequest);
       
+      // Note: Client notification is handled in RequestDetailScreen stream listener
+      // This ensures notifications work correctly when client is viewing the detail screen
+      
       // Don't reload if stream is active - stream will update automatically
       // Only reload if no stream is active
       if (_currentCategorieId == null) {
@@ -603,12 +606,28 @@ class RequestController extends GetxController {
 
       // Retirer l'employé de la liste des acceptés
       final updatedAcceptedIds = request.acceptedEmployeeIds.where((id) => id != employeeId).toList();
+      
+      // Ajouter l'employé à la liste des refusés par le client s'il n'y est pas déjà
+      final updatedClientRefusedIds = request.clientRefusedEmployeeIds.contains(employeeId)
+          ? request.clientRefusedEmployeeIds
+          : [...request.clientRefusedEmployeeIds, employeeId];
+      
+      debugPrint('[RequestController] rejectEmployeeForRequest: RequestId=$requestId, EmployeeId=$employeeId');
+      debugPrint('[RequestController] Before: acceptedEmployeeIds=${request.acceptedEmployeeIds}, clientRefusedEmployeeIds=${request.clientRefusedEmployeeIds}');
+      debugPrint('[RequestController] After: acceptedEmployeeIds=$updatedAcceptedIds, clientRefusedEmployeeIds=$updatedClientRefusedIds');
+      
       final updatedRequest = request.copyWith(
         acceptedEmployeeIds: updatedAcceptedIds,
+        clientRefusedEmployeeIds: updatedClientRefusedIds,
         updatedAt: DateTime.now(),
       );
 
+      debugPrint('[RequestController] Updated request clientRefusedEmployeeIds: ${updatedRequest.clientRefusedEmployeeIds}');
+      debugPrint('[RequestController] Updated request toMap: ${updatedRequest.toMap()}');
+      
       await _requestRepository.updateRequest(updatedRequest);
+      
+      debugPrint('[RequestController] Request updated successfully');
       
       // Don't reload if stream is active for this client - stream will update automatically
       // Only reload if no stream is active or stream is for a different client

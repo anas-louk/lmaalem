@@ -14,6 +14,7 @@ class RequestModel {
   final String? employeeId; // ID de l'employé finalement accepté par le client
   final List<String> acceptedEmployeeIds; // IDs des employés qui ont accepté la demande
   final List<String> refusedEmployeeIds; // IDs des employés qui ont refusé la demande
+  final List<String> clientRefusedEmployeeIds; // IDs des employés refusés par le client
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -30,11 +31,13 @@ class RequestModel {
     this.employeeId,
     List<String>? acceptedEmployeeIds,
     List<String>? refusedEmployeeIds,
+    List<String>? clientRefusedEmployeeIds,
     required this.createdAt,
     required this.updatedAt,
   }) : images = images ?? [],
        acceptedEmployeeIds = acceptedEmployeeIds ?? [],
-       refusedEmployeeIds = refusedEmployeeIds ?? [];
+       refusedEmployeeIds = refusedEmployeeIds ?? [],
+       clientRefusedEmployeeIds = clientRefusedEmployeeIds ?? [];
 
   /// Créer un RequestModel depuis un Map (Firestore)
   factory RequestModel.fromMap(Map<String, dynamic> map) {
@@ -61,6 +64,7 @@ class RequestModel {
       employeeId: map['employeeId'],
       acceptedEmployeeIds: List<String>.from(map['acceptedEmployeeIds'] ?? []),
       refusedEmployeeIds: List<String>.from(map['refusedEmployeeIds'] ?? []),
+      clientRefusedEmployeeIds: List<String>.from(map['clientRefusedEmployeeIds'] ?? []),
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -90,6 +94,7 @@ class RequestModel {
       'employeeId': employeeId,
       'acceptedEmployeeIds': acceptedEmployeeIds,
       'refusedEmployeeIds': refusedEmployeeIds,
+      'clientRefusedEmployeeIds': clientRefusedEmployeeIds,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -109,6 +114,7 @@ class RequestModel {
     String? employeeId,
     List<String>? acceptedEmployeeIds,
     List<String>? refusedEmployeeIds,
+    List<String>? clientRefusedEmployeeIds,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -125,6 +131,7 @@ class RequestModel {
       employeeId: employeeId ?? this.employeeId,
       acceptedEmployeeIds: acceptedEmployeeIds ?? this.acceptedEmployeeIds,
       refusedEmployeeIds: refusedEmployeeIds ?? this.refusedEmployeeIds,
+      clientRefusedEmployeeIds: clientRefusedEmployeeIds ?? this.clientRefusedEmployeeIds,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

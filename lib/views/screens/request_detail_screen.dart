@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'dart:async';
 import '../../controllers/request_controller.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/employee_controller.dart';
@@ -11,11 +12,13 @@ import '../../data/models/client_model.dart';
 import '../../data/repositories/client_repository.dart';
 import '../../data/repositories/user_repository.dart';
 import '../../data/repositories/mission_repository.dart';
+import '../../data/repositories/request_repository.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../components/loading_widget.dart';
 import '../../components/custom_button.dart';
 import '../../core/utils/logger.dart';
+import '../../core/services/local_notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Écran de détails d'une demande
@@ -38,16 +41,105 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   final MissionController _missionController = Get.put(MissionController());
   final ClientRepository _clientRepository = ClientRepository();
   final MissionRepository _missionRepository = MissionRepository();
+  final RequestRepository _requestRepository = RequestRepository();
   
   RequestModel? _request;
   bool _isLoading = true;
   List<EmployeeModel> _acceptedEmployees = [];
   MissionModel? _mission;
+  StreamSubscription<RequestModel?>? _requestStreamSubscription;
+  Set<String> _previousAcceptedEmployeeIds = {}; // Track previous accepted employees
 
   @override
   void initState() {
     super.initState();
+    _startStreaming();
+  }
+
+  @override
+  void dispose() {
+    _requestStreamSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _startStreaming() {
+    // Load initial data first
     _loadRequest();
+    
+    // Then start streaming for real-time updates
+    _requestStreamSubscription = _requestRepository.streamRequest(widget.requestId).listen(
+      (request) {
+        if (request != null) {
+          // Check if a new employee accepted (for notification) - do this BEFORE updating _previousAcceptedEmployeeIds
+          final currentUser = _authController.currentUser.value;
+          final isClient = currentUser != null && currentUser.id == request.clientId;
+          
+          if (isClient && request.acceptedEmployeeIds.isNotEmpty) {
+            // Find newly accepted employees by comparing with previous list
+            final newAcceptedIds = request.acceptedEmployeeIds.where(
+              (id) => !_previousAcceptedEmployeeIds.contains(id)
+            ).toList();
+            
+            // Show notification for each new employee
+            for (final employeeId in newAcceptedIds) {
+              _loadEmployeeAndNotify(employeeId, request);
+            }
+          }
+          
+          setState(() {
+            _request = request;
+            _isLoading = false;
+          });
+          
+          // Load accepted employees if the list changed
+          if (request.acceptedEmployeeIds.isNotEmpty) {
+            final newAcceptedIds = request.acceptedEmployeeIds.toSet();
+            if (newAcceptedIds != _previousAcceptedEmployeeIds) {
+              _previousAcceptedEmployeeIds = newAcceptedIds;
+              _loadAcceptedEmployees(request.acceptedEmployeeIds);
+            }
+          } else {
+            setState(() {
+              _acceptedEmployees = [];
+            });
+            _previousAcceptedEmployeeIds.clear();
+          }
+          
+          // Load mission if request is accepted
+          if (request.statut.toLowerCase() == 'accepted' && request.employeeId != null) {
+            _loadMission(request);
+          } else {
+            setState(() {
+              _mission = null;
+            });
+          }
+        }
+      },
+      onError: (error) {
+        Logger.logError('RequestDetailScreen._startStreaming', error, StackTrace.current);
+        setState(() {
+          _isLoading = false;
+        });
+      },
+    );
+  }
+
+  Future<void> _loadEmployeeAndNotify(String employeeId, RequestModel request) async {
+    try {
+      final employee = await _employeeController.getEmployeeById(employeeId);
+      if (employee != null) {
+        // Show notification
+        final notificationService = LocalNotificationService();
+        await notificationService.showEmployeeAcceptedNotification(
+          requestId: request.id,
+          employeeName: employee.nomComplet,
+          requestDescription: request.description,
+        );
+      }
+    } catch (e) {
+      // Silently handle errors
+      Logger.logError('RequestDetailScreen._loadEmployeeAndNotify', e, StackTrace.current);
+    }
   }
 
   Future<void> _loadRequest() async {
@@ -82,7 +174,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   Future<void> _loadAcceptedEmployees(List<String> employeeIds) async {
     try {
       final employees = <EmployeeModel>[];
-      for (final employeeId in employeeIds) {
+      // Filter out client-refused employees
+      final filteredIds = employeeIds.where((id) => 
+        _request?.clientRefusedEmployeeIds.contains(id) != true
+      ).toList();
+      
+      for (final employeeId in filteredIds) {
         final employee = await _employeeController.getEmployeeById(employeeId);
         if (employee != null) {
           employees.add(employee);
