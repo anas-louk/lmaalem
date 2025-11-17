@@ -1,5 +1,7 @@
 import 'package:get/get.dart';
+import 'package:flutter/foundation.dart';
 import '../core/services/auth_service.dart';
+import '../core/services/push_notifications.dart';
 import '../data/models/user_model.dart';
 import '../data/models/employee_model.dart';
 import '../data/repositories/user_repository.dart';
@@ -50,6 +52,17 @@ class AuthController extends GetxController {
       // Mettre à jour isEmployee
       if (user != null) {
         isEmployee.value = user.type.toLowerCase() == 'employee';
+        
+        // Save FCM token to Firestore for push notifications
+        try {
+          final pushNotificationService = PushNotificationService();
+          final token = await pushNotificationService.getToken();
+          if (token != null) {
+            await pushNotificationService.saveTokenToFirestore(userId, token);
+          }
+        } catch (e) {
+          debugPrint('[AuthController] Error saving FCM token: $e');
+        }
       }
       
       // Rediriger selon le type
@@ -147,6 +160,17 @@ class AuthController extends GetxController {
     try {
       isLoading.value = true;
       errorMessage.value = '';
+      
+      // Remove FCM token from Firestore before signing out
+      try {
+        final currentUserId = currentUser.value?.id;
+        if (currentUserId != null) {
+          final pushNotificationService = PushNotificationService();
+          await pushNotificationService.removeTokenFromFirestore(currentUserId);
+        }
+      } catch (e) {
+        debugPrint('[AuthController] Error removing FCM token: $e');
+      }
       
       // Stop all active streams before signing out
       try {

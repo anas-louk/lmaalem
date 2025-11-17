@@ -116,7 +116,8 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
       if (forceRefresh || _loadedUserId != user.id) {
         // Get client document ID for missions
         _loadClientAndRefresh(user.id);
-        _requestController.loadRequestsByClient(user.id);
+        // Stream requests for real-time updates and global notifications
+        _requestController.streamRequestsByClient(user.id);
         _loadedUserId = user.id;
         _lastRefreshTime = DateTime.now();
       }
@@ -520,27 +521,28 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
   void _showCancelRequestDialog(BuildContext context, RequestModel request) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('cancel_request_dialog_title'.tr),
-        content: Text('cancel_request_dialog_content'.tr),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text('no'.tr),
-          ),
-          Obx(
-            () => ElevatedButton(
+      barrierDismissible: false, // Prevent dismissing by tapping outside
+      builder: (dialogContext) => Obx(
+        () => AlertDialog(
+          title: Text('cancel_request_dialog_title'.tr),
+          content: Text('cancel_request_dialog_content'.tr),
+          actions: [
+            TextButton(
+              onPressed: _requestController.isLoading.value
+                  ? null
+                  : () {
+                      Navigator.of(dialogContext).pop(); // Close dialog using Navigator
+                    },
+              child: Text('no'.tr),
+            ),
+            ElevatedButton(
               onPressed: _requestController.isLoading.value
                   ? null
                   : () async {
                       final success = await _requestController.cancelRequest(request.id);
                       if (success) {
-                        Get.back(); // Close dialog
-                        // Reload requests
-                        final user = _authController.currentUser.value;
-                        if (user != null) {
-                          await _requestController.loadRequestsByClient(user.id);
-                        }
+                        Navigator.of(dialogContext).pop(); // Close dialog
+                        // Stream will update automatically, no need to reload
                       }
                     },
               style: ElevatedButton.styleFrom(
@@ -557,8 +559,8 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                     )
                   : Text('yes_cancel'.tr),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

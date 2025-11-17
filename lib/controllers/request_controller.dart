@@ -34,6 +34,9 @@ class RequestController extends GetxController {
   // Track previous request IDs to detect new ones
   final Set<String> _previousRequestIds = <String>{};
   
+  // Track notified employees per request to avoid duplicate notifications for clients
+  final Map<String, Set<String>> _notifiedEmployeesPerRequest = <String, Set<String>>{};
+  
   // Notification count for employees (pending requests excluding own requests and already dealt with)
   int get notificationCount {
     try {
@@ -148,26 +151,56 @@ class RequestController extends GetxController {
   }
 
   /// Stream des demandes d'un client (temps réel)
-  void streamRequestsByClient(String clientId) {
+  Future<void> streamRequestsByClient(String clientId) async {
     // Cancel existing subscription if switching to a different client
-    if (_currentClientId != clientId) {
-      _requestsStreamSubscription?.cancel();
-      _currentClientId = clientId;
-      _currentCategorieId = null;
-      
-      _requestsStreamSubscription = _requestRepository.streamRequestsByClientId(clientId).listen(
-        (requestList) {
-          requests.assignAll(requestList);
-          isLoading.value = false;
-        },
-        onError: (error) {
-          errorMessage.value = error.toString();
-          Logger.logError('RequestController.streamRequestsByClient', error, StackTrace.current);
-          isLoading.value = false;
-        },
-      );
-      isLoading.value = true;
+    if (_currentClientId == clientId && _requestsStreamSubscription != null) {
+      debugPrint('[RequestController] Stream already active for client: $clientId, skipping');
+      return;
     }
+
+    _requestsStreamSubscription?.cancel();
+    _requestsStreamSubscription = null;
+    
+    _currentClientId = clientId;
+    _currentCategorieId = null;
+    
+    hasReceivedFirstData.value = false;
+    isLoading.value = true;
+
+    // Load initial data first
+    try {
+      debugPrint('[RequestController] Loading initial data for client: $clientId');
+      final initialData = await _requestRepository.getRequestsByClientId(clientId);
+      requests.assignAll(initialData);
+      hasReceivedFirstData.value = true;
+      isLoading.value = false;
+      update();
+      debugPrint('[RequestController] Initial data loaded: ${initialData.length} requests');
+    } catch (e) {
+      debugPrint('[RequestController] Error loading initial data: $e');
+      Logger.logError('RequestController.streamRequestsByClient', e, StackTrace.current);
+    }
+    
+    _requestsStreamSubscription = _requestRepository.streamRequestsByClientId(clientId).listen(
+      (requestList) {
+        hasReceivedFirstData.value = true;
+        
+        // Detect and notify about new employee acceptances for clients
+        _detectAndNotifyEmployeeAcceptances(requestList, clientId);
+        
+        requests.assignAll(requestList);
+        update();
+        isLoading.value = false;
+        debugPrint('[RequestController] ✅ Stream update: ${requestList.length} requests for client $clientId');
+      },
+      onError: (error) {
+        errorMessage.value = error.toString();
+        Logger.logError('RequestController.streamRequestsByClient', error, StackTrace.current);
+        isLoading.value = false;
+        debugPrint('[RequestController] ❌ Stream error: $error');
+      },
+      cancelOnError: false,
+    );
   }
 
   /// Set employee document ID for notification count calculation
@@ -262,6 +295,7 @@ class RequestController extends GetxController {
     _currentCategorieId = null;
     _currentClientId = null;
     _previousRequestIds.clear();
+    _notifiedEmployeesPerRequest.clear(); // Clear notification tracking
     hasReceivedFirstData.value = false;
   }
 
@@ -317,6 +351,70 @@ class RequestController extends GetxController {
     } catch (e) {
       // Silently handle errors to avoid breaking the stream
       Logger.logError('RequestController._detectAndNotifyNewRequests', e, StackTrace.current);
+    }
+  }
+
+  /// Détecter les nouvelles acceptations d'employés et notifier le client
+  void _detectAndNotifyEmployeeAcceptances(List<RequestModel> requestList, String clientId) {
+    try {
+      final authController = Get.find<AuthController>();
+      final currentUser = authController.currentUser.value;
+      
+      // Only notify if current user is the client
+      if (currentUser == null || currentUser.id != clientId) return;
+
+      for (final request in requestList) {
+        // Only check pending requests owned by this client
+        if (request.statut.toLowerCase() != 'pending' || request.clientId != clientId) continue;
+        
+        // Get previously notified employees for this request
+        final previouslyNotified = _notifiedEmployeesPerRequest[request.id] ?? <String>{};
+        
+        // Find newly accepted employees
+        final newAcceptedIds = request.acceptedEmployeeIds.where(
+          (employeeId) => !previouslyNotified.contains(employeeId)
+        ).toList();
+        
+        // Notify for each new employee acceptance
+        for (final employeeId in newAcceptedIds) {
+          _notifyClientAboutEmployeeAcceptance(request, employeeId);
+          
+          // Mark as notified
+          if (!_notifiedEmployeesPerRequest.containsKey(request.id)) {
+            _notifiedEmployeesPerRequest[request.id] = <String>{};
+          }
+          _notifiedEmployeesPerRequest[request.id]!.add(employeeId);
+        }
+        
+        // Clean up old entries if request is no longer pending
+        if (request.statut.toLowerCase() != 'pending') {
+          _notifiedEmployeesPerRequest.remove(request.id);
+        }
+      }
+    } catch (e) {
+      // Silently handle errors to avoid breaking the stream
+      Logger.logError('RequestController._detectAndNotifyEmployeeAcceptances', e, StackTrace.current);
+    }
+  }
+
+  /// Notifier le client qu'un employé a accepté sa demande
+  Future<void> _notifyClientAboutEmployeeAcceptance(RequestModel request, String employeeId) async {
+    try {
+      // Load employee data
+      final employeeRepository = EmployeeRepository();
+      final employee = await employeeRepository.getEmployeeById(employeeId);
+      
+      if (employee != null) {
+        _notificationService.showEmployeeAcceptedNotification(
+          requestId: request.id,
+          employeeName: employee.nomComplet,
+          requestDescription: request.description,
+        );
+        debugPrint('[RequestController] Notified client about employee ${employee.nomComplet} accepting request ${request.id}');
+      }
+    } catch (e) {
+      // Silently handle errors - notification is not critical
+      Logger.logError('RequestController._notifyClientAboutEmployeeAcceptance', e, StackTrace.current);
     }
   }
 

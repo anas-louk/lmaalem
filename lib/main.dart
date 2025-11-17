@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'core/firebase/firebase_init.dart';
 import 'routes/app_routes.dart';
 import 'theme/app_theme.dart';
@@ -8,8 +10,36 @@ import 'controllers/language_controller.dart';
 import 'core/translations/app_translations.dart';
 import 'core/services/local_notification_service.dart';
 
+// Top-level function to handle background messages (must be top-level or static)
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Initialize Firebase if not already initialized
+  await Firebase.initializeApp();
+  
+  debugPrint('[Background] Handling background message: ${message.messageId}');
+  debugPrint('[Background] Title: ${message.notification?.title}');
+  debugPrint('[Background] Body: ${message.notification?.body}');
+  debugPrint('[Background] Data: ${message.data}');
+  
+  // Show local notification for background messages
+  final notificationService = LocalNotificationService();
+  await notificationService.initialize();
+  
+  if (message.notification != null) {
+    await notificationService.showNotification(
+      id: message.hashCode,
+      title: message.notification!.title ?? 'Notification',
+      body: message.notification!.body ?? '',
+      payload: message.data['requestId'] ?? message.data['type'],
+    );
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Set up background message handler BEFORE initializing Firebase
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   // Initialiser Firebase
   try {

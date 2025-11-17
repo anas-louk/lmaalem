@@ -16,6 +16,11 @@ class LocalNotificationService {
   Future<void> initialize() async {
     if (_initialized) return;
 
+    // Create notification channels for Android (required for Android 8.0+)
+    if (Platform.isAndroid) {
+      await _createNotificationChannels();
+    }
+
     // Configuration Android
     const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     
@@ -46,6 +51,56 @@ class LocalNotificationService {
         await _requestAndroidPermissions();
       }
     }
+  }
+
+  /// Créer les canaux de notification pour Android
+  Future<void> _createNotificationChannels() async {
+    final androidImplementation = _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (androidImplementation == null) return;
+
+    // High importance channel for new requests and employee acceptances
+    const AndroidNotificationChannel highImportanceChannel = AndroidNotificationChannel(
+      'high_importance_channel',
+      'Notifications importantes',
+      description: 'Notifications pour les nouvelles demandes et acceptations',
+      importance: Importance.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    // General channel
+    const AndroidNotificationChannel generalChannel = AndroidNotificationChannel(
+      'general_channel',
+      'Notifications générales',
+      description: 'Notifications générales de l\'application',
+      importance: Importance.defaultImportance,
+      playSound: true,
+    );
+
+    // Employee accepted channel
+    const AndroidNotificationChannel employeeAcceptedChannel = AndroidNotificationChannel(
+      'employee_accepted_channel',
+      'Acceptations d\'employés',
+      description: 'Notifications lorsqu\'un employé accepte votre demande',
+      importance: Importance.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    // New requests channel
+    const AndroidNotificationChannel newRequestsChannel = AndroidNotificationChannel(
+      'new_requests_channel',
+      'Nouvelles demandes',
+      description: 'Notifications pour les nouvelles demandes de service',
+      importance: Importance.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    await androidImplementation.createNotificationChannel(highImportanceChannel);
+    await androidImplementation.createNotificationChannel(generalChannel);
+    await androidImplementation.createNotificationChannel(employeeAcceptedChannel);
+    await androidImplementation.createNotificationChannel(newRequestsChannel);
   }
 
   /// Demander les permissions Android

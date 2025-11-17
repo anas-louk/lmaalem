@@ -18,7 +18,6 @@ import '../../core/constants/app_text_styles.dart';
 import '../../components/loading_widget.dart';
 import '../../components/custom_button.dart';
 import '../../core/utils/logger.dart';
-import '../../core/services/local_notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Écran de détails d'une demande
@@ -70,26 +69,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     _requestStreamSubscription = _requestRepository.streamRequest(widget.requestId).listen(
       (request) {
         if (request != null) {
-          // Check if a new employee accepted (for notification) - do this BEFORE updating _previousAcceptedEmployeeIds
-          final currentUser = _authController.currentUser.value;
-          final isClient = currentUser != null && currentUser.id == request.clientId;
-          
-          if (isClient && request.acceptedEmployeeIds.isNotEmpty) {
-            // Find newly accepted employees by comparing with previous list
-            final newAcceptedIds = request.acceptedEmployeeIds.where(
-              (id) => !_previousAcceptedEmployeeIds.contains(id)
-            ).toList();
-            
-            // Show notification for each new employee
-            for (final employeeId in newAcceptedIds) {
-              _loadEmployeeAndNotify(employeeId, request);
-            }
-          }
-          
           setState(() {
             _request = request;
             _isLoading = false;
           });
+          
+          // Note: Employee acceptance notifications are handled globally in RequestController
+          // No need to handle them here to avoid duplicates
           
           // Load accepted employees if the list changed
           if (request.acceptedEmployeeIds.isNotEmpty) {
@@ -122,24 +108,6 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         });
       },
     );
-  }
-
-  Future<void> _loadEmployeeAndNotify(String employeeId, RequestModel request) async {
-    try {
-      final employee = await _employeeController.getEmployeeById(employeeId);
-      if (employee != null) {
-        // Show notification
-        final notificationService = LocalNotificationService();
-        await notificationService.showEmployeeAcceptedNotification(
-          requestId: request.id,
-          employeeName: employee.nomComplet,
-          requestDescription: request.description,
-        );
-      }
-    } catch (e) {
-      // Silently handle errors
-      Logger.logError('RequestDetailScreen._loadEmployeeAndNotify', e, StackTrace.current);
-    }
   }
 
   Future<void> _loadRequest() async {
