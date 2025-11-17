@@ -41,22 +41,37 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
       _initializeStreaming();
     });
   }
+  
+  @override
+  void dispose() {
+    // Don't stop streaming here - keep it active even when navigating away
+    // The stream will be stopped when user logs out or app closes
+    super.dispose();
+  }
 
   Future<void> _initializeStreaming() async {
     final user = _authController.currentUser.value;
     if (user == null) return;
     
-    if (_loadedUserId == user.id && _currentCategorieId != null) {
+    // Check if we need to restart the stream
+    final needsRestart = _loadedUserId != user.id || _currentCategorieId == null;
+    
+    if (!needsRestart) {
+      debugPrint('[EmployeeDashboard] Stream already active for user ${user.id}');
       return; // Already initialized
     }
 
     try {
+      debugPrint('[EmployeeDashboard] Initializing stream for user: ${user.id}');
       _loadedUserId = user.id;
       final employee = await _employeeController.getEmployeeByUserId(user.id);
       if (employee != null) {
         _currentCategorieId = employee.categorieId;
         // Start streaming to get real-time updates for badge count
-        _requestController.streamRequestsByCategorie(employee.categorieId);
+        // This stream will stay active even when navigating between screens
+        // Load initial data first, then start stream
+        await _requestController.streamRequestsByCategorie(employee.categorieId);
+        debugPrint('[EmployeeDashboard] Stream started for category: ${employee.categorieId}');
       }
     } catch (e) {
       debugPrint('[EmployeeDashboard] Error initializing stream: $e');
@@ -72,6 +87,14 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
       ),
       bottomNavigationBar: Obx(
         () {
+          // Ensure stream is active when user changes
+          final user = _authController.currentUser.value;
+          if (user != null && (_loadedUserId != user.id || _currentCategorieId == null)) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _initializeStreaming();
+            });
+          }
+          
           // Get notification count from controller
           final notificationCount = _requestController.notificationCount;
           

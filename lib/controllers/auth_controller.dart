@@ -5,6 +5,7 @@ import '../data/models/employee_model.dart';
 import '../data/repositories/user_repository.dart';
 import '../data/repositories/employee_repository.dart';
 import '../core/constants/app_routes.dart' as AppRoutes;
+import 'request_controller.dart';
 
 /// Controller pour gérer l'authentification (GetX)
 class AuthController extends GetxController {
@@ -26,6 +27,13 @@ class AuthController extends GetxController {
       if (user != null) {
         await loadUser(user.uid);
       } else {
+        // Stop streams when user logs out
+        try {
+          final requestController = Get.find<RequestController>();
+          requestController.stopStreaming();
+        } catch (e) {
+          // RequestController might not be initialized, ignore
+        }
         currentUser.value = null;
       }
     });
@@ -139,6 +147,15 @@ class AuthController extends GetxController {
     try {
       isLoading.value = true;
       errorMessage.value = '';
+      
+      // Stop all active streams before signing out
+      try {
+        final requestController = Get.find<RequestController>();
+        requestController.stopStreaming();
+      } catch (e) {
+        // RequestController might not be initialized, ignore
+      }
+      
       await _authService.signOut();
       currentUser.value = null;
       Get.offAllNamed(AppRoutes.AppRoutes.login);

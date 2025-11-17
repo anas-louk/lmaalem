@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:async';
 import '../../data/models/request_model.dart';
 import '../../data/repositories/request_repository.dart';
@@ -15,6 +16,7 @@ class RequestController extends GetxController {
   // Observable states
   final RxList<RequestModel> requests = <RequestModel>[].obs;
   final RxBool isLoading = false.obs;
+  final RxBool hasReceivedFirstData = false.obs; // Track if we've received first stream data
   final RxString errorMessage = ''.obs;
   final Rx<RequestModel?> selectedRequest = Rx<RequestModel?>(null);
   
@@ -149,29 +151,78 @@ class RequestController extends GetxController {
   }
 
   /// Stream des demandes par catégorie (temps réel)
-  void streamRequestsByCategorie(String categorieId) {
-    // Cancel existing subscription if switching to a different category
-    if (_currentCategorieId != categorieId) {
-      _requestsStreamSubscription?.cancel();
-      _currentCategorieId = categorieId;
-      _currentClientId = null;
-      
-      _requestsStreamSubscription = _requestRepository.streamRequestsByCategorieId(categorieId).listen(
-        (requestList) {
-          // Detect new requests and show notifications
-          _detectAndNotifyNewRequests(requestList);
-          
-          requests.assignAll(requestList);
-          isLoading.value = false;
-        },
-        onError: (error) {
-          errorMessage.value = error.toString();
-          Logger.logError('RequestController.streamRequestsByCategorie', error, StackTrace.current);
-          isLoading.value = false;
-        },
-      );
-      isLoading.value = true;
+  Future<void> streamRequestsByCategorie(String categorieId) async {
+    // Only recreate if category changed or stream doesn't exist
+    if (_currentCategorieId == categorieId && _requestsStreamSubscription != null) {
+      debugPrint('[RequestController] Stream already active for category: $categorieId, skipping');
+      return;
     }
+    
+    // Cancel existing subscription
+    _requestsStreamSubscription?.cancel();
+    _requestsStreamSubscription = null;
+    
+    _currentCategorieId = categorieId;
+    _currentClientId = null;
+    
+    // Reset first data flag when starting new stream
+    hasReceivedFirstData.value = false;
+    isLoading.value = true;
+    
+    Logger.logInfo('RequestController.streamRequestsByCategorie', 'Starting stream for category: $categorieId');
+    debugPrint('[RequestController] Starting NEW stream for category: $categorieId');
+    
+    // Load initial data first to ensure UI has data immediately
+    try {
+      debugPrint('[RequestController] Loading initial data for category: $categorieId');
+      final initialData = await _requestRepository.getRequestsByCategorieId(categorieId);
+      requests.assignAll(initialData);
+      hasReceivedFirstData.value = true;
+      isLoading.value = false;
+      debugPrint('[RequestController] Initial data loaded: ${initialData.length} requests');
+    } catch (e) {
+      debugPrint('[RequestController] Error loading initial data: $e');
+      // Continue with stream even if initial load fails
+    }
+    
+    // Now start the stream for real-time updates
+    _requestsStreamSubscription = _requestRepository.streamRequestsByCategorieId(categorieId).listen(
+      (requestList) {
+        debugPrint('[RequestController] ⚡ Stream received ${requestList.length} requests');
+        
+        // Mark that we've received first data
+        hasReceivedFirstData.value = true;
+        
+        // Detect new requests and show notifications
+        _detectAndNotifyNewRequests(requestList);
+        
+        // Update using assignAll - this should trigger GetX reactivity
+        requests.assignAll(requestList);
+        
+        // Force update to ensure all listeners are notified
+        update();
+        
+        isLoading.value = false;
+        
+        // Debug log to verify updates
+        Logger.logInfo('RequestController.streamRequestsByCategorie', 'Stream update: ${requestList.length} requests for category $categorieId');
+        debugPrint('[RequestController] ✅ Updated requests list, current count: ${requests.length}');
+      },
+      onError: (error) {
+        errorMessage.value = error.toString();
+        Logger.logError('RequestController.streamRequestsByCategorie', error, StackTrace.current);
+        debugPrint('[RequestController] ❌ Stream error: $error');
+        isLoading.value = false;
+      },
+      cancelOnError: false, // Keep stream alive on error
+      onDone: () {
+        Logger.logInfo('RequestController.streamRequestsByCategorie', 'Stream completed for category: $categorieId');
+        debugPrint('[RequestController] ⚠️ Stream done for category: $categorieId');
+      },
+    );
+    isLoading.value = true;
+    
+    debugPrint('[RequestController] Stream subscription created, isPaused: ${_requestsStreamSubscription?.isPaused}');
   }
   
   /// Arrêter le stream actif
@@ -181,6 +232,7 @@ class RequestController extends GetxController {
     _currentCategorieId = null;
     _currentClientId = null;
     _previousRequestIds.clear();
+    hasReceivedFirstData.value = false;
   }
 
   /// Détecter les nouvelles demandes et afficher des notifications

@@ -30,80 +30,53 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   void initState() {
     super.initState();
+    // Stream is already initialized at dashboard level
+    // Just ensure we have the employee data for filtering
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startStreaming();
+      _loadEmployeeData();
     });
   }
   
   @override
   void dispose() {
-    // Don't stop streaming here as it might be used by other screens
-    // The controller will manage its own lifecycle
+    // Don't stop streaming here - it's managed at dashboard level
     super.dispose();
   }
 
-  Future<void> _startStreaming() async {
+  Future<void> _loadEmployeeData() async {
     final user = _authController.currentUser.value;
-    if (user == null) {
-      debugPrint('[NotificationScreen] No user, skipping stream');
-      return;
-    }
+    if (user == null) return;
     
-    if (_loadedUserId == user.id && _currentCategorieId != null) {
-      debugPrint('[NotificationScreen] Already streaming for user ${user.id}, skipping');
+    // Only load employee data if not already loaded
+    if (_currentEmployeeDocumentId != null && _loadedUserId == user.id) {
       return;
     }
 
     try {
-      debugPrint('[NotificationScreen] Starting stream for user: ${user.id}');
-      
-      // Set loaded user ID early to prevent multiple calls
-      _loadedUserId = user.id;
-      
-      // Get employee data to find their category and document ID
       final employee = await _employeeController.getEmployeeByUserId(user.id);
       if (employee != null) {
+        _loadedUserId = user.id;
         _currentEmployeeDocumentId = employee.id;
         _currentCategorieId = employee.categorieId;
-        
-        // Debug: Log category ID
-        debugPrint('[NotificationScreen] Employee category ID: ${employee.categorieId}, Employee ID: ${employee.id}');
-        
-        // Start real-time streaming for this category
-        _requestController.streamRequestsByCategorie(employee.categorieId);
-        
-        debugPrint('[NotificationScreen] Started streaming requests for category: ${employee.categorieId}');
-      } else {
-        debugPrint('[NotificationScreen] Employee not found for user: ${user.id}');
+        debugPrint('[NotificationScreen] Loaded employee data: ID=${employee.id}, Category=${employee.categorieId}');
       }
-    } catch (e, stackTrace) {
-      debugPrint('[NotificationScreen] Error starting stream: $e');
-      debugPrint('[NotificationScreen] StackTrace: $stackTrace');
+    } catch (e) {
+      debugPrint('[NotificationScreen] Error loading employee data: $e');
     }
   }
   
   Future<void> _refreshRequests() async {
-    // Refresh by restarting the stream
+    // Refresh by restarting the stream at dashboard level
     final user = _authController.currentUser.value;
     if (user == null) return;
     
     final employee = await _employeeController.getEmployeeByUserId(user.id);
     if (employee != null) {
-      _currentCategorieId = null; // Reset to force restart
-      _startStreaming();
+      // Restart stream - this will be handled by the controller
+      _requestController.stopStreaming();
+      await Future.delayed(const Duration(milliseconds: 100));
+      await _requestController.streamRequestsByCategorie(employee.categorieId);
     }
-  }
-
-  List<RequestModel> _getFilteredRequests() {
-    final user = _authController.currentUser.value;
-    if (user == null) return [];
-
-    // Filter out requests where clientId matches the employee's userId
-    // and only show pending requests
-    return _requestController.requests.where((request) {
-      return request.statut.toLowerCase() == 'pending' &&
-             request.clientId != user.id; // Don't show own requests
-    }).toList();
   }
 
   @override
@@ -124,24 +97,57 @@ class _NotificationScreenState extends State<NotificationScreen> {
       ),
       body: Obx(
         () {
+          // Access user first to ensure reactivity
           final user = _authController.currentUser.value;
 
           if (user == null) {
             return const LoadingWidget();
           }
 
-          // Restart stream if user changes
-          if (_loadedUserId != user.id) {
+          // Ensure employee data is loaded
+          if (_loadedUserId != user.id || _currentCategorieId == null) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              _startStreaming();
+              _loadEmployeeData();
+            });
+          }
+          
+          // Ensure stream is active (it should be started at dashboard level)
+          // But verify it's running for the current category
+          if (_currentCategorieId != null) {
+            final currentCategory = _currentCategorieId;
+            WidgetsBinding.instance.addPostFrameCallback((_) async {
+              // Only start stream if not already active for this category
+              // The dashboard should have started it, but this is a safety check
+              if (_requestController.requests.isEmpty && !_requestController.isLoading.value && !_requestController.hasReceivedFirstData.value) {
+                await _requestController.streamRequestsByCategorie(currentCategory!);
+              }
             });
           }
 
-          if (_requestController.isLoading.value) {
+          // Access RxList directly - GetX tracks all changes
+          // Accessing .length triggers reactivity - store it in a variable
+          final requestsList = _requestController.requests;
+          final requestsLength = requestsList.length; // This triggers reactivity
+          final isLoading = _requestController.isLoading.value;
+          final hasReceivedFirstData = _requestController.hasReceivedFirstData.value;
+          
+          // Show loading if we haven't received first data yet OR if loading and no data
+          if ((!hasReceivedFirstData && requestsLength == 0) || (isLoading && requestsLength == 0 && !hasReceivedFirstData)) {
             return const LoadingWidget();
           }
 
-          final filteredRequests = _getFilteredRequests();
+          // Filter requests - iterate through the reactive list
+          final filteredRequests = <RequestModel>[];
+          for (var i = 0; i < requestsLength; i++) {
+            final request = requestsList[i];
+            if (request.statut.toLowerCase() == 'pending' &&
+                request.clientId != user.id) {
+              filteredRequests.add(request);
+            }
+          }
+          
+          // Debug log to verify updates
+          debugPrint('[NotificationScreen] Build: Filtered=${filteredRequests.length}, Total=$requestsLength, Loading=$isLoading');
 
           if (filteredRequests.isEmpty) {
             return RefreshIndicator(
@@ -607,6 +613,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     )
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           icon,
@@ -614,11 +621,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           color: AppColors.white,
                         ),
                         const SizedBox(width: 6),
-                        Text(
-                          label,
-                          style: AppTextStyles.buttonMedium.copyWith(
-                            color: AppColors.white,
-                            fontWeight: FontWeight.bold,
+                        Flexible(
+                          child: Text(
+                            label,
+                            style: AppTextStyles.buttonMedium.copyWith(
+                              color: AppColors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
                         ),
                       ],
