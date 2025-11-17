@@ -75,6 +75,11 @@ class AppTranslations extends Translations {
       'accept': 'Accepter',
       'refuse': 'Refuser',
       'created_on': 'Créée le',
+      'waiting_for_client': 'En attente de l\'acceptation du client',
+      'waiting_for_client_message': 'Vous avez accepté cette demande. Veuillez patienter pendant que le client examine votre candidature.',
+      'cancel_acceptance': 'Annuler l\'acceptation',
+      'cancel_acceptance_confirmation': 'Voulez-vous vraiment annuler votre acceptation ?',
+      'acceptance_cancelled': 'Acceptation annulée avec succès',
       
       // Request
       'request_detail': 'Détails de la demande',
@@ -361,6 +366,11 @@ class AppTranslations extends Translations {
       'accept': 'قبول',
       'refuse': 'رفض',
       'created_on': 'تم الإنشاء في',
+      'waiting_for_client': 'في انتظار قبول العميل',
+      'waiting_for_client_message': 'لقد قبلت هذا الطلب. يرجى الانتظار بينما يفحص العميل طلبك.',
+      'cancel_acceptance': 'إلغاء القبول',
+      'cancel_acceptance_confirmation': 'هل تريد حقاً إلغاء قبولك؟',
+      'acceptance_cancelled': 'تم إلغاء القبول بنجاح',
       
       // Request
       'request_detail': 'تفاصيل الطلب',
