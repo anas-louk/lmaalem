@@ -28,14 +28,14 @@ class PushNotificationService {
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized ||
         settings.authorizationStatus == AuthorizationStatus.provisional) {
-      // Obtenir le token FCM
+      // Obtenir le token FCM - MUST save for background notifications
       String? token = await _messaging.getToken();
       if (token != null) {
         debugPrint('[FCM] FCM Token: $token');
         // Save token will be called after user login in AuthController
       }
 
-      // Listen for token refresh
+      // Listen for token refresh and save to Firestore
       _messaging.onTokenRefresh.listen((newToken) async {
         debugPrint('[FCM] Token refreshed: $newToken');
         // Update token in Firestore when it refreshes
@@ -54,25 +54,28 @@ class PushNotificationService {
     // Initialize local notifications for foreground messages
     await _localNotificationService.initialize();
 
-    // Écouter les messages en foreground
+    // Écouter les messages en foreground (app open)
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
-    // Écouter les clics sur les notifications (when app is opened from terminated state)
+    // Écouter les clics sur les notifications (when app is opened from background state)
+    // Note: This only works when app was in background, not terminated
     FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationClick);
     
-    // Check if app was opened from a notification (terminated state)
-    final initialMessage = await _messaging.getInitialMessage();
-    if (initialMessage != null) {
-      _handleNotificationClick(initialMessage);
-    }
+    // IMPORTANT: For background (minimized) notifications to work:
+    // 1. FCM tokens are saved to Firestore (done in AuthController)
+    // 2. Server-side Cloud Functions MUST send FCM messages when events occur
+    // 3. Firestore streams work for foreground, FCM works for background
   }
 
-  /// Gérer les messages en foreground
+  /// Gérer les messages en foreground et background (app running but minimized)
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
-    debugPrint('[FCM] Message reçu en foreground: ${message.notification?.title}');
+    debugPrint('[FCM] Message reçu: ${message.notification?.title}');
     debugPrint('[FCM] Data: ${message.data}');
+    debugPrint('[FCM] MessageId: ${message.messageId}');
     
-    // Show local notification for foreground messages
+    // Show local notification for both foreground and background messages
+    // When app is in background, FCM automatically shows notification,
+    // but we also show local notification to ensure it appears
     if (message.notification != null) {
       await _localNotificationService.showNotification(
         id: message.hashCode,

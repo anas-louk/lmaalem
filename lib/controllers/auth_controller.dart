@@ -1,12 +1,13 @@
 import 'package:get/get.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/services/auth_service.dart';
-import '../core/services/push_notifications.dart';
 import '../data/models/user_model.dart';
 import '../data/models/employee_model.dart';
 import '../data/repositories/user_repository.dart';
 import '../data/repositories/employee_repository.dart';
 import '../core/constants/app_routes.dart' as AppRoutes;
+import '../core/services/background_notification_service.dart';
 import 'request_controller.dart';
 
 /// Controller pour gérer l'authentification (GetX)
@@ -53,15 +54,14 @@ class AuthController extends GetxController {
       if (user != null) {
         isEmployee.value = user.type.toLowerCase() == 'employee';
         
-        // Save FCM token to Firestore for push notifications
+        // Save user info to SharedPreferences for background notifications
         try {
-          final pushNotificationService = PushNotificationService();
-          final token = await pushNotificationService.getToken();
-          if (token != null) {
-            await pushNotificationService.saveTokenToFirestore(userId, token);
-          }
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('current_user_id', user.id);
+          await prefs.setString('current_user_type', user.type.toLowerCase());
+          debugPrint('[AuthController] Saved user info to SharedPreferences for background notifications');
         } catch (e) {
-          debugPrint('[AuthController] Error saving FCM token: $e');
+          debugPrint('[AuthController] Error saving user info: $e');
         }
       }
       
@@ -161,23 +161,29 @@ class AuthController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       
-      // Remove FCM token from Firestore before signing out
-      try {
-        final currentUserId = currentUser.value?.id;
-        if (currentUserId != null) {
-          final pushNotificationService = PushNotificationService();
-          await pushNotificationService.removeTokenFromFirestore(currentUserId);
-        }
-      } catch (e) {
-        debugPrint('[AuthController] Error removing FCM token: $e');
-      }
-      
       // Stop all active streams before signing out
       try {
         final requestController = Get.find<RequestController>();
         requestController.stopStreaming();
       } catch (e) {
         // RequestController might not be initialized, ignore
+      }
+      
+      // Stop background notification polling
+      try {
+        await BackgroundNotificationService().reset();
+      } catch (e) {
+        // BackgroundNotificationService might not be initialized, ignore
+      }
+      
+      // Clear user info from SharedPreferences
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('current_user_id');
+        await prefs.remove('current_user_type');
+        debugPrint('[AuthController] Cleared user info from SharedPreferences');
+      } catch (e) {
+        debugPrint('[AuthController] Error clearing user info: $e');
       }
       
       await _authService.signOut();

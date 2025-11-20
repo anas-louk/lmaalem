@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'core/firebase/firebase_init.dart';
 import 'routes/app_routes.dart';
 import 'theme/app_theme.dart';
@@ -9,37 +7,15 @@ import 'controllers/auth_controller.dart';
 import 'controllers/language_controller.dart';
 import 'core/translations/app_translations.dart';
 import 'core/services/local_notification_service.dart';
-
-// Top-level function to handle background messages (must be top-level or static)
-@pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Initialize Firebase if not already initialized
-  await Firebase.initializeApp();
-  
-  debugPrint('[Background] Handling background message: ${message.messageId}');
-  debugPrint('[Background] Title: ${message.notification?.title}');
-  debugPrint('[Background] Body: ${message.notification?.body}');
-  debugPrint('[Background] Data: ${message.data}');
-  
-  // Show local notification for background messages
-  final notificationService = LocalNotificationService();
-  await notificationService.initialize();
-  
-  if (message.notification != null) {
-    await notificationService.showNotification(
-      id: message.hashCode,
-      title: message.notification!.title ?? 'Notification',
-      body: message.notification!.body ?? '',
-      payload: message.data['requestId'] ?? message.data['type'],
-    );
-  }
-}
+import 'core/services/background_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Set up background message handler BEFORE initializing Firebase
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  // Notifications: Using Firestore streams + local notifications + background polling
+  // - Foreground: Firestore streams detect changes and show local notifications
+  // - Background (minimized): WorkManager + Timer polling checks Firestore periodically
+  // - Terminated: WorkManager continues running (every 15 minutes minimum)
 
   // Initialiser Firebase
   try {
@@ -55,11 +31,68 @@ void main() async {
     debugPrint('Erreur lors de l\'initialisation des notifications: $e');
   }
 
+  // Initialize WorkManager for background tasks
+  try {
+    await BackgroundNotificationService().initializeWorkManager();
+  } catch (e) {
+    debugPrint('Erreur lors de l\'initialisation de WorkManager: $e');
+  }
+
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  final BackgroundNotificationService _backgroundService = BackgroundNotificationService();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _backgroundService.dispose().catchError((e) {
+      debugPrint('[MyApp] Error disposing background service: $e');
+    });
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    // Handle app lifecycle changes for background notifications
+    switch (state) {
+      case AppLifecycleState.resumed:
+        // App is in foreground - stop polling, streams will handle notifications
+        _backgroundService.stopBackgroundPolling();
+        debugPrint('[MyApp] App resumed - stopping background polling');
+        break;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+        // App is going to background - start polling
+        _backgroundService.startBackgroundPolling();
+        debugPrint('[MyApp] App backgrounded - starting background polling');
+        break;
+      case AppLifecycleState.detached:
+        // App is being terminated
+        _backgroundService.stopBackgroundPolling();
+        break;
+      case AppLifecycleState.hidden:
+        // App is hidden (Android 12+)
+        _backgroundService.startBackgroundPolling();
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

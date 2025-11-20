@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../../firebase_options.dart';
-import '../services/push_notifications.dart';
 
 /// Initialise Firebase dans l'application
 class FirebaseInit {
@@ -20,13 +19,6 @@ class FirebaseInit {
       if (Firebase.apps.isNotEmpty) {
         debugPrint('[FirebaseInit] Firebase déjà initialisé - ${Firebase.apps.length} app(s) trouvée(s)');
         _initialized = true;
-        
-        // Initialiser les notifications push si pas déjà fait
-        try {
-          await PushNotificationService().initialize();
-        } catch (e) {
-          debugPrint('[FirebaseInit] Erreur notifications: $e');
-        }
         return;
       }
 
@@ -37,14 +29,6 @@ class FirebaseInit {
       );
       debugPrint('[FirebaseInit] Firebase initialisé avec succès');
 
-      // Initialiser les notifications push
-      try {
-        await PushNotificationService().initialize();
-        debugPrint('[FirebaseInit] Notifications push initialisées');
-      } catch (e) {
-        debugPrint('[FirebaseInit] Erreur lors de l\'initialisation des notifications: $e');
-      }
-
       _initialized = true;
     } catch (e) {
       // Si l'erreur est "duplicate-app" ou "already exists", Firebase est déjà initialisé
@@ -54,13 +38,6 @@ class FirebaseInit {
           errorString.contains('[DEFAULT]')) {
         _initialized = true;
         debugPrint('[FirebaseInit] Firebase déjà initialisé (erreur détectée et ignorée)');
-        
-        // Initialiser les notifications push si pas déjà fait
-        try {
-          await PushNotificationService().initialize();
-        } catch (notifError) {
-          debugPrint('[FirebaseInit] Erreur notifications: $notifError');
-        }
         return;
       }
       debugPrint('[FirebaseInit] Erreur lors de l\'initialisation de Firebase: $e');
