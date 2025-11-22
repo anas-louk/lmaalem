@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'core/firebase/firebase_init.dart';
 import 'routes/app_routes.dart';
 import 'theme/app_theme.dart';
@@ -8,6 +9,7 @@ import 'controllers/language_controller.dart';
 import 'core/translations/app_translations.dart';
 import 'core/services/local_notification_service.dart';
 import 'core/services/background_notification_service.dart';
+import 'core/services/push_notifications.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,11 +26,21 @@ void main() async {
     debugPrint('Erreur lors de l\'initialisation de Firebase: $e');
   }
 
+  // Enregistrer le handler FCM pour les messages de fond (background / terminated)
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
   // Initialiser le service de notifications locales
   try {
     await LocalNotificationService().initialize();
   } catch (e) {
     debugPrint('Erreur lors de l\'initialisation des notifications: $e');
+  }
+
+  // Initialiser le service FCM (foreground + onMessageOpenedApp)
+  try {
+    await PushNotificationService().initialize();
+  } catch (e) {
+    debugPrint('Erreur lors de l\'initialisation de FCM: $e');
   }
 
   // Initialize WorkManager for background tasks

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/app_routes.dart';
 import '../../controllers/auth_controller.dart';
+import '../firebase/firebase_init.dart';
 import 'local_notification_service.dart';
 
 /// Service pour gérer les notifications push
@@ -94,15 +95,19 @@ class PushNotificationService {
     // Navigate based on notification type
     final requestId = message.data['requestId'];
     final type = message.data['type'] ?? 'default';
-    
-    if (requestId != null) {
-      // Navigate to request detail
+
+    // Les types attendus correspondent à ton JSON FCM : "new_request" et "employee_accepted"
+    if (requestId != null && type == 'new_request') {
+      // Nouvelle demande : aller au détail de la demande (employé)
+      Get.toNamed(AppRoutes.requestDetail, arguments: requestId);
+    } else if (requestId != null && type == 'employee_accepted') {
+      // Un employé a accepté : aller au détail de la demande (client)
       Get.toNamed(AppRoutes.requestDetail, arguments: requestId);
     } else if (type == 'new_request') {
-      // Navigate to notifications screen for employees
+      // Sans requestId on envoie au centre de notifications employé
       Get.toNamed(AppRoutes.notifications);
     } else {
-      // Navigate to dashboard
+      // Cas par défaut : dashboard
       Get.offAllNamed(AppRoutes.home);
     }
   }
@@ -172,3 +177,27 @@ class PushNotificationService {
   }
 }
 
+/// Handler FCM exécuté lorsque un message arrive alors que l'app est en arrière‑plan
+/// ou terminée. Doit être une fonction top‑level.
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  debugPrint('[FCM] (background) Message reçu: ${message.notification?.title}');
+  debugPrint('[FCM] (background) Data: ${message.data}');
+
+  // Initialiser Firebase dans l’isolat de fond
+  await FirebaseInit.initialize();
+
+  // Initialiser les notifications locales (idempotent)
+  final localService = LocalNotificationService();
+  await localService.initialize();
+
+  // Afficher une notification locale pour harmoniser le comportement
+  if (message.notification != null) {
+    await localService.showNotification(
+      id: message.hashCode,
+      title: message.notification!.title ?? 'Notification',
+      body: message.notification!.body ?? '',
+      payload: message.data['requestId'] ?? message.data['type'],
+    );
+  }
+}
