@@ -10,6 +10,12 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
 import '../../components/loading_widget.dart';
 import '../../components/empty_state.dart';
+import '../../components/indrive_bottom_nav.dart';
+import '../../components/indrive_app_bar.dart';
+import '../../components/indrive_card.dart';
+import '../../components/indrive_button.dart';
+import '../../components/indrive_section_title.dart';
+import '../../components/indrive_dialog_template.dart';
 import 'history_screen.dart';
 import 'categories_screen.dart';
 
@@ -37,16 +43,11 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: InDriveBottomNav(
         currentIndex: _currentIndex,
         onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+          setState(() => _currentIndex = index);
         },
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.textSecondary,
         items: [
           BottomNavigationBarItem(
             icon: const Icon(Icons.history_outlined),
@@ -152,14 +153,12 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('client_dashboard'.tr),
+      appBar: InDriveAppBar(
+        title: 'client_dashboard'.tr,
         actions: [
           IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () {
-              Get.toNamed(AppRoutes.AppRoutes.profile);
-            },
+            icon: const Icon(Icons.person_outline),
+            onPressed: () => Get.toNamed(AppRoutes.AppRoutes.profile),
           ),
         ],
       ),
@@ -171,57 +170,77 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
             return const LoadingWidget();
           }
 
-          // Reload if user changes
           if (_loadedUserId != user.id) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _loadData();
-            });
+            WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
           }
 
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          return RefreshIndicator(
+            onRefresh: () async => _refreshData(),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
               children: [
-                // Welcome Card
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        Text(
-                          '${'hello'.tr}, ${user.nomComplet}',
-                          style: AppTextStyles.h2,
+                InDriveCard(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 30,
+                        backgroundColor: AppColors.primary.withOpacity(0.15),
+                        child: Text(
+                          user.nomComplet.substring(0, 1).toUpperCase(),
+                          style: AppTextStyles.h3.copyWith(color: AppColors.primary),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'welcome_client'.tr,
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${'hello'.tr}, ${user.nomComplet}',
+                              style: AppTextStyles.h3,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'welcome_client'.tr,
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                      InDriveButton(
+                        label: 'create_request'.tr,
+                        onPressed: () => Get.toNamed(AppRoutes.AppRoutes.categories),
+                        height: 46,
+                        variant: InDriveButtonVariant.secondary,
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 24),
-
-
-                // Requests Section
-                Text(
-                  'my_requests'.tr,
-                  style: AppTextStyles.h3,
+                InDriveSectionTitle(
+                  title: 'my_requests'.tr,
+                  subtitle: 'request_in_progress'.tr,
+                  actionText: 'refresh'.tr,
+                  onActionTap: _refreshData,
                 ),
                 const SizedBox(height: 16),
-
                 Obx(
                   () {
                     if (_requestController.isLoading.value) {
                       return const LoadingWidget();
                     }
 
-                    if (_requestController.requests.isEmpty) {
+                    final visibleRequests = _requestController.requests
+                        .where((request) {
+                          final status = request.statut.toLowerCase();
+                          return status != 'cancelled' && status != 'completed';
+                        })
+                        .toList();
+
+                    if (visibleRequests.isEmpty) {
                       return EmptyState(
                         icon: Icons.request_quote_outlined,
                         title: 'no_requests'.tr,
@@ -229,125 +248,99 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                       );
                     }
 
-                    return ListView.builder(
+                    return ListView.separated(
+                      itemCount: visibleRequests.length,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _requestController.requests.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
-                        final request = _requestController.requests[index];
-                        final isActive = request.statut.toLowerCase() == 'pending' || 
-                                        request.statut.toLowerCase() == 'accepted';
-                        
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
+                        final request = visibleRequests[index];
+                        final isActive = request.statut.toLowerCase() == 'pending' ||
+                            request.statut.toLowerCase() == 'accepted';
+
+                        return InDriveCard(
                           child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: _getStatusColor(request.statut),
-                                  child: Icon(
-                                    _getStatusIcon(request.statut),
-                                    color: AppColors.white,
-                                    size: 20,
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: _getStatusColor(request.statut).withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: Text(
+                                      _getStatusText(request.statut),
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        color: _getStatusColor(request.statut),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                                   ),
+                                  const Spacer(),
+                                  IconButton(
+                                    onPressed: () async {
+                                      _requestController.selectRequest(request);
+                                      final result = await Get.toNamed(
+                                        AppRoutes.AppRoutes.requestDetail,
+                                        arguments: request.id,
+                                      );
+                                      if (result == true && mounted) {
+                                        _refreshData();
+                                      }
+                                    },
+                                    icon: const Icon(Icons.arrow_forward_ios, size: 16),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                '#${request.id.substring(0, 8)}',
+                                style: AppTextStyles.h4,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                request.description,
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withOpacity(0.7),
                                 ),
-                                title: Text(
-                                  '${'request'.tr} #${request.id.substring(0, 8)}',
-                                  style: AppTextStyles.h4,
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      request.description,
-                                      style: AppTextStyles.bodySmall,
-                                      maxLines: 2,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(Icons.location_on, size: 16, color: AppColors.primary),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      request.address,
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withOpacity(0.7),
+                                      ),
+                                      maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.location_on,
-                                          size: 14,
-                                          color: AppColors.textSecondary,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Expanded(
-                                          child: Text(
-                                            request.address,
-                                            style: AppTextStyles.bodySmall.copyWith(
-                                              color: AppColors.textSecondary,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: _getStatusColor(request.statut),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        _getStatusText(request.statut),
-                                        style: const TextStyle(
-                                          color: AppColors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                trailing: Icon(
-                                  Icons.arrow_forward_ios,
-                                  size: 16,
-                                  color: AppColors.primary,
-                                ),
-                                onTap: () async {
-                                  _requestController.selectRequest(request);
-                                  final result = await Get.toNamed(
-                                    AppRoutes.AppRoutes.requestDetail,
-                                    arguments: request.id,
-                                  );
-                                  // Refresh data when coming back from request detail
-                                  if (result == true || mounted) {
-                                    _refreshData();
-                                  }
-                                },
+                                  ),
+                                ],
                               ),
-                              // Cancel button for active requests
-                              if (isActive)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
-                                  ),
-                                  child: Obx(
-                                    () => SizedBox(
-                                      width: double.infinity,
-                                      child: OutlinedButton.icon(
-                                        onPressed: _requestController.isLoading.value
-                                            ? null
-                                            : () => _showCancelRequestDialog(context, request),
-                                        icon: const Icon(Icons.cancel_outlined),
-                                        label: Text('cancel_request'.tr),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: AppColors.error,
-                                          side: const BorderSide(color: AppColors.error),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              if (isActive) ...[
+                                const SizedBox(height: 14),
+                                InDriveButton(
+                                  label: 'cancel_request'.tr,
+                                  onPressed: _requestController.isLoading.value
+                                      ? null
+                                      : () => _showCancelRequestDialog(context, request),
+                                  variant: InDriveButtonVariant.ghost,
                                 ),
+                              ],
                             ],
                           ),
                         );
@@ -356,70 +349,6 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                   },
                 ),
                 const SizedBox(height: 24),
-
-                // Missions Section (Completed/Accepted requests)
-                Text(
-                  'my_missions'.tr,
-                  style: AppTextStyles.h3,
-                ),
-                const SizedBox(height: 16),
-
-                Obx(
-                  () {
-                    final missionsLength = _missionController.missions.length;
-                    final isLoading = _missionController.isLoading.value;
-                    final hasReceivedFirstData = _missionController.hasReceivedFirstData.value;
-
-                    // Show loading if we haven't received first data yet OR if loading and no data
-                    if ((!hasReceivedFirstData && missionsLength == 0) || (isLoading && missionsLength == 0 && !hasReceivedFirstData)) {
-                      return const LoadingWidget();
-                    }
-
-                    if (missionsLength == 0) {
-                      return EmptyState(
-                        icon: Icons.work_outline,
-                        title: 'no_missions_client'.tr,
-                        message: 'no_missions_client_message'.tr,
-                      );
-                    }
-
-                    return ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _missionController.missions.length,
-                      itemBuilder: (context, index) {
-                        final mission = _missionController.missions[index];
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: _getMissionStatusColor(mission.statutMission),
-                              child: Icon(
-                                _getMissionStatusIcon(mission.statutMission),
-                                color: AppColors.white,
-                                size: 20,
-                              ),
-                            ),
-                            title: Text('${'mission'.tr} #${mission.id.substring(0, 8)}'),
-                            subtitle: Text(
-                              '${'mission_price'.tr}: ${mission.prixMission.toStringAsFixed(2)} €\n'
-                              '${'mission_status'.tr}: ${_getMissionStatusText(mission.statutMission)}',
-                            ),
-                            trailing: Icon(
-                              Icons.arrow_forward_ios,
-                              size: 16,
-                              color: AppColors.primary,
-                            ),
-                            onTap: () {
-                              _missionController.selectMission(mission);
-                              Get.toNamed(AppRoutes.AppRoutes.missionDetail);
-                            },
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
               ],
             ),
           );
@@ -443,21 +372,6 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
     }
   }
 
-  IconData _getStatusIcon(String statut) {
-    switch (statut.toLowerCase()) {
-      case 'pending':
-        return Icons.pending;
-      case 'accepted':
-        return Icons.check_circle_outline;
-      case 'completed':
-        return Icons.check_circle;
-      case 'cancelled':
-        return Icons.cancel;
-      default:
-        return Icons.help_outline;
-    }
-  }
-
   String _getStatusText(String statut) {
     switch (statut.toLowerCase()) {
       case 'pending':
@@ -473,93 +387,29 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
     }
   }
 
-  Color _getMissionStatusColor(String statut) {
-    switch (statut.toLowerCase()) {
-      case 'pending':
-        return AppColors.warning;
-      case 'in progress':
-        return AppColors.info;
-      case 'completed':
-        return AppColors.success;
-      case 'cancelled':
-        return AppColors.error;
-      default:
-        return AppColors.grey;
-    }
-  }
-
-  IconData _getMissionStatusIcon(String statut) {
-    switch (statut.toLowerCase()) {
-      case 'pending':
-        return Icons.pending;
-      case 'in progress':
-        return Icons.work;
-      case 'completed':
-        return Icons.check_circle;
-      case 'cancelled':
-        return Icons.cancel;
-      default:
-        return Icons.help;
-    }
-  }
-
-  String _getMissionStatusText(String statut) {
-    switch (statut.toLowerCase()) {
-      case 'pending':
-        return 'status_pending'.tr;
-      case 'in progress':
-        return 'status_in_progress'.tr;
-      case 'completed':
-        return 'status_completed'.tr;
-      case 'cancelled':
-        return 'status_cancelled'.tr;
-      default:
-        return statut;
-    }
-  }
 
   void _showCancelRequestDialog(BuildContext context, RequestModel request) {
     showDialog(
       context: context,
-      barrierDismissible: false, // Prevent dismissing by tapping outside
+      barrierDismissible: false,
       builder: (dialogContext) => Obx(
-        () => AlertDialog(
-          title: Text('cancel_request_dialog_title'.tr),
-          content: Text('cancel_request_dialog_content'.tr),
-          actions: [
-            TextButton(
-              onPressed: _requestController.isLoading.value
-                  ? null
-                  : () {
-                      Navigator.of(dialogContext).pop(); // Close dialog using Navigator
-                    },
-              child: Text('no'.tr),
-            ),
-            ElevatedButton(
-              onPressed: _requestController.isLoading.value
-                  ? null
-                  : () async {
-                      final success = await _requestController.cancelRequest(request.id);
-                      if (success) {
-                        Navigator.of(dialogContext).pop(); // Close dialog
-                        // Stream will update automatically, no need to reload
-                      }
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
-              ),
-              child: _requestController.isLoading.value
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
-                      ),
-                    )
-                  : Text('yes_cancel'.tr),
-            ),
-          ],
+        () => InDriveDialogTemplate(
+          title: 'cancel_request_dialog_title'.tr,
+          message: 'cancel_request_dialog_content'.tr,
+          primaryLabel: _requestController.isLoading.value ? 'loading'.tr : 'yes_cancel'.tr,
+          onPrimary: _requestController.isLoading.value
+              ? () {}
+              : () async {
+                  final success = await _requestController.cancelRequest(request.id);
+                  if (success && context.mounted) {
+                    Navigator.of(dialogContext).pop();
+                  }
+                },
+          secondaryLabel: 'no'.tr,
+          onSecondary: _requestController.isLoading.value
+              ? null
+              : () => Navigator.of(dialogContext).pop(),
+          danger: true,
         ),
       ),
     );

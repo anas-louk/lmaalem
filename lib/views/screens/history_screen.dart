@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
-import '../../controllers/mission_controller.dart';
+import '../../controllers/request_controller.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
-import '../../core/constants/app_routes.dart' as AppRoutes;
 import '../../components/loading_widget.dart';
 import '../../components/empty_state.dart';
+import '../../components/indrive_app_bar.dart';
+import '../../components/indrive_card.dart';
+import '../../components/indrive_section_title.dart';
 
-/// Écran d'historique des missions
+/// Historique des demandes annulées
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
@@ -18,143 +20,159 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   final AuthController _authController = Get.find<AuthController>();
-  final MissionController _missionController = Get.put(MissionController());
-  bool _hasLoaded = false;
+  final RequestController _requestController = Get.put(RequestController());
+  bool _requestsLoaded = false;
 
   @override
   void initState() {
     super.initState();
-    // Defer loading until after build phase
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadMissions();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadRequests());
   }
 
-  void _loadMissions() {
+  void _loadRequests() {
     final user = _authController.currentUser.value;
-    if (user != null && !_hasLoaded) {
-      if (user.type.toLowerCase() == 'employee') {
-        _missionController.loadMissionsByEmployee(user.id);
-      } else {
-        _missionController.loadMissionsByClient(user.id);
-      }
-      _hasLoaded = true;
+    if (user != null && !_requestsLoaded) {
+      _requestController.streamRequestsByClient(user.id);
+      _requestsLoaded = true;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('history'.tr),
-      ),
-      body: Obx(
-        () {
-          final user = _authController.currentUser.value;
+      appBar: InDriveAppBar(title: 'history'.tr),
+      body: Obx(() {
+        final user = _authController.currentUser.value;
+        if (user == null) {
+          return const LoadingWidget();
+        }
 
-          if (user == null) {
-            return const LoadingWidget();
-          }
+        if (!_requestsLoaded) {
+          _loadRequests();
+        }
 
-          // Recharger si l'utilisateur change
-          if (!_hasLoaded) {
-            _loadMissions();
-          }
+        if (_requestController.isLoading.value &&
+            _requestController.requests.isEmpty) {
+          return const LoadingWidget();
+        }
 
-          if (_missionController.isLoading.value) {
-            return const LoadingWidget();
-          }
+        final archivedRequests = _requestController.requests
+            .where((req) {
+              final status = req.statut.toLowerCase();
+              return status == 'cancelled' || status == 'completed';
+            })
+            .toList();
 
-          if (_missionController.missions.isEmpty) {
-            return EmptyState(
-              icon: Icons.history,
-              title: 'no_history'.tr,
-              message: 'no_history_message'.tr,
-            );
-          }
+        if (archivedRequests.isEmpty) {
+          return EmptyState(
+            icon: Icons.history,
+            title: 'no_history'.tr,
+            message: 'no_history_message'.tr,
+          );
+        }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _missionController.missions.length,
-            itemBuilder: (context, index) {
-              final mission = _missionController.missions[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: _getStatusColor(mission.statutMission),
-                    child: Icon(
-                      _getStatusIcon(mission.statutMission),
-                      color: AppColors.white,
-                    ),
-                  ),
-                  title: Text(
-                    '${'mission'.tr} #${mission.id.substring(0, 8)}',
-                    style: AppTextStyles.h4,
-                  ),
-                  subtitle: Column(
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+          children: [
+            InDriveSectionTitle(
+              title: 'history'.tr,
+              subtitle: 'Toutes les demandes terminées ou annulées.',
+            ),
+            const SizedBox(height: 16),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: archivedRequests.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final request = archivedRequests[index];
+                final statusColor = _getStatusColor(request.statut);
+                return InDriveCard(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 4),
                       Text(
-                        '${'mission_objective'.tr}: ${mission.objMission}',
-                        style: AppTextStyles.bodySmall,
+                        '#${request.id.substring(0, 8)}',
+                        style: AppTextStyles.h4,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        request.description,
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.7),
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(Icons.location_on,
+                              size: 16, color: AppColors.primary),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              request.address,
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withOpacity(0.7),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
                       Text(
-                        '${'mission_price'.tr}: ${mission.prixMission.toStringAsFixed(2)} €',
+                        '${'mission_date'.tr}: ${_formatDate(request.createdAt)}',
                         style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.6),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${'mission_date'.tr}: ${_formatDate(mission.dateStart)}',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(
+                          _getStatusText(request.statut),
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: statusColor,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(mission.statutMission),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _getStatusText(mission.statutMission),
-                      style: const TextStyle(
-                        color: AppColors.white,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  onTap: () {
-                    _missionController.selectMission(mission);
-                    Get.toNamed(AppRoutes.AppRoutes.missionDetail);
-                  },
-                ),
-              );
-            },
-          );
-        },
-      ),
+                );
+              },
+            ),
+          ],
+        );
+      }),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
   }
 
   Color _getStatusColor(String statut) {
     switch (statut.toLowerCase()) {
-      case 'pending':
-        return AppColors.warning;
-      case 'in progress':
-        return AppColors.info;
       case 'completed':
         return AppColors.success;
       case 'cancelled':
@@ -164,27 +182,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  IconData _getStatusIcon(String statut) {
-    switch (statut.toLowerCase()) {
-      case 'pending':
-        return Icons.pending;
-      case 'in progress':
-        return Icons.work;
-      case 'completed':
-        return Icons.check_circle;
-      case 'cancelled':
-        return Icons.cancel;
-      default:
-        return Icons.help;
-    }
-  }
-
   String _getStatusText(String statut) {
     switch (statut.toLowerCase()) {
-      case 'pending':
-        return 'status_pending'.tr;
-      case 'in progress':
-        return 'status_in_progress'.tr;
       case 'completed':
         return 'status_completed'.tr;
       case 'cancelled':
@@ -192,10 +191,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       default:
         return statut;
     }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
   }
 }
 

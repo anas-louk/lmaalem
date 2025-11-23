@@ -12,9 +12,12 @@ import '../../core/services/location_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/helpers/snackbar_helper.dart';
-import '../../components/custom_button.dart';
 import '../../components/custom_text_field.dart';
 import '../../components/loading_widget.dart';
+import '../../components/indrive_app_bar.dart';
+import '../../components/indrive_card.dart';
+import '../../components/indrive_button.dart';
+import '../../components/indrive_section_title.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -46,11 +49,13 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
   double? _longitude;
   bool _isLoadingLocation = false;
   CategorieModel? _categorie;
+  bool _initialLocationRequested = false;
 
   @override
   void initState() {
     super.initState();
     _loadCategorie();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _autoFetchLocation());
   }
 
   void _loadCategorie() {
@@ -63,6 +68,12 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
   void dispose() {
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  void _autoFetchLocation() {
+    if (_initialLocationRequested) return;
+    _initialLocationRequested = true;
+    _getCurrentLocation(showSuccessToast: false);
   }
 
   Future<void> _pickImages() async {
@@ -80,7 +91,7 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
     }
   }
 
-  Future<void> _getCurrentLocation() async {
+  Future<void> _getCurrentLocation({bool showSuccessToast = true}) async {
     try {
       setState(() {
         _isLoadingLocation = true;
@@ -95,7 +106,9 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
         _isLoadingLocation = false;
       });
 
-      SnackbarHelper.showSuccess('location_retrieved'.tr);
+      if (showSuccessToast) {
+        SnackbarHelper.showSuccess('location_retrieved'.tr);
+      }
     } catch (e) {
       setState(() {
         _isLoadingLocation = false;
@@ -228,58 +241,62 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_categorie?.nom ?? 'new_request_title'.tr),
+      appBar: InDriveAppBar(
+        title: _categorie?.nom ?? 'new_request_title'.tr,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Get.back(),
+          ),
+        ],
       ),
       body: Obx(() {
         if (_requestController.isLoading.value) {
           return const LoadingWidget();
         }
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Catégorie info
-                if (_categorie != null)
-                  Card(
-                    color: AppColors.primaryLight.withOpacity(0.1),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: AppColors.primary,
-                            child: Text(
-                              _categorie!.nom[0].toUpperCase(),
-                              style: const TextStyle(
-                                color: AppColors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              _categorie!.nom,
-                              style: AppTextStyles.h4.copyWith(
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ),
-                        ],
+        return Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+            children: [
+              if (_categorie != null) ...[
+                InDriveCard(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 26,
+                        backgroundColor: AppColors.primary.withOpacity(0.15),
+                        child: Text(
+                          _categorie!.nom.substring(0, 1).toUpperCase(),
+                          style: AppTextStyles.h3.copyWith(color: AppColors.primary),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          _categorie!.nom,
+                          style: AppTextStyles.h3,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Get.toNamed(AppRoutes.AppRoutes.categories),
+                        icon: const Icon(Icons.swap_horiz),
+                      ),
+                    ],
                   ),
+                ),
                 const SizedBox(height: 24),
-
-                // Description field
-                CustomTextField(
+              ],
+              InDriveSectionTitle(
+                title: 'request_description_label'.tr,
+                subtitle: 'request_description_hint'.tr,
+              ),
+              const SizedBox(height: 12),
+              InDriveCard(
+                child: CustomTextField(
                   controller: _descriptionController,
-                  label: 'request_description_label'.tr,
                   hint: 'request_description_hint'.tr,
                   maxLines: 5,
                   validator: (value) {
@@ -291,185 +308,162 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
                     }
                     return null;
                   },
+                  fillColor: Colors.transparent,
+                  textColor: Theme.of(context).colorScheme.onSurface,
+                  hintColor: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withOpacity(0.5),
+                  borderColor: Colors.transparent,
                 ),
-                const SizedBox(height: 24),
-
-                // Images section
-                Text(
-                  'images_optional'.tr,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (_selectedImages.isEmpty)
-                  GestureDetector(
-                    onTap: _pickImages,
-                    child: Container(
-                      height: 150,
-                      decoration: BoxDecoration(
-                        color: AppColors.greyLight,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppColors.grey,
-                          style: BorderStyle.solid,
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.add_photo_alternate_outlined,
-                            size: 48,
-                            color: AppColors.grey,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'add_images'.tr,
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: AppColors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  Column(
-                    children: [
-                      SizedBox(
-                        height: 150,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _selectedImages.length,
-                          itemBuilder: (context, index) {
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: Stack(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image.file(
-                                      _selectedImages[index],
-                                      width: 150,
-                                      height: 150,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 4,
-                                    right: 4,
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          _selectedImages.removeAt(index);
-                                        });
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: const BoxDecoration(
-                                          color: AppColors.error,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(
-                                          Icons.close,
-                                          size: 16,
-                                          color: AppColors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextButton.icon(
-                        onPressed: _pickImages,
-                        icon: const Icon(Icons.add_photo_alternate),
-                        label: Text('add_more_images'.tr),
-                      ),
-                    ],
-                  ),
-                const SizedBox(height: 24),
-
-                // Location section
-                Text(
-                  'location'.tr,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
+              ),
+              const SizedBox(height: 24),
+              InDriveSectionTitle(
+                title: 'images_optional'.tr,
+                subtitle: 'add_images'.tr,
+              ),
+              const SizedBox(height: 12),
+              if (_selectedImages.isEmpty)
+                GestureDetector(
+                  onTap: _pickImages,
+                  child: InDriveCard(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (_address == null)
-                          Text(
-                            'no_location_selected'.tr,
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          )
-                        else
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.location_on,
-                                    color: AppColors.primary,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      _address!,
-                                      style: AppTextStyles.bodyMedium,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Lat: ${_latitude!.toStringAsFixed(6)}, Lng: ${_longitude!.toStringAsFixed(6)}',
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
+                        Icon(Icons.add_photo_alternate_outlined, size: 48, color: AppColors.primary),
                         const SizedBox(height: 12),
-                        CustomButton(
-                          onPressed: _isLoadingLocation ? null : _getCurrentLocation,
-                          text: _isLoadingLocation
-                              ? 'getting_location'.tr
-                              : 'get_location'.tr,
-                          isLoading: _isLoadingLocation,
-                          backgroundColor: AppColors.secondary,
-                          height: 45,
+                        Text(
+                          'add_images'.tr,
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                          ),
                         ),
                       ],
                     ),
                   ),
+                )
+              else
+                SizedBox(
+                  height: 150,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _selectedImages.length + 1,
+                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                    itemBuilder: (context, index) {
+                      if (index == _selectedImages.length) {
+                        return GestureDetector(
+                          onTap: _pickImages,
+                          child: InDriveCard(
+                            padding: const EdgeInsets.all(12),
+                            borderRadius: 20,
+                            child: const Icon(Icons.add, size: 32),
+                          ),
+                        );
+                      }
+                      return Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: Image.file(
+                              _selectedImages[index],
+                              width: 150,
+                              height: 150,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Positioned(
+                            top: 6,
+                            right: 6,
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() => _selectedImages.removeAt(index));
+                              },
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  color: AppColors.error,
+                                  shape: BoxShape.circle,
+                                ),
+                                padding: const EdgeInsets.all(4),
+                                child: const Icon(Icons.close, size: 16, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
-                const SizedBox(height: 32),
-
-                // Submit button
-                CustomButton(
-                  onPressed: _submitRequest,
-                  text: 'submit_request_button'.tr,
-                  isLoading: _requestController.isLoading.value,
+              const SizedBox(height: 24),
+              InDriveSectionTitle(
+                title: 'location'.tr,
+                subtitle: 'location_required'.tr,
+                actionText: 'refresh'.tr,
+                onActionTap: _isLoadingLocation ? null : () => _getCurrentLocation(showSuccessToast: false),
+              ),
+              const SizedBox(height: 12),
+              InDriveCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_isLoadingLocation)
+                      Row(
+                        children: [
+                          const CircularProgressIndicator(strokeWidth: 2),
+                          const SizedBox(width: 12),
+                          Text('getting_location'.tr),
+                        ],
+                      )
+                    else if (_address != null)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.location_on, color: AppColors.primary),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _address!,
+                                  style: AppTextStyles.bodyMedium,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Lat: ${_latitude!.toStringAsFixed(5)}, Lng: ${_longitude!.toStringAsFixed(5)}',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      Text(
+                        'no_location_selected'.tr,
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    InDriveButton(
+                      label: _isLoadingLocation ? 'getting_location'.tr : 'get_location'.tr,
+                      onPressed: _isLoadingLocation ? null : () => _getCurrentLocation(showSuccessToast: true),
+                      isLoading: _isLoadingLocation,
+                      leadingIcon: Icons.my_location,
+                      variant: InDriveButtonVariant.secondary,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-              ],
-            ),
+              ),
+              const SizedBox(height: 32),
+              InDriveButton(
+                label: 'submit_request_button'.tr,
+                onPressed: _requestController.isLoading.value ? null : _submitRequest,
+                isLoading: _requestController.isLoading.value,
+                height: 56,
+              ),
+            ],
           ),
         );
       }),

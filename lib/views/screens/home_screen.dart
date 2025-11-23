@@ -4,6 +4,8 @@ import '../../controllers/employee_controller.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
 import '../../components/loading_widget.dart';
 import '../../components/empty_state.dart';
+import '../../components/indrive_app_bar.dart';
+import '../../components/indrive_section_title.dart';
 import '../widgets/employee_card.dart';
 
 /// Écran d'accueil
@@ -15,14 +17,16 @@ class HomeScreen extends StatelessWidget {
     final EmployeeController _employeeController = Get.put(EmployeeController());
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Employés Disponibles'),
+      appBar: InDriveAppBar(
+        title: 'Employés disponibles',
         actions: [
           IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () {
-              Get.toNamed(AppRoutes.AppRoutes.profile);
-            },
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () => Get.toNamed(AppRoutes.AppRoutes.notifications),
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            onPressed: () => Get.toNamed(AppRoutes.AppRoutes.profile),
           ),
         ],
       ),
@@ -34,19 +38,31 @@ class HomeScreen extends StatelessWidget {
 
           if (_employeeController.employees.isEmpty) {
             return EmptyState(
-              icon: Icons.people_outlined,
+              icon: Icons.people_outline,
               title: 'Aucun employé disponible',
-              message: 'Aucun employé disponible pour le moment',
+              message: 'Réessayez plus tard ou rafraîchissez la liste.',
             );
           }
 
           return RefreshIndicator(
             onRefresh: _employeeController.loadAvailableEmployees,
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _employeeController.employees.length,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              itemCount: _employeeController.employees.length + 1,
+              separatorBuilder: (_, __) => const SizedBox(height: 0),
               itemBuilder: (context, index) {
-                final employee = _employeeController.employees[index];
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: InDriveSectionTitle(
+                      title: 'Trouve ton expert',
+                      subtitle: 'Professionnels vérifiés près de chez toi',
+                      actionText: 'Filtres',
+                      onActionTap: _employeeController.loadAvailableEmployees,
+                    ),
+                  );
+                }
+                final employee = _employeeController.employees[index - 1];
                 return EmployeeCard(
                   employee: employee,
                   onTap: () {
