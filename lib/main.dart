@@ -10,6 +10,7 @@ import 'core/translations/app_translations.dart';
 import 'core/services/local_notification_service.dart';
 import 'core/services/background_notification_service.dart';
 import 'core/services/push_notifications.dart';
+import 'core/helpers/snackbar_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -122,6 +123,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         return GetMaterialApp(
           title: 'Lmaalem',
           debugShowCheckedModeBanner: false,
+          scaffoldMessengerKey: SnackbarHelper.scaffoldMessengerKey,
           theme: AppTheme.lightTheme,
           // darkTheme: AppTheme.darkTheme,
           // themeMode: ThemeMode.system,

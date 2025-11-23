@@ -18,6 +18,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../components/loading_widget.dart';
 import '../../components/custom_button.dart';
 import '../../core/utils/logger.dart';
+import '../../core/helpers/snackbar_helper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Écran de détails d'une demande
@@ -131,7 +132,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         }
       }
     } catch (e) {
-      Get.snackbar('error'.tr, '${'error_loading'.tr}: $e');
+      SnackbarHelper.showError( '${'error_loading'.tr}: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -232,7 +233,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       await _missionController.createMission(mission);
     } catch (e, stackTrace) {
       Logger.logError('RequestDetailScreen._createMission', e, stackTrace);
-      Get.snackbar('error'.tr, '${'error_creating_mission'.tr}: $e');
+      SnackbarHelper.showError( '${'error_creating_mission'.tr}: $e');
     }
   }
 
@@ -313,13 +314,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       // Reload data
       await _loadRequest();
       
-      Get.snackbar('success'.tr, 'request_completed_success'.tr);
+      SnackbarHelper.showSuccess('request_completed_success'.tr);
       
       // Navigate back and trigger refresh
       Get.back(result: true);
     } catch (e, stackTrace) {
       Logger.logError('RequestDetailScreen._finishRequest', e, stackTrace);
-      Get.snackbar('error'.tr, '${'error_finishing'.tr}: $e');
+      SnackbarHelper.showError( '${'error_finishing'.tr}: $e');
     }
   }
 
@@ -425,7 +426,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                           onPressed: () {
                             final price = double.tryParse(priceController.text);
                             if (price == null || price < 0) {
-                              Get.snackbar('error'.tr, 'enter_valid_price'.tr);
+                              SnackbarHelper.showError( 'enter_valid_price'.tr);
                               return;
                             }
                             Get.back(result: {

@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import '../../data/models/client_model.dart';
 import '../../data/repositories/client_repository.dart';
+import '../../core/helpers/snackbar_helper.dart';
 
 /// Controller pour gérer les clients (GetX)
 class ClientController extends GetxController {
@@ -20,7 +21,7 @@ class ClientController extends GetxController {
       currentClient.value = client;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('error'.tr, errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
     } finally {
       isLoading.value = false;
     }
@@ -32,11 +33,11 @@ class ClientController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       await _clientRepository.createClient(client);
-      Get.snackbar('success'.tr, 'client_created'.tr);
+      SnackbarHelper.showSuccess('client_created'.tr);
       return true;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('error'.tr, errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -50,11 +51,11 @@ class ClientController extends GetxController {
       errorMessage.value = '';
       await _clientRepository.updateClient(client);
       await loadClient(client.id);
-      Get.snackbar('success'.tr, 'client_updated'.tr);
+      SnackbarHelper.showSuccess('client_updated'.tr);
       return true;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('error'.tr, errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:get/get.dart';
@@ -69,12 +70,34 @@ class LocationService {
     await requestLocationPermission();
     
     try {
-      return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+      // Essayer d'abord avec une haute précision
+      try {
+        return await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 10), // Timeout de 10 secondes
+        ).timeout(
+          const Duration(seconds: 12), // Timeout global de 12 secondes
+        );
+      } catch (e) {
+        // Si la haute précision échoue ou timeout, essayer avec une précision moyenne
+        if (e is TimeoutException || e.toString().contains('timeout')) {
+          return await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.medium,
+            timeLimit: const Duration(seconds: 8), // Timeout de 8 secondes
+          ).timeout(
+            const Duration(seconds: 10), // Timeout global de 10 secondes
+          );
+        }
+        rethrow;
+      }
     } catch (e) {
       if (e is LocationException) {
         rethrow;
+      }
+      if (e is TimeoutException) {
+        throw LocationException(
+          'Le GPS prend trop de temps à répondre. Veuillez vérifier que le GPS est activé et réessayer.',
+        );
       }
       throw LocationException('Erreur lors de la récupération de la position: $e');
     }
@@ -89,6 +112,9 @@ class LocationService {
       List<Placemark> placemarks = await placemarkFromCoordinates(
         latitude,
         longitude,
+      ).timeout(
+        const Duration(seconds: 10), // Timeout pour la géocodification
+        onTimeout: () => <Placemark>[], // Retourner une liste vide en cas de timeout
       );
 
       if (placemarks.isNotEmpty) {
@@ -128,10 +154,19 @@ class LocationService {
   Future<Map<String, dynamic>> getCurrentLocationWithAddress() async {
     try {
       final position = await getCurrentPosition();
-      final address = await getAddressFromCoordinates(
-        latitude: position.latitude,
-        longitude: position.longitude,
-      );
+      
+      // Essayer de récupérer l'adresse, mais ne pas bloquer si ça échoue
+      String address = 'Localisation inconnue';
+      try {
+        address = await getAddressFromCoordinates(
+          latitude: position.latitude,
+          longitude: position.longitude,
+        );
+      } catch (e) {
+        // Si la géocodification échoue, on continue avec l'adresse par défaut
+        // mais on garde les coordonnées
+        print('Erreur lors de la géocodification: $e');
+      }
 
       return {
         'latitude': position.latitude,
@@ -141,6 +176,11 @@ class LocationService {
     } catch (e) {
       if (e is LocationException) {
         rethrow;
+      }
+      if (e is TimeoutException) {
+        throw LocationException(
+          'Timeout lors de la récupération de la localisation. Veuillez vérifier que le GPS est activé et réessayer.',
+        );
       }
       throw LocationException('Erreur lors de la récupération de la localisation: $e');
     }

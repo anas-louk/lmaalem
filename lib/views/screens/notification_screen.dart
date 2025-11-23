@@ -10,6 +10,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
 import '../../components/empty_state.dart';
 import '../../components/loading_widget.dart';
+import '../../core/helpers/snackbar_helper.dart';
 
 /// Écran de notifications pour les employés
 class NotificationScreen extends StatefulWidget {
@@ -816,12 +817,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
     if (shouldRefuse == true) {
       await _requestController.refuseRequestByEmployee(requestId, user.id);
-      Get.snackbar(
-        'success'.tr,
-        'request_refused_success'.tr,
+      SnackbarHelper.showSnackbar(
+        title: 'success'.tr,
+        message: 'request_refused_success'.tr,
         backgroundColor: AppColors.success.withOpacity(0.9),
         colorText: AppColors.white,
-        snackPosition: SnackPosition.BOTTOM,
+        position: SnackPosition.BOTTOM,
       );
       // No need to reload - stream will update automatically
     }
@@ -872,12 +873,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
     if (shouldCancel == true) {
       await _requestController.refuseRequestByEmployee(requestId, user.id);
-      Get.snackbar(
-        'success'.tr,
-        'acceptance_cancelled'.tr,
+      SnackbarHelper.showSnackbar(
+        title: 'success'.tr,
+        message: 'acceptance_cancelled'.tr,
         backgroundColor: AppColors.success.withOpacity(0.9),
         colorText: AppColors.white,
-        snackPosition: SnackPosition.BOTTOM,
+        position: SnackPosition.BOTTOM,
       );
       // No need to reload - stream will update automatically
     }

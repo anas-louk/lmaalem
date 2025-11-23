@@ -11,6 +11,7 @@ import '../../core/services/storage_service.dart';
 import '../../core/services/location_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
+import '../../core/helpers/snackbar_helper.dart';
 import '../../components/custom_button.dart';
 import '../../components/custom_text_field.dart';
 import '../../components/loading_widget.dart';
@@ -75,7 +76,7 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
         });
       }
     } catch (e) {
-      Get.snackbar('error'.tr, '${'error_selecting_images'.tr}: $e');
+      SnackbarHelper.showError('${'error_selecting_images'.tr}: $e');
     }
   }
 
@@ -94,7 +95,7 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
         _isLoadingLocation = false;
       });
 
-      Get.snackbar('success'.tr, 'location_retrieved'.tr);
+      SnackbarHelper.showSuccess('location_retrieved'.tr);
     } catch (e) {
       setState(() {
         _isLoadingLocation = false;
@@ -104,7 +105,7 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
       if (e is LocationException && e.canOpenSettings) {
         _showLocationErrorDialog(e.message);
       } else {
-        Get.snackbar('error'.tr, e.toString());
+        SnackbarHelper.showError(e.toString());
       }
     }
   }
@@ -147,12 +148,12 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
     }
 
     if (_latitude == null || _longitude == null || _address == null) {
-      Get.snackbar('error'.tr, 'location_required'.tr);
+      SnackbarHelper.showError('location_required'.tr);
       return;
     }
 
     if (_authController.currentUser.value == null) {
-      Get.snackbar('error'.tr, 'must_be_connected'.tr);
+      SnackbarHelper.showError('must_be_connected'.tr);
       return;
     }
 
@@ -169,9 +170,9 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
           ? 'status_pending'.tr 
           : 'status_accepted'.tr;
       
-      Get.snackbar(
-        'request_in_progress'.tr,
-        'request_in_progress_message'.tr.replaceAll('{status}', statusText),
+      SnackbarHelper.showSnackbar(
+        title: 'request_in_progress'.tr,
+        message: 'request_in_progress_message'.tr.replaceAll('{status}', statusText),
         duration: const Duration(seconds: 4),
         backgroundColor: AppColors.warning.withOpacity(0.9),
         colorText: AppColors.white,
@@ -217,10 +218,10 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
       if (success) {
         // Naviguer vers le dashboard client (home)
         Get.offAllNamed(AppRoutes.AppRoutes.clientDashboard);
-        Get.snackbar('success'.tr, 'request_submitted_success'.tr);
+        SnackbarHelper.showSuccess('request_submitted_success'.tr);
       }
     } catch (e) {
-      Get.snackbar('error'.tr, '${'error_submitting'.tr}: $e');
+      SnackbarHelper.showError('${'error_submitting'.tr}: $e');
     }
   }
 

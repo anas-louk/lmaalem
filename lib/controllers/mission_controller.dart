@@ -5,6 +5,7 @@ import 'dart:async';
 import '../../data/models/mission_model.dart';
 import '../../data/repositories/mission_repository.dart';
 import '../../core/utils/logger.dart';
+import '../../core/helpers/snackbar_helper.dart';
 
 /// Controller pour gérer les missions (GetX)
 class MissionController extends GetxController {
@@ -54,7 +55,7 @@ class MissionController extends GetxController {
       Future.microtask(() {
         isLoading.value = false;
         SchedulerBinding.instance.addPostFrameCallback((_) {
-          Get.snackbar('error'.tr, errorMessage.value);
+          SnackbarHelper.showError(errorMessage.value);
         });
       });
     }
@@ -81,7 +82,7 @@ class MissionController extends GetxController {
       Future.microtask(() {
         isLoading.value = false;
         SchedulerBinding.instance.addPostFrameCallback((_) {
-          Get.snackbar('error'.tr, errorMessage.value);
+          SnackbarHelper.showError(errorMessage.value);
         });
       });
     }
@@ -108,7 +109,7 @@ class MissionController extends GetxController {
       Future.microtask(() {
         isLoading.value = false;
         SchedulerBinding.instance.addPostFrameCallback((_) {
-          Get.snackbar('error'.tr, errorMessage.value);
+          SnackbarHelper.showError(errorMessage.value);
         });
       });
     }
@@ -227,12 +228,12 @@ class MissionController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       await _missionRepository.createMission(mission);
-      Get.snackbar('success'.tr, 'mission_created'.tr);
+      SnackbarHelper.showSuccess('mission_created'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('MissionController.createMission', e, stackTrace);
-      Get.snackbar('Erreur', errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -245,12 +246,12 @@ class MissionController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       await _missionRepository.updateMission(mission);
-      Get.snackbar('success'.tr, 'mission_updated'.tr);
+      SnackbarHelper.showSuccess('mission_updated'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('MissionController.updateMission', e, stackTrace);
-      Get.snackbar('Erreur', errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -263,12 +264,12 @@ class MissionController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       await _missionRepository.deleteMission(missionId);
-      Get.snackbar('success'.tr, 'mission_deleted'.tr);
+      SnackbarHelper.showSuccess('mission_deleted'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('MissionController.deleteMission', e, stackTrace);
-      Get.snackbar('Erreur', errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;

@@ -4,10 +4,12 @@ import '../../controllers/auth_controller.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/helpers/validator.dart';
+import '../../core/helpers/snackbar_helper.dart';
 import '../../components/custom_text_field.dart';
 import '../../components/custom_button.dart';
+import '../../core/constants/app_routes.dart' as AppRoutes;
 
-/// Écran d'inscription
+/// Écran d'inscription avec le même design que la page de connexion
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -22,6 +24,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final AuthController _authController = Get.find<AuthController>();
+  bool _showPassword = false;
+  bool _showConfirmPassword = false;
 
   @override
   void dispose() {
@@ -48,13 +52,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       if (!success) {
-        Get.snackbar(
-          'error'.tr,
-          _authController.errorMessage.value,
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: AppColors.error,
-          colorText: AppColors.white,
-        );
+        SnackbarHelper.showError(_authController.errorMessage.value);
       }
     }
   }
@@ -62,82 +60,200 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('register'.tr),
-      ),
+      backgroundColor: AppColors.night,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'create_account'.tr,
-                    style: AppTextStyles.h2,
-                    textAlign: TextAlign.center,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            const double maxWidth = 420;
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: maxWidth,
+                    minHeight: constraints.maxHeight - 40,
                   ),
-                  const SizedBox(height: 48),
-
-                  // Name field
-                  CustomTextField(
-                    controller: _nameController,
-                    label: 'full_name'.tr,
-                    hint: 'name_hint'.tr,
-                    validator: Validator.name,
-                    prefixIcon: Icons.person_outlined,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildBrandBadge(),
+                      const SizedBox(height: 24),
+                      _buildRegisterCard(),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-
-                  // Email field
-                  CustomTextField(
-                    controller: _emailController,
-                    label: 'email'.tr,
-                    hint: 'email_hint'.tr,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: Validator.email,
-                    prefixIcon: Icons.email_outlined,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Password field
-                  CustomTextField(
-                    controller: _passwordController,
-                    label: 'password'.tr,
-                    hint: 'password_hint'.tr,
-                    obscureText: true,
-                    validator: Validator.password,
-                    prefixIcon: Icons.lock_outlined,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Confirm password field
-                  CustomTextField(
-                    controller: _confirmPasswordController,
-                    label: 'confirm_password'.tr,
-                    hint: 'password_hint'.tr,
-                    obscureText: true,
-                    validator: _confirmPasswordValidator,
-                    prefixIcon: Icons.lock_outlined,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Register button
-                  Obx(
-                    () => CustomButton(
-                      onPressed: _handleRegister,
-                      text: 'sign_up'.tr,
-                      isLoading: _authController.isLoading.value,
-                    ),
-                  ),
-                ],
+                ),
               ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBrandBadge() {
+    return Container(
+      width: 88,
+      height: 88,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.primaryDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          'app_name'.tr,
+          style: AppTextStyles.h3.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRegisterCard() {
+    return Form(
+      key: _formKey,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.nightSurface,
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.4),
+              blurRadius: 30,
+              offset: const Offset(0, 20),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'create_account'.tr,
+              style: AppTextStyles.h2.copyWith(
+                color: Colors.white,
+                fontSize: 23,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'create_account_subtitle'.tr,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: Colors.white70,
+              ),
+            ),
+            const SizedBox(height: 20),
+            CustomTextField(
+              controller: _nameController,
+              label: 'full_name'.tr,
+              hint: 'name_hint'.tr,
+              validator: Validator.name,
+              prefixIcon: Icons.person_outline,
+              fillColor: AppColors.nightSecondary,
+              textColor: Colors.white,
+              labelColor: Colors.white,
+              hintColor: Colors.white54,
+              iconColor: Colors.white70,
+              borderColor: Colors.white10,
+            ),
+            const SizedBox(height: 12),
+            CustomTextField(
+              controller: _emailController,
+              label: 'email'.tr,
+              hint: 'email_hint'.tr,
+              keyboardType: TextInputType.emailAddress,
+              validator: Validator.email,
+              prefixIcon: Icons.email_outlined,
+              fillColor: AppColors.nightSecondary,
+              textColor: Colors.white,
+              labelColor: Colors.white,
+              hintColor: Colors.white54,
+              iconColor: Colors.white70,
+              borderColor: Colors.white10,
+            ),
+            const SizedBox(height: 12),
+            CustomTextField(
+              controller: _passwordController,
+              label: 'password'.tr,
+              hint: 'password_hint'.tr,
+              obscureText: !_showPassword,
+              validator: Validator.password,
+              prefixIcon: Icons.lock_outline_rounded,
+              suffixIcon: _showPassword
+                  ? Icons.visibility_off_rounded
+                  : Icons.visibility_rounded,
+              onSuffixTap: () => setState(() => _showPassword = !_showPassword),
+              fillColor: AppColors.nightSecondary,
+              textColor: Colors.white,
+              labelColor: Colors.white,
+              hintColor: Colors.white54,
+              iconColor: Colors.white70,
+              borderColor: Colors.white10,
+            ),
+            const SizedBox(height: 12),
+            CustomTextField(
+              controller: _confirmPasswordController,
+              label: 'confirm_password'.tr,
+              hint: 'password_hint'.tr,
+              obscureText: !_showConfirmPassword,
+              validator: _confirmPasswordValidator,
+              prefixIcon: Icons.lock_outline,
+              suffixIcon: _showConfirmPassword
+                  ? Icons.visibility_off_rounded
+                  : Icons.visibility_rounded,
+              onSuffixTap: () => setState(
+                () => _showConfirmPassword = !_showConfirmPassword,
+              ),
+              fillColor: AppColors.nightSecondary,
+              textColor: Colors.white,
+              labelColor: Colors.white,
+              hintColor: Colors.white54,
+              iconColor: Colors.white70,
+              borderColor: Colors.white10,
+            ),
+            const SizedBox(height: 16),
+            Obx(
+              () => CustomButton(
+                onPressed: _authController.isLoading.value ? null : _handleRegister,
+                text: 'sign_up'.tr,
+                isLoading: _authController.isLoading.value,
+                height: 50,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildLoginRedirect(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoginRedirect() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          'already_have_account'.tr,
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: Colors.white70,
+          ),
+        ),
+        TextButton(
+          onPressed: () => Get.offAllNamed(AppRoutes.AppRoutes.login),
+          child: Text(
+            'sign_in'.tr,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.primaryLight,
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }

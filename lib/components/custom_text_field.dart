@@ -19,6 +19,12 @@ class CustomTextField extends StatelessWidget {
   final List<TextInputFormatter>? inputFormatters;
   final bool enabled;
   final void Function(String)? onChanged;
+  final Color? fillColor;
+  final Color? labelColor;
+  final Color? textColor;
+  final Color? hintColor;
+  final Color? iconColor;
+  final Color? borderColor;
 
   const CustomTextField({
     super.key,
@@ -36,6 +42,12 @@ class CustomTextField extends StatelessWidget {
     this.inputFormatters,
     this.enabled = true,
     this.onChanged,
+    this.fillColor,
+    this.labelColor,
+    this.textColor,
+    this.hintColor,
+    this.iconColor,
+    this.borderColor,
   });
 
   @override
@@ -48,6 +60,7 @@ class CustomTextField extends StatelessWidget {
             label!,
             style: AppTextStyles.bodyMedium.copyWith(
               fontWeight: FontWeight.w600,
+              color: labelColor ?? AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
@@ -62,22 +75,33 @@ class CustomTextField extends StatelessWidget {
           inputFormatters: inputFormatters,
           enabled: enabled,
           onChanged: onChanged,
+          style: TextStyle(
+            color: textColor ?? AppColors.textPrimary,
+          ),
           decoration: InputDecoration(
             hintText: hint,
-            prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
+            hintStyle: TextStyle(
+              color: hintColor ?? AppColors.textTertiary,
+            ),
+            prefixIcon: prefixIcon != null
+                ? Icon(prefixIcon, color: iconColor ?? AppColors.textSecondary)
+                : null,
             suffixIcon: suffixIcon != null
                 ? IconButton(
-                    icon: Icon(suffixIcon),
+                    icon: Icon(
+                      suffixIcon,
+                      color: iconColor ?? AppColors.textSecondary,
+                    ),
                     onPressed: onSuffixTap,
                   )
                 : null,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.grey),
+              borderSide: BorderSide(color: borderColor ?? AppColors.grey),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.grey),
+              borderSide: BorderSide(color: borderColor ?? AppColors.grey),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -92,7 +116,7 @@ class CustomTextField extends StatelessWidget {
               borderSide: const BorderSide(color: AppColors.error, width: 2),
             ),
             filled: true,
-            fillColor: AppColors.white,
+            fillColor: fillColor ?? AppColors.white,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 16,

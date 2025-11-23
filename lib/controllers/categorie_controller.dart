@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import '../../data/models/categorie_model.dart';
 import '../../data/repositories/categorie_repository.dart';
+import '../../core/helpers/snackbar_helper.dart';
 
 /// Controller pour gérer les catégories (GetX)
 class CategorieController extends GetxController {
@@ -27,7 +28,7 @@ class CategorieController extends GetxController {
       categories.assignAll(categorieList);
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('error'.tr, errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
     } finally {
       isLoading.value = false;
     }
@@ -47,11 +48,11 @@ class CategorieController extends GetxController {
       errorMessage.value = '';
       await _categorieRepository.createCategorie(categorie);
       await loadAllCategories();
-      Get.snackbar('success'.tr, 'category_created'.tr);
+      SnackbarHelper.showSuccess('category_created'.tr);
       return true;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('error'.tr, errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -65,11 +66,11 @@ class CategorieController extends GetxController {
       errorMessage.value = '';
       await _categorieRepository.updateCategorie(categorie);
       await loadAllCategories();
-      Get.snackbar('success'.tr, 'category_updated'.tr);
+      SnackbarHelper.showSuccess('category_updated'.tr);
       return true;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('error'.tr, errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -83,11 +84,11 @@ class CategorieController extends GetxController {
       errorMessage.value = '';
       await _categorieRepository.deleteCategorie(categorieId);
       await loadAllCategories();
-      Get.snackbar('success'.tr, 'category_deleted'.tr);
+      SnackbarHelper.showSuccess('category_deleted'.tr);
       return true;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('error'.tr, errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;

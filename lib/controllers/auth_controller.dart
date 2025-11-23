@@ -8,6 +8,7 @@ import '../data/repositories/user_repository.dart';
 import '../data/repositories/employee_repository.dart';
 import '../core/constants/app_routes.dart' as AppRoutes;
 import '../core/services/background_notification_service.dart';
+import '../core/helpers/snackbar_helper.dart';
 import 'request_controller.dart';
 
 /// Controller pour gérer l'authentification (GetX)
@@ -259,14 +260,14 @@ class AuthController extends GetxController {
       if (success) {
         // Recharger l'utilisateur pour mettre à jour le type
         await loadUser(currentUser.value!.id);
-        Get.snackbar('success'.tr, 'now_employee'.tr);
+        SnackbarHelper.showSuccess('now_employee'.tr);
         return true;
       }
 
       return false;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('error'.tr, errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -304,14 +305,14 @@ class AuthController extends GetxController {
       if (success) {
         // Recharger l'utilisateur pour mettre à jour le type
         await loadUser(currentUser.value!.id);
-        Get.snackbar('success'.tr, 'now_employee'.tr);
+        SnackbarHelper.showSuccess('now_employee'.tr);
         return true;
       }
 
       return false;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('error'.tr, errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -336,14 +337,14 @@ class AuthController extends GetxController {
       if (success) {
         // Recharger l'utilisateur pour mettre à jour le type
         await loadUser(currentUser.value!.id);
-        Get.snackbar('success'.tr, 'now_client'.tr);
+        SnackbarHelper.showSuccess('now_client'.tr);
         return true;
       }
 
       return false;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('error'.tr, errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -408,11 +409,11 @@ class AuthController extends GetxController {
         }
       }
 
-      Get.snackbar('success'.tr, 'profile_updated'.tr);
+      SnackbarHelper.showSuccess('profile_updated'.tr);
       return true;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('error'.tr, errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;

@@ -8,6 +8,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
 import '../../components/loading_widget.dart';
 import '../../components/empty_state.dart';
+import '../../core/helpers/snackbar_helper.dart';
 
 /// Écran des catégories pour les clients
 class CategoriesScreen extends StatelessWidget {
@@ -19,7 +20,7 @@ class CategoriesScreen extends StatelessWidget {
 
     final user = _authController.currentUser.value;
     if (user == null) {
-      Get.snackbar('error'.tr, 'must_be_connected'.tr);
+      SnackbarHelper.showError('must_be_connected'.tr);
       return;
     }
 
@@ -32,9 +33,9 @@ class CategoriesScreen extends StatelessWidget {
           ? 'status_pending'.tr 
           : 'status_accepted'.tr;
       
-      Get.snackbar(
-        'request_in_progress'.tr,
-        'request_in_progress_message'.tr.replaceAll('{status}', statusText),
+      SnackbarHelper.showSnackbar(
+        title: 'request_in_progress'.tr,
+        message: 'request_in_progress_message'.tr.replaceAll('{status}', statusText),
         duration: const Duration(seconds: 4),
         backgroundColor: AppColors.warning.withOpacity(0.9),
         colorText: AppColors.white,

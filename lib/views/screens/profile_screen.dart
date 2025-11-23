@@ -8,6 +8,7 @@ import '../../components/custom_button.dart';
 import '../../components/custom_text_field.dart';
 import '../../components/language_switcher.dart';
 import '../../data/models/user_model.dart';
+import '../../core/helpers/snackbar_helper.dart';
 
 /// Écran de profil
 class ProfileScreen extends StatelessWidget {
@@ -271,10 +272,7 @@ class ProfileScreen extends StatelessWidget {
                             // The redirect will happen automatically via loadUser
                           }
                         } else {
-                          Get.snackbar(
-                            'error'.tr,
-                            'fill_all_fields'.tr,
-                          );
+                          SnackbarHelper.showError('fill_all_fields'.tr);
                         }
                       },
                 child: authController.isLoading.value
@@ -490,10 +488,7 @@ class ProfileScreen extends StatelessWidget {
                         if (nomCompletController.text.isEmpty ||
                             localisationController.text.isEmpty ||
                             telController.text.isEmpty) {
-                          Get.snackbar(
-                            'error'.tr,
-                            'fill_required_fields'.tr,
-                          );
+                          SnackbarHelper.showError('fill_required_fields'.tr);
                           return;
                         }
 
@@ -502,10 +497,7 @@ class ProfileScreen extends StatelessWidget {
                           if (selectedCategorieId.value == null ||
                               villeController.text.isEmpty ||
                               competenceController.text.isEmpty) {
-                            Get.snackbar(
-                              'Erreur',
-                              'Veuillez remplir tous les champs obligatoires',
-                            );
+                            SnackbarHelper.showError('Veuillez remplir tous les champs obligatoires');
                             return;
                           }
                         }

@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import '../../data/models/employee_model.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../core/utils/logger.dart';
+import '../../core/helpers/snackbar_helper.dart';
 
 /// Controller pour gérer les employés (GetX)
 class EmployeeController extends GetxController {
@@ -29,7 +30,7 @@ class EmployeeController extends GetxController {
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('EmployeeController', e, stackTrace);
-      Get.snackbar('error'.tr, errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
     } finally {
       isLoading.value = false;
     }
@@ -45,7 +46,7 @@ class EmployeeController extends GetxController {
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('EmployeeController', e, stackTrace);
-      Get.snackbar('error'.tr, errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
     } finally {
       isLoading.value = false;
     }
@@ -61,7 +62,7 @@ class EmployeeController extends GetxController {
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('EmployeeController', e, stackTrace);
-      Get.snackbar('error'.tr, errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
     } finally {
       isLoading.value = false;
     }
@@ -77,7 +78,7 @@ class EmployeeController extends GetxController {
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('EmployeeController', e, stackTrace);
-      Get.snackbar('error'.tr, errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
     } finally {
       isLoading.value = false;
     }
@@ -112,11 +113,11 @@ class EmployeeController extends GetxController {
       errorMessage.value = '';
       await _employeeRepository.createEmployee(employee);
       await loadAvailableEmployees();
-      Get.snackbar('success'.tr, 'employee_created'.tr);
+      SnackbarHelper.showSuccess('employee_created'.tr);
       return true;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('error'.tr, errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -130,11 +131,11 @@ class EmployeeController extends GetxController {
       errorMessage.value = '';
       await _employeeRepository.updateEmployee(employee);
       await loadAvailableEmployees();
-      Get.snackbar('success'.tr, 'employee_updated'.tr);
+      SnackbarHelper.showSuccess('employee_updated'.tr);
       return true;
     } catch (e) {
       errorMessage.value = e.toString();
-      Get.snackbar('error'.tr, errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;

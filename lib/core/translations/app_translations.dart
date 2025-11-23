@@ -150,7 +150,17 @@ class AppTranslations extends Translations {
       
       // Login/Register
       'welcome': 'Bienvenue',
+      'welcome_back': 'Content de vous revoir',
       'connect_to_account': 'Connectez-vous à votre compte',
+      'find_best_solution': 'Trouvez la meilleure solution pour votre foyer',
+      'sign_in_title': 'Connexion sécurisée',
+      'express_service': 'Service express',
+      'home_service_title': 'La solution rapide pour vos services à domicile',
+      'home_service_subtitle': 'Réservez des professionnels vérifiés en quelques minutes.',
+      'availability': 'Disponibilité',
+      'avg_rating': 'Note moyenne',
+      'missions_completed': 'Missions réalisées',
+      'login_with_apple': 'Connexion avec Apple',
       'continue_with_google': 'Continuer avec Google',
       'or': 'OU',
       'email_hint': 'votre@email.com',
@@ -158,6 +168,7 @@ class AppTranslations extends Translations {
       'forgot_password_question': 'Mot de passe oublié ?',
       'no_account': 'Pas de compte ? ',
       'create_account': 'Créer un compte',
+      'create_account_subtitle': 'Configurez votre profil, vous pourrez le modifier plus tard.',
       'name_hint': 'John Doe',
       'user_not_connected': 'Utilisateur non connecté',
       
@@ -447,7 +458,17 @@ class AppTranslations extends Translations {
       
       // Login/Register
       'welcome': 'مرحباً',
+      'welcome_back': 'مرحباً بعودتك',
       'connect_to_account': 'قم بتسجيل الدخول إلى حسابك',
+      'find_best_solution': 'اعثر على أفضل حل لمنزلك',
+      'sign_in_title': 'تسجيل دخول آمن',
+      'express_service': 'خدمة سريعة',
+      'home_service_title': 'حل سريع لخدمات المنزل',
+      'home_service_subtitle': 'احجز محترفين موثوقين خلال دقائق.',
+      'availability': 'التوفر',
+      'avg_rating': 'متوسط التقييم',
+      'missions_completed': 'مهام منجزة',
+      'login_with_apple': 'تسجيل الدخول عبر Apple',
       'continue_with_google': 'المتابعة مع Google',
       'or': 'أو',
       'email_hint': 'your@email.com',
@@ -455,6 +476,7 @@ class AppTranslations extends Translations {
       'forgot_password_question': 'نسيت كلمة المرور?',
       'no_account': 'ليس لديك حساب? ',
       'create_account': 'إنشاء حساب',
+      'create_account_subtitle': 'قم بإعداد ملفك الشخصي ويمكنك تعديله لاحقاً.',
       'name_hint': 'John Doe',
       'user_not_connected': 'المستخدم غير متصل',
       

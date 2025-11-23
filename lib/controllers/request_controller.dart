@@ -7,6 +7,7 @@ import '../../data/repositories/request_repository.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../core/utils/logger.dart';
 import '../../core/services/local_notification_service.dart';
+import '../../core/helpers/snackbar_helper.dart';
 import 'auth_controller.dart';
 
 /// Controller pour gérer les demandes (GetX)
@@ -100,7 +101,7 @@ class RequestController extends GetxController {
       Future.microtask(() {
         isLoading.value = false;
         SchedulerBinding.instance.addPostFrameCallback((_) {
-          Get.snackbar('error'.tr, errorMessage.value);
+          SnackbarHelper.showError(errorMessage.value);
         });
       });
     }
@@ -122,7 +123,7 @@ class RequestController extends GetxController {
       Future.microtask(() {
         isLoading.value = false;
         SchedulerBinding.instance.addPostFrameCallback((_) {
-          Get.snackbar('error'.tr, errorMessage.value);
+          SnackbarHelper.showError(errorMessage.value);
         });
       });
     }
@@ -144,7 +145,7 @@ class RequestController extends GetxController {
       Future.microtask(() {
         isLoading.value = false;
         SchedulerBinding.instance.addPostFrameCallback((_) {
-          Get.snackbar('error'.tr, errorMessage.value);
+          SnackbarHelper.showError(errorMessage.value);
         });
       });
     }
@@ -424,12 +425,12 @@ class RequestController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       await _requestRepository.createRequest(request);
-      Get.snackbar('success'.tr, 'request_created'.tr);
+      SnackbarHelper.showSuccess('request_created'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('RequestController.createRequest', e, stackTrace);
-      Get.snackbar('Erreur', errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -442,12 +443,12 @@ class RequestController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       await _requestRepository.updateRequest(request);
-      Get.snackbar('success'.tr, 'request_updated'.tr);
+      SnackbarHelper.showSuccess('request_updated'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('RequestController.updateRequest', e, stackTrace);
-      Get.snackbar('Erreur', errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -460,12 +461,12 @@ class RequestController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       await _requestRepository.deleteRequest(requestId);
-      Get.snackbar('success'.tr, 'request_deleted'.tr);
+      SnackbarHelper.showSuccess('request_deleted'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('RequestController.deleteRequest', e, stackTrace);
-      Get.snackbar('Erreur', errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -574,12 +575,12 @@ class RequestController extends GetxController {
         await loadRequestsByCategorie(request.categorieId);
       }
 
-      Get.snackbar('success'.tr, 'request_accepted_success'.tr);
+      SnackbarHelper.showSuccess('request_accepted_success'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('RequestController.acceptRequestByEmployee', e, stackTrace);
-      Get.snackbar('Erreur', errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -631,12 +632,12 @@ class RequestController extends GetxController {
         await loadRequestsByCategorie(request.categorieId);
       }
 
-      Get.snackbar('success'.tr, 'request_refused'.tr);
+      SnackbarHelper.showSuccess('request_refused'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('RequestController.refuseRequestByEmployee', e, stackTrace);
-      Get.snackbar('Erreur', errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -679,12 +680,12 @@ class RequestController extends GetxController {
         await loadRequestsByClient(request.clientId);
       }
 
-      Get.snackbar('success'.tr, 'employee_accepted'.tr);
+      SnackbarHelper.showSuccess('employee_accepted'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('RequestController.acceptEmployeeForRequest', e, stackTrace);
-      Get.snackbar('Erreur', errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -733,12 +734,12 @@ class RequestController extends GetxController {
         await loadRequestsByClient(request.clientId);
       }
 
-      Get.snackbar('success'.tr, 'employee_rejected'.tr);
+      SnackbarHelper.showSuccess('employee_rejected'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('RequestController.rejectEmployeeForRequest', e, stackTrace);
-      Get.snackbar('Erreur', errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;
@@ -776,12 +777,12 @@ class RequestController extends GetxController {
         await loadRequestsByClient(request.clientId);
       }
 
-      Get.snackbar('success'.tr, 'request_cancelled'.tr);
+      SnackbarHelper.showSuccess('request_cancelled'.tr);
       return true;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('RequestController.cancelRequest', e, stackTrace);
-      Get.snackbar('Erreur', errorMessage.value);
+      SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {
       isLoading.value = false;

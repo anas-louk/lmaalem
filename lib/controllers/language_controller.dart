@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/helpers/snackbar_helper.dart';
 
 class LanguageController extends GetxController {
   final RxString currentLanguage = 'fr_FR'.obs;
@@ -35,7 +36,7 @@ class LanguageController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('language', languageCode);
     } catch (e) {
-      Get.snackbar('error'.tr, 'error_language_change'.tr);
+      SnackbarHelper.showError('error_language_change'.tr);
     }
   }
   
