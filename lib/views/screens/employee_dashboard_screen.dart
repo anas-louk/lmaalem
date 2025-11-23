@@ -4,13 +4,16 @@ import '../../controllers/auth_controller.dart';
 import '../../controllers/mission_controller.dart';
 import '../../controllers/employee_controller.dart';
 import '../../controllers/request_controller.dart';
+import '../../data/models/mission_model.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
+import '../../core/helpers/snackbar_helper.dart';
 import '../../components/loading_widget.dart';
 import '../../components/empty_state.dart';
 import 'notification_screen.dart';
 import 'history_screen.dart';
+import 'chat_screen.dart';
 
 /// Dashboard Employee with Bottom Navigation
 class EmployeeDashboardScreen extends StatefulWidget {
@@ -208,6 +211,7 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
   final AuthController _authController = Get.find<AuthController>();
   final MissionController _missionController = Get.put(MissionController());
   final EmployeeController _employeeController = Get.put(EmployeeController());
+  final RequestController _requestController = Get.find<RequestController>();
   String? _loadedUserId;
 
   @override
@@ -233,6 +237,33 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
     } catch (e) {
       // Handle error
     }
+  }
+
+  Future<void> _openChatFromMission(MissionModel mission) async {
+    if (mission.requestId == null) {
+      SnackbarHelper.showInfo('chat_not_available'.tr);
+      return;
+    }
+
+    final request = await _requestController.getRequestById(mission.requestId!);
+    if (request == null ||
+        request.employeeId == null ||
+        request.statut.toLowerCase() != 'accepted') {
+      SnackbarHelper.showInfo('chat_not_available'.tr);
+      return;
+    }
+
+    Get.toNamed(
+      AppRoutes.AppRoutes.chat,
+      arguments: ChatScreenArguments(
+        requestId: request.id,
+        clientId: request.clientId,
+        employeeId: request.employeeId!,
+        requestTitle: '${'request'.tr} #${request.id.substring(0, 8)}',
+        requestStatus: request.statut,
+        employeeName: _authController.currentUser.value?.nomComplet,
+      ),
+    );
   }
 
   @override
@@ -326,36 +357,55 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
                       itemCount: _missionController.missions.length,
                       itemBuilder: (context, index) {
                         final mission = _missionController.missions[index];
+                        final canChat = mission.requestId != null &&
+                            mission.statutMission.toLowerCase() != 'completed';
+
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            title: Text('${'mission'.tr} #${mission.id.substring(0, 8)}'),
-                            subtitle: Text(
-                              '${'mission_price'.tr}: ${mission.prixMission.toStringAsFixed(2)} €\n'
-                              '${'mission_status'.tr}: ${_getStatusText(mission.statutMission)}\n'
-                              '${'mission_date'.tr}: ${mission.dateStart.toString().substring(0, 10)}',
-                            ),
-                            trailing: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _getStatusColor(mission.statutMission),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                _getStatusText(mission.statutMission),
-                                style: const TextStyle(
-                                  color: AppColors.white,
-                                  fontSize: 12,
+                          child: Column(
+                            children: [
+                              ListTile(
+                                title: Text('${'mission'.tr} #${mission.id.substring(0, 8)}'),
+                                subtitle: Text(
+                                  '${'mission_price'.tr}: ${mission.prixMission.toStringAsFixed(2)} €\n'
+                                  '${'mission_status'.tr}: ${_getStatusText(mission.statutMission)}\n'
+                                  '${'mission_date'.tr}: ${mission.dateStart.toString().substring(0, 10)}',
                                 ),
+                                trailing: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _getStatusColor(mission.statutMission),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    _getStatusText(mission.statutMission),
+                                    style: const TextStyle(
+                                      color: AppColors.white,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                                onTap: () {
+                                  _missionController.selectMission(mission);
+                                  Get.toNamed(AppRoutes.AppRoutes.missionDetail);
+                                },
                               ),
-                            ),
-                            onTap: () {
-                              _missionController.selectMission(mission);
-                              Get.toNamed(AppRoutes.AppRoutes.missionDetail);
-                            },
+                              if (canChat)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                                  child: Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton.icon(
+                                      onPressed: () => _openChatFromMission(mission),
+                                      icon: const Icon(Icons.chat_bubble_outline),
+                                      label: Text('open_chat'.tr),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         );
                       },

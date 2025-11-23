@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/mission_controller.dart';
 import '../../controllers/request_controller.dart';
+import '../../controllers/employee_controller.dart';
 import '../../data/models/request_model.dart';
 import '../../data/repositories/client_repository.dart';
 import '../../core/constants/app_colors.dart';
@@ -16,6 +17,8 @@ import '../../components/indrive_card.dart';
 import '../../components/indrive_button.dart';
 import '../../components/indrive_section_title.dart';
 import '../../components/indrive_dialog_template.dart';
+import '../../core/helpers/snackbar_helper.dart';
+import 'chat_screen.dart';
 import 'history_screen.dart';
 import 'categories_screen.dart';
 
@@ -82,6 +85,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
   final AuthController _authController = Get.find<AuthController>();
   final MissionController _missionController = Get.put(MissionController());
   final RequestController _requestController = Get.put(RequestController());
+  final EmployeeController _employeeController = Get.put(EmployeeController());
   final ClientRepository _clientRepository = ClientRepository();
   String? _loadedUserId;
   DateTime? _lastRefreshTime;
@@ -147,6 +151,41 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
     } catch (e) {
       // If error, missions will be empty
       _missionController.missions.clear();
+    }
+  }
+
+  Future<void> _openChat(RequestModel request) async {
+    if (request.employeeId == null || request.statut.toLowerCase() != 'accepted') {
+      SnackbarHelper.showInfo('chat_not_available'.tr);
+      return;
+    }
+    try {
+      final employee = await _employeeController.getEmployeeById(request.employeeId!);
+      Get.toNamed(
+        AppRoutes.AppRoutes.chat,
+        arguments: ChatScreenArguments(
+          requestId: request.id,
+          clientId: request.clientId,
+          employeeId: request.employeeId!,
+          requestTitle: '${'request'.tr} #${request.id.substring(0, 8)}',
+          requestStatus: request.statut,
+          clientName: _authController.currentUser.value?.nomComplet,
+          employeeName: employee?.nomComplet,
+          employeeUserId: employee?.userId,
+        ),
+      );
+    } catch (_) {
+      Get.toNamed(
+        AppRoutes.AppRoutes.chat,
+        arguments: ChatScreenArguments(
+          requestId: request.id,
+          clientId: request.clientId,
+          employeeId: request.employeeId!,
+          requestTitle: '${'request'.tr} #${request.id.substring(0, 8)}',
+          requestStatus: request.statut,
+          clientName: _authController.currentUser.value?.nomComplet,
+        ),
+      );
     }
   }
 
@@ -339,6 +378,15 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                                       ? null
                                       : () => _showCancelRequestDialog(context, request),
                                   variant: InDriveButtonVariant.ghost,
+                                ),
+                              ],
+                              if (request.statut.toLowerCase() == 'accepted' &&
+                                  request.employeeId != null) ...[
+                                const SizedBox(height: 12),
+                                InDriveButton(
+                                  label: 'open_chat'.tr,
+                                  onPressed: () => _openChat(request),
+                                  variant: InDriveButtonVariant.primary,
                                 ),
                               ],
                             ],

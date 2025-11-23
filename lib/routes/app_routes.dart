@@ -11,6 +11,7 @@ import '../views/screens/history_screen.dart';
 import '../views/screens/categories_screen.dart';
 import '../views/screens/request_submission_screen.dart';
 import '../views/screens/request_detail_screen.dart';
+import '../views/screens/chat_screen.dart';
 import '../core/constants/app_routes.dart' as route_constants;
 
 /// Gestionnaire de routes de l'application
@@ -80,6 +81,17 @@ class AppRoutes {
             return const CategoriesScreen();
           }
           return RequestDetailScreen(requestId: requestId);
+        },
+      ),
+      GetPage(
+        name: route_constants.AppRoutes.chat,
+        page: () {
+          final args = Get.arguments as ChatScreenArguments?;
+          if (args == null) {
+            Get.back();
+            return const SplashScreen();
+          }
+          return ChatScreen(args: args);
         },
       ),
       // Ajouter d'autres routes ici

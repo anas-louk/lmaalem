@@ -12,6 +12,7 @@ class MissionModel {
   final double? rating; // UML: Rating
   final String employeeId; // Reference to Employee collection (document ID)
   final String clientId; // Reference to Client collection (document ID)
+  final String? requestId; // Reference to associated request (optional)
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -26,6 +27,7 @@ class MissionModel {
     this.rating,
     required this.employeeId,
     required this.clientId,
+    this.requestId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -63,6 +65,7 @@ class MissionModel {
       rating: (map['rating'] as num?)?.toDouble(),
       employeeId: employeeId,
       clientId: clientId,
+      requestId: map['requestId'],
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -91,6 +94,7 @@ class MissionModel {
       'rating': rating,
       'employeeId': firestore.collection('employees').doc(employeeId),
       'clientId': firestore.collection('clients').doc(clientId),
+      'requestId': requestId,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -109,6 +113,7 @@ class MissionModel {
       'rating': rating,
       'employeeId': employeeId,
       'clientId': clientId,
+      'requestId': requestId,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -126,6 +131,7 @@ class MissionModel {
     double? rating,
     String? employeeId,
     String? clientId,
+    String? requestId,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -140,6 +146,7 @@ class MissionModel {
       rating: rating ?? this.rating,
       employeeId: employeeId ?? this.employeeId,
       clientId: clientId ?? this.clientId,
+      requestId: requestId ?? this.requestId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -147,7 +154,7 @@ class MissionModel {
 
   @override
   String toString() {
-    return 'MissionModel(id: $id, statutMission: $statutMission, prixMission: $prixMission)';
+    return 'MissionModel(id: $id, statutMission: $statutMission, prixMission: $prixMission, requestId: $requestId)';
   }
 }
 

@@ -206,6 +206,11 @@ class AppTranslations extends Translations {
       'cancel_request': 'Annuler la demande',
       'no_employee_accepted': 'Aucun employé n\'a encore accepté cette demande',
       'accepted_employees': 'Employés ayant accepté',
+      'open_chat': 'Ouvrir le chat',
+      'chat_disabled_request_finished': 'Ce chat n\'est plus disponible car la demande est terminée.',
+      'chat_empty_state': 'Commencez la conversation pour coordonner la mission.',
+      'chat_not_available': 'Le chat n\'est pas accessible pour cette demande.',
+      'type_message_hint': 'Écrire un message...',
       
       // Profile
       'user_info': 'Informations utilisateur',
@@ -514,6 +519,11 @@ class AppTranslations extends Translations {
       'cancel_request': 'إلغاء الطلب',
       'no_employee_accepted': 'لم يقبل أي موظف هذا الطلب بعد',
       'accepted_employees': 'الموظفون الذين قبلوا',
+      'open_chat': 'فتح المحادثة',
+      'chat_disabled_request_finished': 'تم إيقاف المحادثة لأن الطلب انتهى.',
+      'chat_empty_state': 'ابدأ المحادثة للتنسيق حول المهمة.',
+      'chat_not_available': 'المحادثة غير متاحة لهذا الطلب.',
+      'type_message_hint': 'اكتب رسالة...',
       
       // Profile
       'user_info': 'معلومات المستخدم',

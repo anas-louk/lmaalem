@@ -5,6 +5,7 @@ import 'dart:async';
 import '../../data/models/request_model.dart';
 import '../../data/repositories/request_repository.dart';
 import '../../data/repositories/employee_repository.dart';
+import '../../data/repositories/chat_repository.dart';
 import '../../core/utils/logger.dart';
 import '../../core/services/local_notification_service.dart';
 import '../../core/helpers/snackbar_helper.dart';
@@ -13,6 +14,7 @@ import 'auth_controller.dart';
 /// Controller pour gérer les demandes (GetX)
 class RequestController extends GetxController {
   final RequestRepository _requestRepository = RequestRepository();
+  final ChatRepository _chatRepository = ChatRepository();
 
   // Observable states
   final RxList<RequestModel> requests = <RequestModel>[].obs;
@@ -665,6 +667,12 @@ class RequestController extends GetxController {
         throw 'Cette demande n\'est plus disponible';
       }
 
+      // Récupérer les informations de l'employé (nom + userId)
+      final employeeRepository = EmployeeRepository();
+      final employee = await employeeRepository.getEmployeeById(employeeId);
+      final employeeName = employee?.nomComplet ?? 'Employé';
+      final employeeUserId = employee?.userId;
+
       // Mettre à jour la demande avec l'employé accepté
       final updatedRequest = request.copyWith(
         employeeId: employeeId,
@@ -678,6 +686,24 @@ class RequestController extends GetxController {
       // Only reload if no stream is active or stream is for a different client
       if (_currentClientId != request.clientId) {
         await loadRequestsByClient(request.clientId);
+      }
+
+      // Créer/activer le chat pour cette demande
+      try {
+        final authController = Get.find<AuthController>();
+        final clientName = authController.currentUser.value?.nomComplet ?? 'Client';
+        await _chatRepository.createOrActivateThread(
+          requestId: request.id,
+          requestTitle: request.description,
+          clientId: request.clientId,
+          clientName: clientName,
+          employeeId: employeeId,
+          employeeName: employeeName,
+          employeeUserId: employeeUserId,
+          requestStatus: 'Accepted',
+        );
+      } catch (chatError, chatStack) {
+        Logger.logError('RequestController.acceptEmployeeForRequest.Chat', chatError, chatStack);
       }
 
       SnackbarHelper.showSuccess('employee_accepted'.tr);
@@ -770,6 +796,13 @@ class RequestController extends GetxController {
       );
 
       await _requestRepository.updateRequest(cancelledRequest);
+
+      // Désactiver le chat si existant
+      try {
+        await _chatRepository.closeThreadForRequest(request.id, requestStatus: 'Cancelled');
+      } catch (chatError, chatStack) {
+        Logger.logError('RequestController.cancelRequest.Chat', chatError, chatStack);
+      }
       
       // Don't reload if stream is active for this client - stream will update automatically
       // Only reload if no stream is active or stream is for a different client

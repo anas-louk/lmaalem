@@ -13,12 +13,15 @@ import '../../data/repositories/client_repository.dart';
 import '../../data/repositories/user_repository.dart';
 import '../../data/repositories/mission_repository.dart';
 import '../../data/repositories/request_repository.dart';
+import '../../data/repositories/chat_repository.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
+import '../../core/constants/app_routes.dart' as AppRoutes;
 import '../../components/loading_widget.dart';
 import '../../components/custom_button.dart';
 import '../../core/utils/logger.dart';
 import '../../core/helpers/snackbar_helper.dart';
+import 'chat_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Écran de détails d'une demande
@@ -42,11 +45,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   final ClientRepository _clientRepository = ClientRepository();
   final MissionRepository _missionRepository = MissionRepository();
   final RequestRepository _requestRepository = RequestRepository();
+  final ChatRepository _chatRepository = ChatRepository();
   
   RequestModel? _request;
   bool _isLoading = true;
   List<EmployeeModel> _acceptedEmployees = [];
   MissionModel? _mission;
+  EmployeeModel? _assignedEmployee;
   StreamSubscription<RequestModel?>? _requestStreamSubscription;
   Set<String> _previousAcceptedEmployeeIds = {}; // Track previous accepted employees
 
@@ -95,9 +100,11 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           // Load mission if request is accepted
           if (request.statut.toLowerCase() == 'accepted' && request.employeeId != null) {
             _loadMission(request);
+          _loadAssignedEmployee(request.employeeId!);
           } else {
             setState(() {
               _mission = null;
+            _assignedEmployee = null;
             });
           }
         }
@@ -129,6 +136,11 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         // Load mission if request is accepted
         if (request.statut.toLowerCase() == 'accepted' && request.employeeId != null) {
           await _loadMission(request);
+          await _loadAssignedEmployee(request.employeeId!);
+        } else {
+          setState(() {
+            _assignedEmployee = null;
+          });
         }
       }
     } catch (e) {
@@ -226,6 +238,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         statutMission: 'Pending',
         employeeId: employeeId,
         clientId: client.id, // Use client document ID
+        requestId: _request!.id,
         createdAt: now,
         updatedAt: now,
       );
@@ -279,6 +292,23 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     }
   }
 
+  Future<void> _loadAssignedEmployee(String employeeId) async {
+    try {
+      final employee = await _employeeController.getEmployeeById(employeeId);
+      if (mounted) {
+        setState(() {
+          _assignedEmployee = employee;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _assignedEmployee = null;
+        });
+      }
+    }
+  }
+
   Future<void> _finishRequest() async {
     if (_request == null || _mission == null) return;
     
@@ -310,6 +340,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       );
       
       await _requestController.updateRequest(updatedRequest);
+      await _chatRepository.closeThreadForRequest(_request!.id, requestStatus: 'Completed');
       
       // Reload data
       await _loadRequest();
@@ -452,10 +483,46 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     );
   }
 
+  bool get _isCurrentUserAssignedEmployee {
+    final user = _authController.currentUser.value;
+    if (user == null || _assignedEmployee == null) return false;
+    return _assignedEmployee!.userId == user.id;
+  }
+
+  bool get _canCurrentUserChat {
+    if (_request == null || _request!.employeeId == null) return false;
+    if (_request!.statut.toLowerCase() != 'accepted') return false;
+    final user = _authController.currentUser.value;
+    if (user == null) return false;
+    final isClient = user.id == _request!.clientId;
+    return isClient || _isCurrentUserAssignedEmployee;
+  }
+
+  void _openChat() {
+    if (_request == null || _request!.employeeId == null) return;
+    final request = _request!;
+    final args = ChatScreenArguments(
+      requestId: request.id,
+      clientId: request.clientId,
+      employeeId: request.employeeId!,
+      requestTitle: '${'request'.tr} #${request.id.substring(0, 8)}',
+      requestStatus: request.statut,
+      clientName: _authController.currentUser.value?.id == request.clientId
+          ? _authController.currentUser.value?.nomComplet
+          : null,
+      employeeName: _assignedEmployee?.nomComplet,
+      employeeUserId: _assignedEmployee?.userId,
+    );
+
+    Get.toNamed(AppRoutes.AppRoutes.chat, arguments: args);
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = _authController.currentUser.value;
     final isClient = user != null && user.type.toLowerCase() == 'client';
+    final assignedEmployee = _assignedEmployee;
+    final canChat = _canCurrentUserChat;
 
     return Scaffold(
       appBar: AppBar(
@@ -741,91 +808,83 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                         ),
 
                       // Show accepted employee info if request is accepted
-                      if (isClient && 
-                          _request!.statut.toLowerCase() == 'accepted' &&
-                          _request!.employeeId != null)
-                        FutureBuilder<EmployeeModel?>(
-                          future: _employeeController.getEmployeeById(_request!.employeeId!),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const LoadingWidget();
-                            }
-                            
-                            final employee = snapshot.data;
-                            if (employee == null) {
-                              return const SizedBox.shrink();
-                            }
-
-                            return Card(
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                      if (assignedEmployee != null)
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'assigned_employee'.tr,
+                                  style: AppTextStyles.h3,
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
                                   children: [
-                                    Text(
-                                      'assigned_employee'.tr,
-                                      style: AppTextStyles.h3,
+                                    CircleAvatar(
+                                      radius: 30,
+                                      backgroundColor: AppColors.primaryLight,
+                                      backgroundImage: assignedEmployee.image != null
+                                          ? NetworkImage(assignedEmployee.image!)
+                                          : null,
+                                      child: assignedEmployee.image == null
+                                          ? Text(
+                                              assignedEmployee.nomComplet[0].toUpperCase(),
+                                              style: const TextStyle(
+                                                color: AppColors.primary,
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            )
+                                          : null,
                                     ),
-                                    const SizedBox(height: 16),
-                                    Row(
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 30,
-                                          backgroundColor: AppColors.primaryLight,
-                                          backgroundImage: employee.image != null
-                                              ? NetworkImage(employee.image!)
-                                              : null,
-                                          child: employee.image == null
-                                              ? Text(
-                                                  employee.nomComplet[0].toUpperCase(),
-                                                  style: const TextStyle(
-                                                    color: AppColors.primary,
-                                                    fontSize: 20,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                )
-                                              : null,
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                employee.nomComplet,
-                                                style: AppTextStyles.h4,
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                employee.competence,
-                                                style: AppTextStyles.bodySmall.copyWith(
-                                                  color: AppColors.textSecondary,
-                                                ),
-                                              ),
-                                            ],
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            assignedEmployee.nomComplet,
+                                            style: AppTextStyles.h4,
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 16),
-                                    
-                                    // Finish button (only show if mission is not completed)
-                                    if (_mission != null && _mission!.statutMission.toLowerCase() != 'completed')
-                                      Obx(
-                                        () => CustomButton(
-                                          onPressed: _missionController.isLoading.value
-                                              ? null
-                                              : _finishRequest,
-                                          text: 'finish_request'.tr,
-                                          backgroundColor: AppColors.success,
-                                          isLoading: _missionController.isLoading.value,
-                                        ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            assignedEmployee.competence,
+                                            style: AppTextStyles.bodySmall.copyWith(
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                        ],
                                       ),
+                                    ),
                                   ],
                                 ),
-                              ),
-                            );
-                          },
+                                const SizedBox(height: 16),
+                                if (isClient &&
+                                    _mission != null &&
+                                    _mission!.statutMission.toLowerCase() != 'completed')
+                                  Obx(
+                                    () => CustomButton(
+                                      onPressed: _missionController.isLoading.value
+                                          ? null
+                                          : _finishRequest,
+                                      text: 'finish_request'.tr,
+                                      backgroundColor: AppColors.success,
+                                      isLoading: _missionController.isLoading.value,
+                                    ),
+                                  ),
+                                if (canChat) ...[
+                                  const SizedBox(height: 12),
+                                  CustomButton(
+                                    onPressed: _openChat,
+                                    text: 'open_chat'.tr,
+                                    backgroundColor: AppColors.info,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
                         ),
                     ],
                   ),

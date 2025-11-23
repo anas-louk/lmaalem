@@ -37,4 +37,5 @@ class AppRoutes {
   // Navigation Routes
   static const String notifications = '/notifications';
   static const String history = '/history';
+  static const String chat = '/chat';
 }
