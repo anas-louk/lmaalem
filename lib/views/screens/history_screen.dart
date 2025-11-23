@@ -48,7 +48,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
         }
 
         if (!_requestsLoaded) {
-          _loadRequests();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _loadRequests();
+            }
+          });
         }
 
         if (_requestController.isLoading.value &&
