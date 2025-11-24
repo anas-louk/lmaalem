@@ -102,8 +102,16 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
             });
           }
           
-          // Get notification count from controller
-          final notificationCount = _requestController.notificationCount;
+          // Calculate notification count directly from observable variables
+          // Access requests directly to trigger GetX reactivity
+          final requestsList = _requestController.requests;
+          final notificationCount = requestsList.where((request) {
+            // Only count pending requests
+            if (request.statut.toLowerCase() != 'pending') return false;
+            // Don't count own requests
+            if (user != null && request.clientId == user.id) return false;
+            return true;
+          }).length;
           
           return BottomNavigationBar(
             currentIndex: _currentIndex,

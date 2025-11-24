@@ -5,6 +5,7 @@ import 'core/firebase/firebase_init.dart';
 import 'routes/app_routes.dart';
 import 'theme/app_theme.dart';
 import 'controllers/auth_controller.dart';
+import 'controllers/call_controller.dart';
 import 'controllers/language_controller.dart';
 import 'core/translations/app_translations.dart';
 import 'core/services/local_notification_service.dart';
@@ -148,6 +149,18 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // Initialiser les controllers globaux
           initialBinding: BindingsBuilder(() {
             Get.put(AuthController());
+            final callController = Get.put(CallController());
+            // Start listening for incoming calls when user is authenticated
+            final authController = Get.find<AuthController>();
+            ever(authController.currentUser, (user) {
+              if (user != null) {
+                callController.listenForIncomingCalls();
+              }
+            });
+            // Also check if user is already logged in
+            if (authController.currentUser.value != null) {
+              callController.listenForIncomingCalls();
+            }
           }),
         );
       },

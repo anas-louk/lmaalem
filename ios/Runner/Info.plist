@@ -53,5 +53,7 @@
 	<string>Cette application a besoin d'accéder à votre caméra pour prendre des photos pour vos demandes.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Cette application a besoin d'accéder à votre galerie photo pour sélectionner des images pour vos demandes.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Cette application a besoin d'accéder à votre microphone pour effectuer des appels audio et vidéo.</string>
 </dict>
 </plist>

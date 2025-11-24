@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/chat_controller.dart';
 import '../../controllers/auth_controller.dart';
+import '../../widgets/call_button.dart';
 import '../../data/models/chat_message_model.dart';
 import '../../components/loading_widget.dart';
 import '../../core/constants/app_colors.dart';
@@ -104,9 +105,21 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: Obx(
           () => Text(
-            _chatController.thread.value?.requestTitle ?? args.requestTitle,
+            _chatController.thread.value?.requestTitle ?? widget.args.requestTitle,
           ),
         ),
+        actions: [
+          // Audio Call Button
+          CallButton(
+            calleeId: _getRemoteUserId(),
+            video: false,
+          ),
+          // Video Call Button
+          CallButton(
+            calleeId: _getRemoteUserId(),
+            video: true,
+          ),
+        ],
       ),
       body: Obx(() {
         if (_chatController.isLoading.value) {
@@ -327,6 +340,17 @@ class _ChatScreenState extends State<ChatScreen> {
     final minutes = dateTime.minute.toString().padLeft(2, '0');
     return '$hours:$minutes';
   }
+
+  String _getRemoteUserId() {
+    final user = _authController.currentUser.value;
+    if (user == null) return '';
+
+    final args = widget.args;
+    return user.id == args.clientId 
+        ? (args.employeeUserId ?? args.employeeId)
+        : args.clientId;
+  }
 }
+
 
 

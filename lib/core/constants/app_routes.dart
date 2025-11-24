@@ -38,4 +38,8 @@ class AppRoutes {
   static const String notifications = '/notifications';
   static const String history = '/history';
   static const String chat = '/chat';
+
+  // Call Routes
+  static const String incomingCall = '/incoming-call';
+  static const String call = '/call';
 }

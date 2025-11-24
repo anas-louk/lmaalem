@@ -4,8 +4,10 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/app_routes.dart';
 import '../../controllers/auth_controller.dart';
+import '../../controllers/call_controller.dart';
 import '../firebase/firebase_init.dart';
 import 'local_notification_service.dart';
+import '../helpers/snackbar_helper.dart';
 
 /// Service pour gérer les notifications push
 class PushNotificationService {
@@ -74,9 +76,13 @@ class PushNotificationService {
     debugPrint('[FCM] Data: ${message.data}');
     debugPrint('[FCM] MessageId: ${message.messageId}');
     
-    // Show local notification for both foreground and background messages
-    // When app is in background, FCM automatically shows notification,
-    // but we also show local notification to ensure it appears
+    // Handle incoming audio call notifications
+    if (message.data['type'] == 'incoming_audio_call') {
+      _handleIncomingAudioCall(message);
+      return;
+    }
+    
+    // Show local notification for other message types
     if (message.notification != null) {
       await _localNotificationService.showNotification(
         id: message.hashCode,
@@ -87,14 +93,98 @@ class PushNotificationService {
     }
   }
 
+  /// Handle incoming audio call notification
+  void _handleIncomingAudioCall(RemoteMessage message) {
+    final callId = message.data['callId'];
+    final callerId = message.data['callerId'];
+    final callerName = message.data['callerName'] ?? 'Someone';
+
+    if (callId == null || callerId == null) {
+      debugPrint('[FCM] Invalid incoming call data: missing callId or callerId');
+      return;
+    }
+
+    debugPrint('[FCM] Incoming audio call: callId=$callId, callerId=$callerId');
+
+    try {
+      // Show snackbar notification using SnackbarHelper (handles overlay availability)
+      SnackbarHelper.showInfo(
+        'Call from $callerName',
+        title: 'Incoming Call',
+      );
+
+      // Navigate to incoming call screen
+      // Use a delayed navigation to ensure GetX is ready
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _navigateToIncomingCall(callId, callerId);
+      });
+    } catch (e) {
+      debugPrint('[FCM] Error handling incoming call: $e');
+    }
+  }
+
+  /// Navigate to incoming call screen with retry logic
+  void _navigateToIncomingCall(String callId, String callerId, {int retryCount = 0}) {
+    try {
+      // Check if GetX is ready
+      if (!Get.isRegistered<CallController>()) {
+        if (retryCount < 5) {
+          debugPrint('[FCM] CallController not registered yet, retrying... (attempt ${retryCount + 1})');
+          Future.delayed(Duration(milliseconds: 200 * (retryCount + 1)), () {
+            _navigateToIncomingCall(callId, callerId, retryCount: retryCount + 1);
+          });
+          return;
+        } else {
+          debugPrint('[FCM] CallController not available after retries, cannot handle incoming call');
+          return;
+        }
+      }
+
+      final callController = Get.find<CallController>();
+      callController.handleIncomingCallFromFCM(
+        callId: callId,
+        callerId: callerId,
+        isVideo: false, // Always false for audio calls
+      );
+    } catch (e) {
+      debugPrint('[FCM] Error navigating to incoming call: $e');
+      if (retryCount < 5) {
+        Future.delayed(Duration(milliseconds: 200 * (retryCount + 1)), () {
+          _navigateToIncomingCall(callId, callerId, retryCount: retryCount + 1);
+        });
+      }
+    }
+  }
+
   /// Gérer les clics sur les notifications
   void _handleNotificationClick(RemoteMessage message) {
     debugPrint('[FCM] Notification cliquée: ${message.notification?.title}');
     debugPrint('[FCM] Data: ${message.data}');
     
-    // Navigate based on notification type
-    final requestId = message.data['requestId'];
     final type = message.data['type'] ?? 'default';
+
+    // Handle incoming audio call notification click
+    // This is triggered when user taps the system notification (app was backgrounded/closed)
+    if (type == 'incoming_audio_call') {
+      final callId = message.data['callId'];
+      final callerId = message.data['callerId'];
+      final callerName = message.data['callerName'] ?? 'Someone';
+
+      if (callId != null && callerId != null) {
+        debugPrint('[FCM] Opening incoming call screen from notification click');
+        debugPrint('[FCM] Call details: callId=$callId, callerId=$callerId, callerName=$callerName');
+        // Use the same retry logic as foreground handler
+        Future.delayed(const Duration(milliseconds: 100), () {
+          _navigateToIncomingCall(callId, callerId);
+        });
+      } else {
+        debugPrint('[FCM] Invalid incoming call data in notification click: missing callId or callerId');
+      }
+      return;
+    }
+
+    // Navigate based on other notification types
+    final requestId = message.data['requestId'];
 
     // Les types attendus correspondent à ton JSON FCM : "new_request" et "employee_accepted"
     if (requestId != null && type == 'new_request') {
@@ -184,14 +274,42 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('[FCM] (background) Message reçu: ${message.notification?.title}');
   debugPrint('[FCM] (background) Data: ${message.data}');
 
-  // Initialiser Firebase dans l’isolat de fond
+  // Initialiser Firebase dans l'isolat de fond
   await FirebaseInit.initialize();
 
   // Initialiser les notifications locales (idempotent)
   final localService = LocalNotificationService();
   await localService.initialize();
 
-  // Afficher une notification locale pour harmoniser le comportement
+  // Handle incoming audio call notifications
+  // With notification + data format, the system will automatically show the notification
+  // When user taps it, onMessageOpenedApp will be triggered with the data
+  if (message.data['type'] == 'incoming_audio_call') {
+    final callId = message.data['callId'];
+    final callerId = message.data['callerId'];
+    final callerName = message.data['callerName'] ?? 'Someone';
+
+    if (callId != null && callerId != null) {
+      debugPrint('[FCM] (background) Incoming audio call: callId=$callId, callerId=$callerId');
+      
+      // Note: With FCM notification + data format, the system automatically displays
+      // the notification from the "notification" block. We don't need to show a local
+      // notification here. When user taps the system notification, onMessageOpenedApp
+      // will be triggered, which will call handleIncomingCallFromFCM.
+      
+      // However, we can still show a local notification as a fallback or for additional
+      // customization (e.g., custom sound, vibration pattern, etc.)
+      await localService.showNotification(
+        id: callId.hashCode,
+        title: message.notification?.title ?? 'Incoming Call',
+        body: message.notification?.body ?? 'Call from $callerName',
+        payload: callId,
+      );
+    }
+    return;
+  }
+
+  // Afficher une notification locale pour les autres types de messages
   if (message.notification != null) {
     await localService.showNotification(
       id: message.hashCode,

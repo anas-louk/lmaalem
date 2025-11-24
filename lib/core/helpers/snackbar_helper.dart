@@ -14,6 +14,7 @@ class SnackbarHelper {
     Duration duration = const Duration(seconds: 3),
     Color? backgroundColor,
     Color? colorText,
+    SnackBarAction? action,
   }) {
     void _attemptShow(int attempt) {
       final messenger = scaffoldMessengerKey.currentState;
@@ -40,6 +41,7 @@ class SnackbarHelper {
           margin: margin,
           backgroundColor: backgroundColor ?? Colors.black87,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          action: action,
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

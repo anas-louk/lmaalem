@@ -21,6 +21,7 @@ import '../../components/loading_widget.dart';
 import '../../components/custom_button.dart';
 import '../../core/utils/logger.dart';
 import '../../core/helpers/snackbar_helper.dart';
+import '../../widgets/call_button.dart';
 import 'chat_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -876,10 +877,29 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                   ),
                                 if (canChat) ...[
                                   const SizedBox(height: 12),
-                                  CustomButton(
-                                    onPressed: _openChat,
-                                    text: 'open_chat'.tr,
-                                    backgroundColor: AppColors.info,
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: CustomButton(
+                                          onPressed: _openChat,
+                                          text: 'open_chat'.tr,
+                                          backgroundColor: AppColors.info,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      // Audio Call Button
+                                      CallButton(
+                                        calleeId: _getRemoteUserId(),
+                                        video: false,
+                                        iconColor: AppColors.success,
+                                      ),
+                                      // Video Call Button
+                                      CallButton(
+                                        calleeId: _getRemoteUserId(),
+                                        video: true,
+                                        iconColor: AppColors.primary,
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ],
@@ -920,6 +940,16 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       default:
         return statut;
     }
+  }
+
+  String _getRemoteUserId() {
+    if (_request == null || _request!.employeeId == null) return '';
+    final user = _authController.currentUser.value;
+    if (user == null) return '';
+
+    return user.id == _request!.clientId
+        ? (_assignedEmployee?.userId ?? _request!.employeeId ?? '')
+        : _request!.clientId;
   }
 }
 

@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+    
+    // Calls collection - Security rules for audio/video calling
+    match /calls/{callId} {
+      // Only caller or callee can read their call documents
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.callerId ||
+        request.auth.uid == resource.data.calleeId
+      );
+      
+      // Only caller can create a call document
+      allow create: if isAuthenticated() && 
+        request.auth.uid == request.resource.data.callerId &&
+        request.resource.data.keys().hasAll(['callerId', 'calleeId', 'type', 'status']) &&
+        request.resource.data.type in ['audio', 'video'] &&
+        request.resource.data.status == 'ringing';
+      
+      // Only caller or callee can update their call documents
+      allow update: if isAuthenticated() && (
+        request.auth.uid == resource.data.callerId ||
+        request.auth.uid == resource.data.calleeId
+      );
+      
+      // Only caller or callee can delete their call documents
+      allow delete: if isAuthenticated() && (
+        request.auth.uid == resource.data.callerId ||
+        request.auth.uid == resource.data.calleeId
+      );
+      
+      // ICE candidates subcollection - only caller or callee can read/write
+      match /candidates/{candidateId} {
+        allow read: if isAuthenticated() && (
+          request.auth.uid == get(/databases/$(database)/documents/calls/$(callId)).data.callerId ||
+          request.auth.uid == get(/databases/$(database)/documents/calls/$(callId)).data.calleeId
+        );
+        
+        allow write: if isAuthenticated() && (
+          request.auth.uid == request.resource.data.senderId ||
+          request.auth.uid == get(/databases/$(database)/documents/calls/$(callId)).data.callerId ||
+          request.auth.uid == get(/databases/$(database)/documents/calls/$(callId)).data.calleeId
+        );
+      }
+    }
+    
+    // Other collections (employees, clients, missions, requests, etc.)
+    // Add your existing rules here...
+    
+  }
+}
+
