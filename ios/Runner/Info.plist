@@ -50,10 +50,15 @@
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Cette application a besoin d'accéder à votre localisation pour soumettre des demandes.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Cette application a besoin d'accéder à votre caméra pour prendre des photos pour vos demandes.</string>
+	<string>Cette application a besoin d'accéder à votre caméra pour prendre des photos pour vos demandes et scanner des codes QR pour confirmer la fin des missions.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Cette application a besoin d'accéder à votre galerie photo pour sélectionner des images pour vos demandes.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Cette application a besoin d'accéder à votre microphone pour effectuer des appels audio et vidéo.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>audio</string>
+	</array>
 </dict>
 </plist>

@@ -311,6 +311,11 @@ class AppTranslations extends Translations {
       'comment_hint': 'Commentaire (optionnel)',
       'optional': 'optionnel',
       'finish': 'Terminer',
+      'qr_code_title': 'Code QR de confirmation',
+      'qr_code_description': 'Veuillez présenter ce code QR à l\'employé pour qu\'il puisse confirmer la fin de la demande.',
+      'scan_qr_code': 'Scanner le code QR',
+      'scan_qr_instruction': 'Scannez le code QR affiché sur l\'écran du client pour approuver la fin de la demande',
+      'scan_qr_to_approve': 'Scanner QR pour approuver',
       
       // Notifications
       'notifications_channel_description': 'Notifications pour les nouvelles demandes de service',
@@ -624,6 +629,11 @@ class AppTranslations extends Translations {
       'comment_hint': 'التعليق (اختياري)',
       'optional': 'اختياري',
       'finish': 'إنهاء',
+      'qr_code_title': 'رمز QR للتأكيد',
+      'qr_code_description': 'يرجى عرض رمز QR هذا للموظف حتى يتمكن من تأكيد إنهاء الطلب.',
+      'scan_qr_code': 'مسح رمز QR',
+      'scan_qr_instruction': 'امسح رمز QR المعروض على شاشة العميل للموافقة على إنهاء الطلب',
+      'scan_qr_to_approve': 'مسح QR للموافقة',
       
       // Notifications
       'notifications_channel_description': 'إشعارات لطلبات الخدمة الجديدة',

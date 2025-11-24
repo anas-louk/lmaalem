@@ -9,6 +9,7 @@ import '../data/repositories/employee_repository.dart';
 import '../core/constants/app_routes.dart' as AppRoutes;
 import '../core/services/background_notification_service.dart';
 import '../core/helpers/snackbar_helper.dart';
+import '../utils/battery_optimization.dart';
 import 'request_controller.dart';
 
 /// Controller pour gérer l'authentification (GetX)
@@ -61,6 +62,27 @@ class AuthController extends GetxController {
           await prefs.setString('current_user_id', user.id);
           await prefs.setString('current_user_type', user.type.toLowerCase());
           debugPrint('[AuthController] Saved user info to SharedPreferences for background notifications');
+          
+          // Check and request battery optimization disable (only once per app install)
+          // This ensures background notifications work properly
+          final hasAskedBefore = prefs.getBool('battery_optimization_asked') ?? false;
+          if (!hasAskedBefore) {
+            // Wait a bit for the app to settle before showing the dialog
+            Future.delayed(const Duration(seconds: 2), () async {
+              final isIgnored = await BatteryOptimization.isIgnoringBatteryOptimizations();
+              if (!isIgnored) {
+                await BatteryOptimization.requestIgnoreBatteryOptimizations();
+                // Mark as asked (even if user declined, we don't want to ask every time)
+                await prefs.setBool('battery_optimization_asked', true);
+              }
+            });
+          } else {
+            // Still check silently and log if optimization is enabled
+            final isIgnored = await BatteryOptimization.isIgnoringBatteryOptimizations();
+            if (!isIgnored) {
+              debugPrint('[AuthController] ⚠️ Battery optimization is enabled - background notifications may not work properly');
+            }
+          }
         } catch (e) {
           debugPrint('[AuthController] Error saving user info: $e');
         }

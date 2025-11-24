@@ -42,4 +42,7 @@ class AppRoutes {
   // Call Routes
   static const String incomingCall = '/incoming-call';
   static const String call = '/call';
+
+  // QR Code Routes
+  static const String qrScanner = '/qr-scanner';
 }

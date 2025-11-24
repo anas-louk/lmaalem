@@ -82,6 +82,10 @@ dependencies:
   stack_trace: ^1.12.1
   url_launcher: ^6.3.2
   web: ^1.1.1
+  
+  # QR Code
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^5.2.3
 
 dev_dependencies:
   flutter_test:

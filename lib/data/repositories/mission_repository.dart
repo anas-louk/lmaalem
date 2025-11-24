@@ -185,5 +185,24 @@ class MissionRepository {
           return missions;
         });
   }
+
+  /// Récupérer une mission par requestId
+  Future<MissionModel?> getMissionByRequestId(String requestId) async {
+    try {
+      final data = await _firestoreService.readAll(
+        collection: _collection,
+        queryBuilder: (q) => q.where('requestId', isEqualTo: requestId),
+      );
+
+      if (data.isNotEmpty) {
+        // Return the first matching mission (should be unique)
+        return MissionModel.fromMap(data.first);
+      }
+      return null;
+    } catch (e, stackTrace) {
+      Logger.logError('MissionRepository.getMissionByRequestId', e, stackTrace);
+      throw 'Erreur lors de la récupération de la mission: $e';
+    }
+  }
 }
 

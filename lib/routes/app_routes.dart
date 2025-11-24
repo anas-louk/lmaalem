@@ -14,6 +14,7 @@ import '../views/screens/request_detail_screen.dart';
 import '../views/screens/chat_screen.dart';
 import '../views/screens/call/incoming_call_screen.dart';
 import '../views/screens/call/call_screen.dart';
+import '../views/screens/qr_scanner_screen.dart';
 import '../core/constants/app_routes.dart' as route_constants;
 
 /// Gestionnaire de routes de l'application
@@ -129,6 +130,10 @@ class AppRoutes {
             ),
           );
         },
+      ),
+      GetPage(
+        name: route_constants.AppRoutes.qrScanner,
+        page: () => const QRScannerScreen(),
       ),
       // Ajouter d'autres routes ici
     ];

@@ -29,6 +29,9 @@ class CallController extends GetxController {
   // Audio control state
   final RxBool isMuted = false.obs;
   final RxBool isSpeakerOn = false.obs;
+  
+  // Camera control state
+  final RxBool useBackCamera = false.obs;
 
   // Getters for UI
   MediaStream? get localStream => _localStream;
@@ -58,7 +61,10 @@ class CallController extends GetxController {
     try {
       // Note: Permissions should be requested before calling this method
       // The UI (CallButton) handles permission requests
-      _localStream = await _webRTCService.createLocalStream(withVideo: video);
+      _localStream = await _webRTCService.createLocalStream(
+        withVideo: video,
+        useBackCamera: useBackCamera.value,
+      );
       if (_localStream == null) {
         throw Exception('Failed to create local stream');
       }
@@ -153,7 +159,10 @@ class CallController extends GetxController {
 
     try {
       // Create local stream first and verify it's valid
-      _localStream = await _webRTCService.createLocalStream(withVideo: withVideo);
+      _localStream = await _webRTCService.createLocalStream(
+        withVideo: withVideo,
+        useBackCamera: useBackCamera.value,
+      );
       if (_localStream == null) {
         throw Exception('Failed to create local stream');
       }
@@ -688,8 +697,86 @@ class CallController extends GetxController {
     for (var track in audioTracks) {
       track.enabled = !isMuted.value;
     }
-    
-    print('[CallController] Microphone ${isMuted.value ? "muted" : "unmuted"}');
+  }
+
+  /// Toggle between front and back camera (for video calls only)
+  Future<void> toggleCamera() async {
+    if (_localStream == null || _peerConnection == null) {
+      print('[CallController] Cannot toggle camera: no local stream or peer connection');
+      return;
+    }
+
+    // Get current video tracks
+    final videoTracks = _localStream!.getVideoTracks();
+    if (videoTracks.isEmpty) {
+      print('[CallController] No video tracks to toggle');
+      return;
+    }
+
+    try {
+      // Toggle camera state
+      useBackCamera.value = !useBackCamera.value;
+      
+      // Get audio tracks from current stream to preserve them
+      final audioTracks = _localStream!.getAudioTracks();
+      
+      // Stop old video tracks
+      final tracksToStop = List<MediaStreamTrack>.from(videoTracks);
+      for (var track in tracksToStop) {
+        try {
+          await track.stop();
+        } catch (e) {
+          print('[CallController] Warning: Error stopping old track: $e');
+        }
+      }
+      
+      // Create new stream with the other camera
+      final newStream = await _webRTCService.createLocalStream(
+        withVideo: true,
+        useBackCamera: useBackCamera.value,
+      );
+
+      // Get new video tracks
+      final newVideoTracks = newStream.getVideoTracks();
+      if (newVideoTracks.isEmpty) {
+        throw Exception('Failed to get video track from new stream');
+      }
+
+      // Get senders from peer connection
+      final senders = await _peerConnection!.getSenders();
+      final videoSender = senders.firstWhere(
+        (sender) => sender.track?.kind == 'video',
+        orElse: () => throw Exception('No video sender found'),
+      );
+
+      // Replace the track in the peer connection
+      await videoSender.replaceTrack(newVideoTracks[0]);
+      
+      // Dispose old stream
+      try {
+        await _localStream!.dispose();
+      } catch (e) {
+        print('[CallController] Warning: Error disposing old stream: $e');
+      }
+      
+      // Create new local stream with audio + new video
+      _localStream = newStream;
+      
+      // If we had audio tracks, make sure they're in the new stream
+      // (the new stream should already have audio, but verify)
+      final newAudioTracks = newStream.getAudioTracks();
+      if (newAudioTracks.isEmpty && audioTracks.isNotEmpty) {
+        // This shouldn't happen, but just in case
+        print('[CallController] Warning: New stream has no audio tracks');
+      }
+
+      print('[CallController] Camera switched to ${useBackCamera.value ? "back" : "front"}');
+    } catch (e) {
+      print('[CallController] Error toggling camera: $e');
+      // Revert state on error
+      useBackCamera.value = !useBackCamera.value;
+      rethrow;
+    }
   }
 
   /// Toggle speakerphone (earpiece <-> loudspeaker)

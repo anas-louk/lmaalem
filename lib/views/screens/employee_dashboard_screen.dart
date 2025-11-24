@@ -14,6 +14,7 @@ import '../../components/empty_state.dart';
 import 'notification_screen.dart';
 import 'history_screen.dart';
 import 'chat_screen.dart';
+import '../../widgets/call_button.dart';
 
 /// Dashboard Employee with Bottom Navigation
 class EmployeeDashboardScreen extends StatefulWidget {
@@ -222,6 +223,15 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
   final RequestController _requestController = Get.find<RequestController>();
   String? _loadedUserId;
 
+  void _openQRScanner() async {
+    final result = await Get.toNamed(AppRoutes.AppRoutes.qrScanner);
+    if (result == true) {
+      // Reload missions if QR code was successfully scanned
+      _loadMissions();
+      SnackbarHelper.showSuccess('request_completed_success'.tr);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -244,6 +254,21 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
       }
     } catch (e) {
       // Handle error
+    }
+  }
+
+  Future<String?> _getClientIdFromMission(MissionModel mission) async {
+    if (mission.requestId == null) return null;
+    
+    try {
+      final request = await _requestController.getRequestById(mission.requestId!);
+      if (request == null ||
+          request.statut.toLowerCase() != 'accepted') {
+        return null;
+      }
+      return request.clientId;
+    } catch (e) {
+      return null;
     }
   }
 
@@ -404,12 +429,67 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
                               if (canChat)
                                 Padding(
                                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                                  child: Align(
-                                    alignment: Alignment.centerRight,
-                                    child: TextButton.icon(
-                                      onPressed: () => _openChatFromMission(mission),
-                                      icon: const Icon(Icons.chat_bubble_outline),
-                                      label: Text('open_chat'.tr),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      // Call buttons
+                                      FutureBuilder<String?>(
+                                        future: _getClientIdFromMission(mission),
+                                        builder: (context, snapshot) {
+                                          final clientId = snapshot.data;
+                                          if (clientId == null || clientId.isEmpty) {
+                                            return const SizedBox.shrink();
+                                          }
+                                          return Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              // Audio Call Button
+                                              CallButton(
+                                                calleeId: clientId,
+                                                video: false,
+                                                iconColor: AppColors.success,
+                                                iconSize: 20,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              // Video Call Button
+                                              CallButton(
+                                                calleeId: clientId,
+                                                video: true,
+                                                iconColor: AppColors.primary,
+                                                iconSize: 20,
+                                              ),
+                                              const SizedBox(width: 12),
+                                            ],
+                                          );
+                                        },
+                                      ),
+                                      // Chat Button
+                                      TextButton.icon(
+                                        onPressed: () => _openChatFromMission(mission),
+                                        icon: const Icon(Icons.chat_bubble_outline),
+                                        label: Text('open_chat'.tr),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              // QR Scanner button for employee (shown if mission is not completed)
+                              if (mission.statutMission.toLowerCase() != 'completed')
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                                  child: SizedBox(
+                                    width: double.infinity,
+                                    height: 50,
+                                    child: ElevatedButton.icon(
+                                      onPressed: _openQRScanner,
+                                      icon: const Icon(Icons.qr_code_scanner),
+                                      label: Text('scan_qr_to_approve'.tr),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.warning,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        elevation: 2,
+                                      ),
                                     ),
                                   ),
                                 ),

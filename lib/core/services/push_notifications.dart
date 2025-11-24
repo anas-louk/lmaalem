@@ -2,6 +2,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../constants/app_routes.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/call_controller.dart';
@@ -273,49 +274,114 @@ class PushNotificationService {
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('[FCM] (background) Message reçu: ${message.notification?.title}');
   debugPrint('[FCM] (background) Data: ${message.data}');
+  debugPrint('[FCM] (background) MessageId: ${message.messageId}');
 
-  // Initialiser Firebase dans l'isolat de fond
-  await FirebaseInit.initialize();
+  try {
+    // Initialiser Firebase dans l'isolat de fond
+    await FirebaseInit.initialize();
 
-  // Initialiser les notifications locales (idempotent)
-  final localService = LocalNotificationService();
-  await localService.initialize();
+    // Initialiser les notifications locales (idempotent)
+    final localService = LocalNotificationService();
+    await localService.initialize();
 
-  // Handle incoming audio call notifications
-  // With notification + data format, the system will automatically show the notification
-  // When user taps it, onMessageOpenedApp will be triggered with the data
-  if (message.data['type'] == 'incoming_audio_call') {
-    final callId = message.data['callId'];
-    final callerId = message.data['callerId'];
-    final callerName = message.data['callerName'] ?? 'Someone';
+    // Handle incoming audio call notifications
+    if (message.data['type'] == 'incoming_audio_call') {
+      final callId = message.data['callId'];
+      final callerId = message.data['callerId'];
+      final callerName = message.data['callerName'] ?? 'Someone';
 
-    if (callId != null && callerId != null) {
-      debugPrint('[FCM] (background) Incoming audio call: callId=$callId, callerId=$callerId');
-      
-      // Note: With FCM notification + data format, the system automatically displays
-      // the notification from the "notification" block. We don't need to show a local
-      // notification here. When user taps the system notification, onMessageOpenedApp
-      // will be triggered, which will call handleIncomingCallFromFCM.
-      
-      // However, we can still show a local notification as a fallback or for additional
-      // customization (e.g., custom sound, vibration pattern, etc.)
-      await localService.showNotification(
-        id: callId.hashCode,
-        title: message.notification?.title ?? 'Incoming Call',
-        body: message.notification?.body ?? 'Call from $callerName',
-        payload: callId,
-      );
+      if (callId != null && callerId != null) {
+        debugPrint('[FCM] (background) Incoming audio call: callId=$callId, callerId=$callerId');
+        
+        // Always show a local notification for incoming calls to ensure it appears
+        // even if the system notification doesn't show
+        await localService.showNotification(
+          id: callId.hashCode,
+          title: message.notification?.title ?? 'Incoming Call',
+          body: message.notification?.body ?? 'Call from $callerName',
+          payload: callId,
+          channelId: 'incoming_calls',
+          importance: Importance.high,
+          priority: Priority.high,
+        );
+      }
+      return;
     }
-    return;
-  }
 
-  // Afficher une notification locale pour les autres types de messages
-  if (message.notification != null) {
+    // Pour les autres types de messages, toujours afficher une notification locale
+    // même si le message FCM a un bloc "notification" (pour garantir l'affichage)
+    final notificationType = message.data['type'] ?? 'default';
+    final requestId = message.data['requestId'];
+    
+    // Déterminer le titre, le corps et le canal de la notification
+    String title;
+    String body;
+    String? channelId;
+    Importance? importance;
+    Priority? priority;
+    
+    if (message.notification != null) {
+      // Utiliser les valeurs du bloc notification si disponibles
+      title = message.notification!.title ?? 'Notification';
+      body = message.notification!.body ?? '';
+    } else {
+      // Créer un titre et un corps basés sur le type de message
+      switch (notificationType) {
+        case 'new_request':
+          title = 'Nouvelle demande';
+          body = 'Une nouvelle demande de service est disponible';
+          channelId = 'new_requests_channel';
+          importance = Importance.high;
+          priority = Priority.high;
+          break;
+        case 'employee_accepted':
+          title = 'Demande acceptée';
+          body = 'Un employé a accepté votre demande';
+          channelId = 'employee_accepted_channel';
+          importance = Importance.high;
+          priority = Priority.high;
+          break;
+        default:
+          title = 'Notification';
+          body = 'Vous avez une nouvelle notification';
+          channelId = 'general_channel';
+          importance = Importance.defaultImportance;
+          priority = Priority.defaultPriority;
+      }
+    }
+    
+    // Déterminer le canal selon le type si non spécifié
+    if (channelId == null) {
+      switch (notificationType) {
+        case 'new_request':
+          channelId = 'new_requests_channel';
+          importance = Importance.high;
+          priority = Priority.high;
+          break;
+        case 'employee_accepted':
+          channelId = 'employee_accepted_channel';
+          importance = Importance.high;
+          priority = Priority.high;
+          break;
+        default:
+          channelId = 'general_channel';
+      }
+    }
+    
+    // Toujours afficher une notification locale pour garantir l'affichage
     await localService.showNotification(
-      id: message.hashCode,
-      title: message.notification!.title ?? 'Notification',
-      body: message.notification!.body ?? '',
-      payload: message.data['requestId'] ?? message.data['type'],
+      id: message.messageId?.hashCode ?? message.hashCode,
+      title: title,
+      body: body,
+      payload: requestId ?? notificationType,
+      channelId: channelId,
+      importance: importance,
+      priority: priority,
     );
+    
+    debugPrint('[FCM] (background) ✅ Notification locale affichée: $title');
+  } catch (e, stackTrace) {
+    debugPrint('[FCM] (background) ❌ Erreur lors du traitement du message: $e');
+    debugPrint('[FCM] (background) Stack trace: $stackTrace');
   }
 }

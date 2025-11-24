@@ -6,8 +6,10 @@ import '../../data/models/request_model.dart';
 import '../../data/repositories/request_repository.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../data/repositories/chat_repository.dart';
+import '../../data/repositories/mission_repository.dart';
 import '../../core/utils/logger.dart';
 import '../../core/services/local_notification_service.dart';
+import '../../core/services/qr_code_service.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import 'auth_controller.dart';
 
@@ -15,6 +17,8 @@ import 'auth_controller.dart';
 class RequestController extends GetxController {
   final RequestRepository _requestRepository = RequestRepository();
   final ChatRepository _chatRepository = ChatRepository();
+  final MissionRepository _missionRepository = MissionRepository();
+  final QRCodeService _qrCodeService = QRCodeService();
 
   // Observable states
   final RxList<RequestModel> requests = <RequestModel>[].obs;
@@ -815,6 +819,80 @@ class RequestController extends GetxController {
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('RequestController.cancelRequest', e, stackTrace);
+      SnackbarHelper.showError(errorMessage.value);
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// Valider un token QR code et terminer la demande
+  Future<bool> validateQRTokenAndFinishRequest(String token) async {
+    try {
+      isLoading.value = true;
+      errorMessage.value = '';
+      
+      final authController = Get.find<AuthController>();
+      final user = authController.currentUser.value;
+      if (user == null) {
+        throw 'Utilisateur non authentifié';
+      }
+      
+      // Valider le token
+      final tokenData = await _qrCodeService.validateAndUseToken(
+        token: token,
+        employeeId: user.id,
+      );
+      
+      if (tokenData == null) {
+        throw 'Token invalide, expiré ou déjà utilisé';
+      }
+      
+      final requestId = tokenData['requestId'] as String;
+      final price = tokenData['price'] as double;
+      final rating = tokenData['rating'] as double?;
+      final comment = tokenData['comment'] as String?;
+      
+      // Récupérer la demande
+      final request = await _requestRepository.getRequestById(requestId);
+      if (request == null) {
+        throw 'Demande non trouvée';
+      }
+      
+      // Récupérer la mission
+      final mission = await _missionRepository.getMissionByRequestId(requestId);
+      if (mission == null) {
+        throw 'Mission non trouvée';
+      }
+      
+      // Mettre à jour la mission
+      final updatedMission = mission.copyWith(
+        prixMission: price,
+        statutMission: 'Completed',
+        rating: rating,
+        commentaire: comment,
+        dateEnd: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      
+      await _missionRepository.updateMission(updatedMission);
+      
+      // Mettre à jour la demande
+      final updatedRequest = request.copyWith(
+        statut: 'Completed',
+        updatedAt: DateTime.now(),
+      );
+      
+      await _requestRepository.updateRequest(updatedRequest);
+      
+      // Fermer le thread de chat
+      await _chatRepository.closeThreadForRequest(requestId, requestStatus: 'Completed');
+      
+      SnackbarHelper.showSuccess('request_completed_success'.tr);
+      return true;
+    } catch (e, stackTrace) {
+      errorMessage.value = e.toString();
+      Logger.logError('RequestController.validateQRTokenAndFinishRequest', e, stackTrace);
       SnackbarHelper.showError(errorMessage.value);
       return false;
     } finally {

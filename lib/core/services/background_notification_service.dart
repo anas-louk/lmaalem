@@ -23,9 +23,13 @@ class BackgroundNotificationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   /// Initialize WorkManager for background tasks
+  /// This should be called once at app startup
+  /// It automatically registers the periodic task so it works even when app is terminated
   Future<void> initializeWorkManager() async {
     if (_workManagerInitialized) {
       debugPrint('[BackgroundNotification] WorkManager already initialized');
+      // Still register the task to ensure it's active
+      _registerWorkManagerTask();
       return;
     }
 
@@ -35,47 +39,124 @@ class BackgroundNotificationService {
         isInDebugMode: kDebugMode,
       );
       _workManagerInitialized = true;
-      debugPrint('[BackgroundNotification] WorkManager initialized successfully');
+      debugPrint('[BackgroundNotification] ✅ WorkManager initialized successfully');
+      
+      // Register the periodic task immediately after initialization
+      // This ensures it's active even if app is terminated before startBackgroundPolling is called
+      _registerWorkManagerTask();
     } catch (e) {
-      debugPrint('[BackgroundNotification] Error initializing WorkManager: $e');
+      debugPrint('[BackgroundNotification] ❌ Error initializing WorkManager: $e');
     }
   }
 
-  /// Start background polling when app goes to background
-  void startBackgroundPolling() {
-    if (_isPolling) {
-      debugPrint('[BackgroundNotification] Already polling, skipping');
-      return;
-    }
-
-    debugPrint('[BackgroundNotification] Starting background polling');
-    _isPolling = true;
-
-    // Register periodic task with WorkManager (minimum 15 minutes)
-    // This ensures background tasks run even when app is killed
+  /// Register WorkManager task (internal helper)
+  /// This ensures the task is registered even when app is terminated
+  void _registerWorkManagerTask() {
     try {
+      // Cancel any existing task first to avoid conflicts
+      Workmanager().cancelByUniqueName('background-notification-task');
+      
+      // Register periodic task
       Workmanager().registerPeriodicTask(
         'background-notification-task',
         'backgroundNotificationTask',
         frequency: const Duration(minutes: 15), // Minimum interval for periodic tasks
         constraints: Constraints(
           networkType: NetworkType.connected,
+          requiresBatteryNotLow: false, // Allow even if battery is low
+          requiresCharging: false, // Allow even if not charging
+          requiresDeviceIdle: false, // Allow even if device is in use
+          requiresStorageNotLow: false,
         ),
+        initialDelay: const Duration(minutes: 1), // Start after 1 minute
       );
-      debugPrint('[BackgroundNotification] WorkManager periodic task registered');
+      debugPrint('[BackgroundNotification] ✅ WorkManager task registered (will work even when app is terminated)');
     } catch (e) {
-      debugPrint('[BackgroundNotification] Error registering WorkManager task: $e');
+      debugPrint('[BackgroundNotification] ❌ Error registering WorkManager task: $e');
+      // Try to register as one-time task as fallback
+      try {
+        Workmanager().registerOneOffTask(
+          'background-notification-task-once',
+          'backgroundNotificationTask',
+          initialDelay: const Duration(minutes: 1),
+          constraints: Constraints(networkType: NetworkType.connected),
+        );
+        debugPrint('[BackgroundNotification] ✅ Registered as one-time task fallback');
+      } catch (e2) {
+        debugPrint('[BackgroundNotification] ❌ Error registering one-time task: $e2');
+      }
     }
+  }
+
+  /// Start background polling when app goes to background
+  void startBackgroundPolling() {
+    debugPrint('[BackgroundNotification] Starting background polling');
+    
+    // Always register WorkManager task (even if already polling)
+    // This ensures it's registered even when app is terminated
+    // WorkManager will handle deduplication
+    try {
+      // Cancel any existing task first to avoid conflicts
+      Workmanager().cancelByUniqueName('background-notification-task');
+      
+      // Register periodic task with WorkManager (minimum 15 minutes)
+      // This ensures background tasks run even when app is killed
+      Workmanager().registerPeriodicTask(
+        'background-notification-task',
+        'backgroundNotificationTask',
+        frequency: const Duration(minutes: 15), // Minimum interval for periodic tasks
+        constraints: Constraints(
+          networkType: NetworkType.connected,
+          requiresBatteryNotLow: false, // Allow even if battery is low
+          requiresCharging: false, // Allow even if not charging
+          requiresDeviceIdle: false, // Allow even if device is in use
+          requiresStorageNotLow: false,
+        ),
+        initialDelay: const Duration(seconds: 30), // Start checking after 30 seconds
+      );
+      debugPrint('[BackgroundNotification] ✅ WorkManager periodic task registered (works even when app is terminated)');
+    } catch (e) {
+      debugPrint('[BackgroundNotification] ❌ Error registering WorkManager task: $e');
+      // Try to register as one-time task as fallback
+      try {
+        Workmanager().registerOneOffTask(
+          'background-notification-task-once',
+          'backgroundNotificationTask',
+          initialDelay: const Duration(minutes: 1),
+          constraints: Constraints(networkType: NetworkType.connected),
+        );
+        debugPrint('[BackgroundNotification] ✅ Registered as one-time task fallback');
+      } catch (e2) {
+        debugPrint('[BackgroundNotification] ❌ Error registering one-time task: $e2');
+      }
+    }
+
+    // Only start Timer if not already polling (Timer only works when app process is alive)
+    if (_isPolling) {
+      debugPrint('[BackgroundNotification] Timer already running, skipping Timer registration');
+      return;
+    }
+    
+    _isPolling = true;
 
     // Also use Timer for immediate polling when app is just backgrounded
     // This works as long as app process is still alive
-    // Use shorter interval (30 seconds) for better responsiveness
-    _backgroundPollingTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+    // Use shorter interval (15 seconds) for better responsiveness
+    // Note: Android may kill the process after a few minutes, but this gives us
+    // immediate notifications for the first few minutes after backgrounding
+    _backgroundPollingTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
       pollForNotifications();
     });
 
     // Immediate first poll
     pollForNotifications();
+    
+    // Also poll after 5 seconds to catch quick changes
+    Future.delayed(const Duration(seconds: 5), () {
+      if (_isPolling) {
+        pollForNotifications();
+      }
+    });
   }
 
   /// Stop background polling when app comes to foreground
@@ -104,6 +185,12 @@ class BackgroundNotificationService {
   /// Poll Firestore for new notifications (called by Timer and WorkManager)
   /// Made public so WorkManager callback can access it
   Future<void> pollForNotifications() async {
+    // Prevent concurrent polls
+    if (_isPolling && _backgroundPollingTimer == null) {
+      debugPrint('[BackgroundNotification] Poll already in progress, skipping');
+      return;
+    }
+
     try {
       debugPrint('[BackgroundNotification] ⏰ Polling started at ${DateTime.now()}');
       
@@ -130,6 +217,12 @@ class BackgroundNotificationService {
     } catch (e, stackTrace) {
       debugPrint('[BackgroundNotification] ❌ Error polling: $e');
       debugPrint('[BackgroundNotification] Stack trace: $stackTrace');
+      
+      // If GetX controller is not available (app killed), try to use SharedPreferences
+      if (e.toString().contains('GetX') || e.toString().contains('not found')) {
+        debugPrint('[BackgroundNotification] ⚠️ GetX not available, this is expected in WorkManager isolate');
+        // WorkManager will handle this case separately
+      }
     }
   }
 
@@ -161,12 +254,21 @@ class BackgroundNotificationService {
 
       debugPrint('[BackgroundNotification] 📋 Employee category: $categorieId, DocumentId: $employeeDocumentId');
 
-      // Get category reference (handle both string and DocumentReference)
-      final categoryRef = categorieId is String
-          ? _firestore.collection('categories').doc(categorieId)
-          : categorieId;
+      // Extract category ID as string (requests store categorieId as string, not DocumentReference)
+      String categoryIdString;
+      if (categorieId is String) {
+        categoryIdString = categorieId;
+      } else if (categorieId is DocumentReference) {
+        categoryIdString = categorieId.id;
+      } else {
+        debugPrint('[BackgroundNotification] ⚠️ Unknown categorieId type: ${categorieId.runtimeType}');
+        return;
+      }
+
+      debugPrint('[BackgroundNotification] 🔍 Querying requests with categoryId (string): $categoryIdString');
 
       // Query for pending requests in this category
+      // IMPORTANT: Requests store categorieId as STRING, not DocumentReference
       // Retry logic for network issues
       QuerySnapshot<Map<String, dynamic>>? requestsQuery;
       int retryCount = 0;
@@ -174,13 +276,15 @@ class BackgroundNotificationService {
       
       while (retryCount <= maxRetries) {
         try {
+          // Try with string first (most common case)
+          // Use Source.server to force server query and avoid cache issues
           requestsQuery = await _firestore
               .collection('requests')
-              .where('categorieId', isEqualTo: categoryRef)
+              .where('categorieId', isEqualTo: categoryIdString)
               .where('statut', isEqualTo: 'Pending')
               .orderBy('createdAt', descending: true)
               .limit(20)
-              .get()
+              .get(const GetOptions(source: Source.server))
               .timeout(
                 const Duration(seconds: 15),
                 onTimeout: () {
@@ -188,13 +292,47 @@ class BackgroundNotificationService {
                   throw TimeoutException('Query timeout', const Duration(seconds: 15));
                 },
               );
+          
+          debugPrint('[BackgroundNotification] ✅ Query successful: found ${requestsQuery.docs.length} requests');
+          
+          // If query returned 0, verify network connectivity by checking if we can reach Firestore
+          if (requestsQuery.docs.isEmpty) {
+            debugPrint('[BackgroundNotification] ⚠️ Query returned 0 results - checking network connectivity...');
+            try {
+              // Try a simple Firestore operation to verify connectivity
+              final testDoc = await _firestore.collection('categories').doc(categoryIdString).get(
+                const GetOptions(source: Source.server),
+              ).timeout(const Duration(seconds: 5));
+              debugPrint('[BackgroundNotification] ✅ Network connectivity OK - category document exists: ${testDoc.exists}');
+            } catch (networkError) {
+              debugPrint('[BackgroundNotification] ❌ Network connectivity issue: $networkError');
+              debugPrint('[BackgroundNotification] ⚠️ This might be why no requests were found');
+            }
+          }
+          
           break; // Success, exit retry loop
         } catch (e) {
           retryCount++;
+          debugPrint('[BackgroundNotification] ❌ Query error (attempt $retryCount/${maxRetries + 1}): $e');
+          
           if (retryCount > maxRetries) {
             debugPrint('[BackgroundNotification] ❌ Query failed after $maxRetries retries: $e');
-            // Create empty result manually
-            requestsQuery = null;
+            // Try alternative query with DocumentReference as fallback
+            try {
+              final categoryRef = _firestore.collection('categories').doc(categoryIdString);
+              requestsQuery = await _firestore
+                  .collection('requests')
+                  .where('categorieId', isEqualTo: categoryRef)
+                  .where('statut', isEqualTo: 'Pending')
+                  .orderBy('createdAt', descending: true)
+                  .limit(20)
+                  .get()
+                  .timeout(const Duration(seconds: 10));
+              debugPrint('[BackgroundNotification] ✅ Fallback query (DocumentReference) successful: found ${requestsQuery.docs.length} requests');
+            } catch (e2) {
+              debugPrint('[BackgroundNotification] ❌ Fallback query also failed: $e2');
+              requestsQuery = null;
+            }
             break;
           }
           debugPrint('[BackgroundNotification] 🔄 Retrying query (attempt $retryCount/${maxRetries + 1})...');
@@ -212,7 +350,43 @@ class BackgroundNotificationService {
       
       // If query returned 0 but we suspect network issues, log warning
       if (requestsQuery.docs.isEmpty) {
-        debugPrint('[BackgroundNotification] ⚠️ Query returned 0 requests - this might be a network issue');
+        debugPrint('[BackgroundNotification] ⚠️ Query returned 0 requests');
+        debugPrint('[BackgroundNotification] 🔍 Debug: categoryIdString=$categoryIdString, employeeDocumentId=$employeeDocumentId');
+        // Try a simple query to see if there are ANY pending requests
+        // Use Source.server to force server query
+        try {
+          final allPending = await _firestore
+              .collection('requests')
+              .where('statut', isEqualTo: 'Pending')
+              .limit(5)
+              .get(const GetOptions(source: Source.server))
+              .timeout(const Duration(seconds: 10));
+          debugPrint('[BackgroundNotification] 🔍 Debug: Total pending requests in DB: ${allPending.docs.length}');
+          if (allPending.docs.isNotEmpty) {
+            final firstRequest = allPending.docs.first.data();
+            final firstRequestId = allPending.docs.first.id;
+            debugPrint('[BackgroundNotification] 🔍 Debug: Sample request ID: $firstRequestId');
+            debugPrint('[BackgroundNotification] 🔍 Debug: Sample request categorieId type: ${firstRequest['categorieId'].runtimeType}, value: ${firstRequest['categorieId']}');
+            debugPrint('[BackgroundNotification] 🔍 Debug: Sample request statut: ${firstRequest['statut']}');
+            
+            // Check if this request matches our category
+            final sampleCategorieId = firstRequest['categorieId'];
+            String? sampleCategoryIdString;
+            if (sampleCategorieId is String) {
+              sampleCategoryIdString = sampleCategorieId;
+            } else if (sampleCategorieId is DocumentReference) {
+              sampleCategoryIdString = sampleCategorieId.id;
+            }
+            debugPrint('[BackgroundNotification] 🔍 Debug: Sample category ID (string): $sampleCategoryIdString');
+            debugPrint('[BackgroundNotification] 🔍 Debug: Our category ID: $categoryIdString');
+            debugPrint('[BackgroundNotification] 🔍 Debug: Match: ${sampleCategoryIdString == categoryIdString}');
+          } else {
+            debugPrint('[BackgroundNotification] ⚠️ No pending requests found in entire database - might be network issue');
+          }
+        } catch (e) {
+          debugPrint('[BackgroundNotification] 🔍 Debug query failed: $e');
+          debugPrint('[BackgroundNotification] ⚠️ This confirms network connectivity issue in background');
+        }
       }
 
       // Get last checked IDs from SharedPreferences
@@ -222,10 +396,21 @@ class BackgroundNotificationService {
       
       final currentRequestIds = requestsQuery.docs.map((doc) => doc.id).toSet();
       
-      // Find new requests (not in last check)
-      final newRequestIds = currentRequestIds.difference(lastCheckedIds);
+      debugPrint('[BackgroundNotification] 📋 Current request IDs: ${currentRequestIds.toList()}');
+      debugPrint('[BackgroundNotification] 📋 Last checked IDs: ${lastCheckedIds.toList()}');
+      
+      // IMPORTANT: If we have requests but lastCheckedIds is empty, treat all as new
+      // This handles the case where SharedPreferences was cleared or this is first poll
+      final newRequestIds = lastCheckedIds.isEmpty && currentRequestIds.isNotEmpty
+          ? currentRequestIds // All requests are new if we haven't checked before
+          : currentRequestIds.difference(lastCheckedIds);
       
       debugPrint('[BackgroundNotification] 🆕 New requests: ${newRequestIds.length} (Last checked: ${lastCheckedIds.length}, Current: ${currentRequestIds.length})');
+      if (newRequestIds.isNotEmpty) {
+        debugPrint('[BackgroundNotification] 🆕 New request IDs: ${newRequestIds.toList()}');
+      } else if (currentRequestIds.isNotEmpty && lastCheckedIds.isNotEmpty) {
+        debugPrint('[BackgroundNotification] ℹ️ All ${currentRequestIds.length} requests were already checked - no new notifications');
+      }
       
       if (newRequestIds.isNotEmpty) {
         debugPrint('[BackgroundNotification] ✅ Found ${newRequestIds.length} new requests for employee');
@@ -261,12 +446,20 @@ class BackgroundNotificationService {
             }
 
             debugPrint('[BackgroundNotification] 🔔 Showing notification for request: $requestId');
+            debugPrint('[BackgroundNotification] 📝 Request data: description=${requestData['description']}, address=${requestData['address']}');
+            
             // Show notification
-            _notificationService.showNewRequestNotification(
-              requestId: requestId,
-              description: requestData['description'] ?? 'Nouvelle demande',
-              address: requestData['address'] ?? '',
-            );
+            try {
+              await _notificationService.showNewRequestNotification(
+                requestId: requestId,
+                description: requestData['description'] ?? 'Nouvelle demande',
+                address: requestData['address'] ?? '',
+              );
+              debugPrint('[BackgroundNotification] ✅ Notification displayed successfully for request: $requestId');
+            } catch (e, stackTrace) {
+              debugPrint('[BackgroundNotification] ❌ Error showing notification for request $requestId: $e');
+              debugPrint('[BackgroundNotification] Stack trace: $stackTrace');
+            }
           } catch (e) {
             debugPrint('[BackgroundNotification] ❌ Error processing request $requestId: $e');
           }
@@ -512,17 +705,43 @@ Future<void> _pollForEmployeeNotificationsInIsolate(
 
     if (categorieId == null) return;
 
-    final categoryRef = categorieId is String
-        ? firestore.collection('categories').doc(categorieId)
-        : categorieId;
+    // Extract category ID as string (requests store categorieId as string)
+    String categoryIdString;
+    if (categorieId is String) {
+      categoryIdString = categorieId;
+    } else if (categorieId is DocumentReference) {
+      categoryIdString = categorieId.id;
+    } else {
+      debugPrint('[WorkManager] Unknown categorieId type: ${categorieId.runtimeType}');
+      return;
+    }
 
-    final requestsQuery = await firestore
-        .collection('requests')
-        .where('categorieId', isEqualTo: categoryRef)
-        .where('statut', isEqualTo: 'Pending')
-        .orderBy('createdAt', descending: true)
-        .limit(20)
-        .get();
+    debugPrint('[WorkManager] Querying requests with categoryId (string): $categoryIdString');
+
+    // Query with string (requests store categorieId as string, not DocumentReference)
+    QuerySnapshot<Map<String, dynamic>> requestsQuery;
+    try {
+      requestsQuery = await firestore
+          .collection('requests')
+          .where('categorieId', isEqualTo: categoryIdString)
+          .where('statut', isEqualTo: 'Pending')
+          .orderBy('createdAt', descending: true)
+          .limit(20)
+          .get();
+      debugPrint('[WorkManager] Query successful: found ${requestsQuery.docs.length} requests');
+    } catch (e) {
+      debugPrint('[WorkManager] String query failed, trying DocumentReference: $e');
+      // Fallback to DocumentReference
+      final categoryRef = firestore.collection('categories').doc(categoryIdString);
+      requestsQuery = await firestore
+          .collection('requests')
+          .where('categorieId', isEqualTo: categoryRef)
+          .where('statut', isEqualTo: 'Pending')
+          .orderBy('createdAt', descending: true)
+          .limit(20)
+          .get();
+      debugPrint('[WorkManager] DocumentReference query successful: found ${requestsQuery.docs.length} requests');
+    }
 
     // Get last checked request IDs from SharedPreferences
     final prefs = await SharedPreferences.getInstance();

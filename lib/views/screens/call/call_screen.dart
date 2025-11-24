@@ -202,6 +202,7 @@ class _CallScreenState extends State<CallScreen> {
   void _toggleCamera() {
     if (!widget.args.isVideo) return;
     
+    // Toggle camera on/off
     setState(() {
       _isCameraOn = !_isCameraOn;
     });
@@ -211,6 +212,14 @@ class _CallScreenState extends State<CallScreen> {
         track.enabled = _isCameraOn;
       });
     }
+  }
+
+  Future<void> _switchCamera() async {
+    if (!widget.args.isVideo) return;
+    
+    await _callController.toggleCamera();
+    // Update local renderer when camera switches
+    _updateLocalStream();
   }
 
   void _endCall() {
@@ -423,13 +432,25 @@ class _CallScreenState extends State<CallScreen> {
                         isActive: !_callController.isMuted.value,
                       )),
                       // Camera Toggle (only for video)
-                      if (widget.args.isVideo)
+                      if (widget.args.isVideo) ...[
                         _buildControlButton(
                           icon: _isCameraOn ? Icons.videocam : Icons.videocam_off,
                           label: _isCameraOn ? 'Camera Off' : 'Camera On',
                           onPressed: _toggleCamera,
                           isActive: _isCameraOn,
                         ),
+                        // Switch Camera Button (only for video)
+                        Obx(() => _buildControlButton(
+                          icon: _callController.useBackCamera.value 
+                              ? Icons.camera_front 
+                              : Icons.camera_rear,
+                          label: _callController.useBackCamera.value 
+                              ? 'Front Camera' 
+                              : 'Back Camera',
+                          onPressed: _switchCamera,
+                          isActive: true,
+                        )),
+                      ],
                       // Speaker Button
                       Obx(() => _buildControlButton(
                         icon: _callController.isSpeakerOn.value ? Icons.volume_up : Icons.hearing,

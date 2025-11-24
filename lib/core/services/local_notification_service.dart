@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'dart:io' show Platform;
 import '../constants/app_routes.dart';
@@ -13,43 +14,57 @@ class LocalNotificationService {
   bool _initialized = false;
 
   /// Initialiser le service de notifications
+  /// Cette méthode est idempotente et peut être appelée plusieurs fois en toute sécurité
   Future<void> initialize() async {
-    if (_initialized) return;
-
-    // Create notification channels for Android (required for Android 8.0+)
-    if (Platform.isAndroid) {
-      await _createNotificationChannels();
-    }
-
-    // Configuration Android
-    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    // Note: Dans un isolate séparé (comme le handler FCM en arrière-plan),
+    // chaque appel crée une nouvelle instance, donc on ne peut pas compter sur _initialized.
+    // On doit toujours vérifier si le plugin est déjà initialisé en appelant initialize().
     
-    // Configuration iOS
-    const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-
-    // Configuration initiale
-    const InitializationSettings initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
-
-    // Initialiser le plugin
-    final bool? initialized = await _notifications.initialize(
-      initSettings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
-    );
-
-    if (initialized == true) {
-      _initialized = true;
-      
-      // Demander les permissions pour Android 13+
+    try {
+      // Create notification channels for Android (required for Android 8.0+)
+      // Cette opération est idempotente - créer un canal existant ne fait rien
       if (Platform.isAndroid) {
-        await _requestAndroidPermissions();
+        await _createNotificationChannels();
       }
+
+      // Configuration Android
+      const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      
+      // Configuration iOS
+      const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
+
+      // Configuration initiale
+      const InitializationSettings initSettings = InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      );
+
+      // Initialiser le plugin (idempotent - peut être appelé plusieurs fois)
+      final bool? initialized = await _notifications.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: _onNotificationTapped,
+      );
+
+      if (initialized == true) {
+        _initialized = true;
+        
+        // Demander les permissions pour Android 13+
+        // Cette opération est idempotente - demander une permission déjà accordée ne fait rien
+        if (Platform.isAndroid) {
+          await _requestAndroidPermissions();
+        }
+      } else {
+        debugPrint('[LocalNotification] ⚠️ Échec de l\'initialisation des notifications locales');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('[LocalNotification] ❌ Erreur lors de l\'initialisation: $e');
+      debugPrint('[LocalNotification] Stack trace: $stackTrace');
+      // Ne pas lever l'exception - permettre à l'application de continuer
+      // L'initialisation peut être réessayée plus tard
     }
   }
 
@@ -97,10 +112,21 @@ class LocalNotificationService {
       enableVibration: true,
     );
 
+    // Incoming calls channel (for FCM audio call notifications)
+    const AndroidNotificationChannel incomingCallsChannel = AndroidNotificationChannel(
+      'incoming_calls',
+      'Appels entrants',
+      description: 'Notifications pour les appels audio entrants',
+      importance: Importance.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
     await androidImplementation.createNotificationChannel(highImportanceChannel);
     await androidImplementation.createNotificationChannel(generalChannel);
     await androidImplementation.createNotificationChannel(employeeAcceptedChannel);
     await androidImplementation.createNotificationChannel(newRequestsChannel);
+    await androidImplementation.createNotificationChannel(incomingCallsChannel);
   }
 
   /// Demander les permissions Android
@@ -226,18 +252,37 @@ class LocalNotificationService {
     required String title,
     required String body,
     String? payload,
+    String? channelId,
+    Importance? importance,
+    Priority? priority,
   }) async {
     if (!_initialized) {
       await initialize();
     }
 
+    // Déterminer le canal et l'importance selon le type de notification
+    final String finalChannelId = channelId ?? 'general_channel';
+    final Importance finalImportance = importance ?? Importance.defaultImportance;
+    final Priority finalPriority = priority ?? Priority.defaultPriority;
+
     final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'general_channel',
-      'notifications'.tr,
-      channelDescription: 'general_notifications_channel_description'.tr,
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
+      finalChannelId,
+      finalChannelId == 'incoming_calls' 
+          ? 'Appels entrants'
+          : (finalChannelId == 'new_requests_channel'
+              ? 'new_request'.tr
+              : (finalChannelId == 'employee_accepted_channel'
+                  ? 'employee_accepted'.tr
+                  : 'notifications'.tr)),
+      channelDescription: finalChannelId == 'incoming_calls'
+          ? 'Notifications pour les appels audio entrants'
+          : 'general_notifications_channel_description'.tr,
+      importance: finalImportance,
+      priority: finalPriority,
       showWhen: true,
+      playSound: true,
+      enableVibration: finalImportance == Importance.high,
+      icon: '@mipmap/ic_launcher',
     );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(

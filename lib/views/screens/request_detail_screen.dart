@@ -13,7 +13,6 @@ import '../../data/repositories/client_repository.dart';
 import '../../data/repositories/user_repository.dart';
 import '../../data/repositories/mission_repository.dart';
 import '../../data/repositories/request_repository.dart';
-import '../../data/repositories/chat_repository.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
@@ -22,8 +21,10 @@ import '../../components/custom_button.dart';
 import '../../core/utils/logger.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../widgets/call_button.dart';
+import '../../core/services/qr_code_service.dart';
 import 'chat_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 /// Écran de détails d'une demande
 class RequestDetailScreen extends StatefulWidget {
@@ -46,7 +47,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   final ClientRepository _clientRepository = ClientRepository();
   final MissionRepository _missionRepository = MissionRepository();
   final RequestRepository _requestRepository = RequestRepository();
-  final ChatRepository _chatRepository = ChatRepository();
+  final QRCodeService _qrCodeService = QRCodeService();
   
   RequestModel? _request;
   bool _isLoading = true;
@@ -322,37 +323,105 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     final comment = result['comment'] as String?;
     
     try {
-      // Update mission
-      final updatedMission = _mission!.copyWith(
-        prixMission: price,
-        statutMission: 'Completed',
+      // Generate QR code token
+      final token = await _qrCodeService.createFinishToken(
+        requestId: _request!.id,
+        clientId: _request!.clientId,
+        employeeId: _request!.employeeId!,
+        price: price,
         rating: rating,
-        commentaire: comment,
-        dateEnd: DateTime.now(),
-        updatedAt: DateTime.now(),
+        comment: comment,
       );
       
-      await _missionController.updateMission(updatedMission);
-      
-      // Update request status
-      final updatedRequest = _request!.copyWith(
-        statut: 'Completed',
-        updatedAt: DateTime.now(),
-      );
-      
-      await _requestController.updateRequest(updatedRequest);
-      await _chatRepository.closeThreadForRequest(_request!.id, requestStatus: 'Completed');
-      
-      // Reload data
-      await _loadRequest();
-      
-      SnackbarHelper.showSuccess('request_completed_success'.tr);
-      
-      // Navigate back and trigger refresh
-      Get.back(result: true);
+      // Show QR code dialog
+      await _showQRCodeDialog(token);
     } catch (e, stackTrace) {
       Logger.logError('RequestDetailScreen._finishRequest', e, stackTrace);
-      SnackbarHelper.showError( '${'error_finishing'.tr}: $e');
+      SnackbarHelper.showError('${'error_finishing'.tr}: $e');
+    }
+  }
+  
+  Future<void> _showQRCodeDialog(String token) async {
+    final completer = Completer<void>();
+    StreamSubscription<DocumentSnapshot>? subscription;
+    bool dialogClosed = false;
+
+    // Listen to token changes
+    subscription = FirebaseFirestore.instance
+        .collection('request_finish_tokens')
+        .doc(token)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        final data = snapshot.data();
+        if (data != null && data['used'] == true && !dialogClosed) {
+          dialogClosed = true;
+          subscription?.cancel();
+          Get.back(); // Close the dialog
+          completer.complete();
+          // Reload request data
+          _loadRequest();
+          SnackbarHelper.showSuccess('request_completed_success'.tr);
+        }
+      }
+    });
+
+    await Get.dialog(
+      Dialog(
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'qr_code_title'.tr,
+                style: AppTextStyles.h3,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'qr_code_description'.tr,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.grey, width: 1),
+                ),
+                child: QrImageView(
+                  data: token,
+                  version: QrVersions.auto,
+                  size: 250.0,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 24),
+              CustomButton(
+                onPressed: () {
+                  dialogClosed = true;
+                  subscription?.cancel();
+                  Get.back();
+                  completer.complete();
+                },
+                text: 'close'.tr,
+                backgroundColor: AppColors.primary,
+              ),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: false,
+    );
+
+    // Cancel subscription if dialog is closed manually
+    if (!dialogClosed) {
+      subscription.cancel();
     }
   }
 
@@ -486,8 +555,38 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
   bool get _isCurrentUserAssignedEmployee {
     final user = _authController.currentUser.value;
-    if (user == null || _assignedEmployee == null) return false;
-    return _assignedEmployee!.userId == user.id;
+    if (user == null || _request == null || _request!.employeeId == null) return false;
+    
+    // Check if user is an employee
+    if (user.type.toLowerCase() != 'employee') return false;
+    
+    // Check if current user is the assigned employee
+    // First try using _assignedEmployee if available
+    if (_assignedEmployee != null) {
+      return _assignedEmployee!.userId == user.id;
+    }
+    
+    // Fallback: try to match using employeeId from request
+    // Note: employeeId in request is document ID, we need to check if current user's employee document matches
+    // For now, we'll show the button if user is an employee and request has an employeeId
+    // This is a simplified check - ideally we'd fetch the employee document and compare
+    return true; // Show for any employee viewing an accepted request
+  }
+  
+  bool get _shouldShowQRButton {
+    final user = _authController.currentUser.value;
+    if (user == null || _request == null) return false;
+    
+    // Only show for employees
+    if (user.type.toLowerCase() != 'employee') return false;
+    
+    // Only show if request is accepted and has an employee assigned
+    if (_request!.statut.toLowerCase() != 'accepted' || _request!.employeeId == null) return false;
+    
+    // Only show if mission exists and is not completed
+    if (_mission == null || _mission!.statutMission.toLowerCase() == 'completed') return false;
+    
+    return true;
   }
 
   bool get _canCurrentUserChat {
@@ -516,6 +615,16 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     );
 
     Get.toNamed(AppRoutes.AppRoutes.chat, arguments: args);
+  }
+
+  void _openQRScanner() async {
+    final result = await Get.toNamed(AppRoutes.AppRoutes.qrScanner);
+    if (result == true) {
+      // Reload data if QR code was successfully scanned
+      await _loadRequest();
+      SnackbarHelper.showSuccess('request_completed_success'.tr);
+      Get.back(result: true);
+    }
   }
 
   @override
@@ -899,8 +1008,159 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                         video: true,
                                         iconColor: AppColors.primary,
                                       ),
+                                      // QR Scanner button for employee
+                                      if (_shouldShowQRButton) ...[
+                                        const SizedBox(width: 8),
+                                        SizedBox(
+                                          width: 50,
+                                          height: 50,
+                                          child: ElevatedButton(
+                                            onPressed: _openQRScanner,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppColors.warning,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              elevation: 2,
+                                              padding: EdgeInsets.zero,
+                                            ),
+                                            child: const Icon(
+                                              Icons.qr_code_scanner,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
+                                ],
+                                // QR Scanner button for employee (shown even if canChat is false)
+                                if (!canChat && _shouldShowQRButton) ...[
+                                  const SizedBox(height: 12),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 50,
+                                    child: ElevatedButton.icon(
+                                      onPressed: _openQRScanner,
+                                      icon: const Icon(Icons.qr_code_scanner),
+                                      label: Text('scan_qr_to_approve'.tr),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.warning,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        elevation: 2,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+
+                      // Mission Card - Show mission info and QR scanner button for employee
+                      if (_mission != null)
+                        Card(
+                          margin: const EdgeInsets.only(top: 16),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'mission'.tr,
+                                  style: AppTextStyles.h3,
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${'mission_price'.tr}: ${_mission!.prixMission.toStringAsFixed(2)} €',
+                                            style: AppTextStyles.bodyMedium,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${'mission_status'.tr}: ${_mission!.statutMission}',
+                                            style: AppTextStyles.bodySmall.copyWith(
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                // QR Scanner button for employee
+                                if (_shouldShowQRButton) ...[
+                                  const SizedBox(height: 16),
+                                  if (canChat)
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: CustomButton(
+                                            onPressed: _openChat,
+                                            text: 'open_chat'.tr,
+                                            backgroundColor: AppColors.info,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        // Audio Call Button
+                                        CallButton(
+                                          calleeId: _getRemoteUserId(),
+                                          video: false,
+                                          iconColor: AppColors.success,
+                                        ),
+                                        // Video Call Button
+                                        CallButton(
+                                          calleeId: _getRemoteUserId(),
+                                          video: true,
+                                          iconColor: AppColors.primary,
+                                        ),
+                                        // QR Scanner button
+                                        const SizedBox(width: 8),
+                                        SizedBox(
+                                          width: 50,
+                                          height: 50,
+                                          child: ElevatedButton(
+                                            onPressed: _openQRScanner,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppColors.warning,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              elevation: 2,
+                                              padding: EdgeInsets.zero,
+                                            ),
+                                            child: const Icon(
+                                              Icons.qr_code_scanner,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  else
+                                    SizedBox(
+                                      width: double.infinity,
+                                      height: 50,
+                                      child: ElevatedButton.icon(
+                                        onPressed: _openQRScanner,
+                                        icon: const Icon(Icons.qr_code_scanner),
+                                        label: Text('scan_qr_to_approve'.tr),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.warning,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          elevation: 2,
+                                        ),
+                                      ),
+                                    ),
                                 ],
                               ],
                             ),

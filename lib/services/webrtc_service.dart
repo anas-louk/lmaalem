@@ -72,7 +72,13 @@ class WebRTCService {
   /// - video: false
   /// 
   /// No camera permissions required for audio-only calls.
-  Future<MediaStream> createLocalStream({required bool withVideo}) async {
+  /// 
+  /// For video calls:
+  /// - facingMode: 'user' for front camera, 'environment' for back camera
+  Future<MediaStream> createLocalStream({
+    required bool withVideo,
+    bool useBackCamera = false,
+  }) async {
     // Audio-only constraints (no video, no camera)
     final mediaConstraints = <String, dynamic>{
       'audio': {
@@ -84,14 +90,15 @@ class WebRTCService {
       },
       'video': withVideo
           ? {
-              'facingMode': 'user',
+              'facingMode': useBackCamera ? 'environment' : 'user',
               'width': {'ideal': 1280},
               'height': {'ideal': 720},
             }
           : false,
     };
 
-    print('[WebRTCService] Creating local stream: audio=true, video=$withVideo');
+    final cameraType = useBackCamera ? 'back' : 'front';
+    print('[WebRTCService] Creating local stream: audio=true, video=$withVideo, camera=$cameraType');
     
     try {
       final stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
