@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 
 import '../models/call_session.dart';
 import '../services/webrtc_service.dart';
+import '../core/services/local_notification_service.dart';
 import 'auth_controller.dart';
 
 class CallController extends GetxController {
@@ -133,6 +134,13 @@ class CallController extends GetxController {
   }
 
   Future<void> acceptCall(String callId) async {
+    // Cancel incoming call notification
+    try {
+      final localNotificationService = LocalNotificationService();
+      await localNotificationService.cancelNotification(callId.hashCode);
+    } catch (e) {
+      print('[CallController] Error canceling notification: $e');
+    }
     final userId = _authController.currentUser.value?.id;
     if (userId == null) return;
 
@@ -246,6 +254,14 @@ class CallController extends GetxController {
   }
 
   Future<void> endCall(String callId) async {
+    // Cancel incoming call notification
+    try {
+      final localNotificationService = LocalNotificationService();
+      await localNotificationService.cancelNotification(callId.hashCode);
+    } catch (e) {
+      print('[CallController] Error canceling notification: $e');
+    }
+    
     if (_currentCallId != callId) {
       print('[CallController] Call ID mismatch: current=$_currentCallId, requested=$callId');
       return;
@@ -360,7 +376,6 @@ class CallController extends GetxController {
       }
 
       // Navigate to incoming call screen
-      // Wrap in try-catch to handle Overlay errors gracefully
       try {
         Get.toNamed('/incoming-call', arguments: {
           'callId': callId,
@@ -410,15 +425,33 @@ class CallController extends GetxController {
         .where('calleeId', isEqualTo: userId)
         .where('status', isEqualTo: 'ringing')
         .snapshots()
-        .listen((snapshot) {
+        .listen((snapshot) async {
       for (final doc in snapshot.docs) {
         final data = doc.data();
         final callId = doc.id;
         final callerId = data['callerId'] as String?;
         final isVideo = (data['type'] as String?) == 'video';
+        final callerName = data['callerName'] as String? ?? 'Someone';
         
         if (callerId != null && !hasActiveCall.value) {
           print('[CallController] Incoming call from $callerId (callId: $callId)');
+          
+          // Show notification in status bar (even in foreground)
+          try {
+            final localNotificationService = LocalNotificationService();
+            await localNotificationService.showIncomingCallNotification(
+              id: callId.hashCode,
+              title: 'Incoming ${isVideo ? 'Video' : 'Audio'} Call',
+              body: '${isVideo ? 'Video' : 'Audio'} call from $callerName',
+              callId: callId,
+              callerId: callerId,
+              isVideo: isVideo,
+              callerName: callerName,
+            );
+            print('[CallController] ✅ Notification shown for incoming call: $callId');
+          } catch (e) {
+            print('[CallController] ❌ Error showing notification: $e');
+          }
           
           // Navigate to incoming call screen with retry logic
           _navigateToIncomingCallScreen(

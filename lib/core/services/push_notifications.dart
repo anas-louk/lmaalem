@@ -77,9 +77,10 @@ class PushNotificationService {
     debugPrint('[FCM] Data: ${message.data}');
     debugPrint('[FCM] MessageId: ${message.messageId}');
     
-    // Handle incoming audio call notifications
-    if (message.data['type'] == 'incoming_audio_call') {
-      _handleIncomingAudioCall(message);
+    // Handle incoming call notifications (audio or video)
+    final callType = message.data['type'];
+    if (callType == 'incoming_audio_call' || callType == 'incoming_video_call') {
+      await _handleIncomingCall(message);
       return;
     }
     
@@ -94,30 +95,43 @@ class PushNotificationService {
     }
   }
 
-  /// Handle incoming audio call notification
-  void _handleIncomingAudioCall(RemoteMessage message) {
+  /// Handle incoming call notification (audio or video)
+  Future<void> _handleIncomingCall(RemoteMessage message) async {
     final callId = message.data['callId'];
     final callerId = message.data['callerId'];
     final callerName = message.data['callerName'] ?? 'Someone';
+    final callType = message.data['type'];
+    final isVideo = callType == 'incoming_video_call' || message.data['video'] == 'true';
 
     if (callId == null || callerId == null) {
       debugPrint('[FCM] Invalid incoming call data: missing callId or callerId');
       return;
     }
 
-    debugPrint('[FCM] Incoming audio call: callId=$callId, callerId=$callerId');
+    debugPrint('[FCM] Incoming ${isVideo ? 'video' : 'audio'} call: callId=$callId, callerId=$callerId');
 
     try {
+      // Show persistent notification with action buttons (like WhatsApp)
+      await _localNotificationService.showIncomingCallNotification(
+        id: callId.hashCode,
+        title: message.notification?.title ?? 'Incoming ${isVideo ? 'Video' : 'Audio'} Call',
+        body: message.notification?.body ?? '${isVideo ? 'Video' : 'Audio'} call from $callerName',
+        callId: callId,
+        callerId: callerId,
+        isVideo: isVideo,
+        callerName: callerName,
+      );
+
       // Show snackbar notification using SnackbarHelper (handles overlay availability)
       SnackbarHelper.showInfo(
-        'Call from $callerName',
+        '${isVideo ? 'Video' : 'Audio'} call from $callerName',
         title: 'Incoming Call',
       );
 
       // Navigate to incoming call screen
       // Use a delayed navigation to ensure GetX is ready
       Future.delayed(const Duration(milliseconds: 100), () {
-        _navigateToIncomingCall(callId, callerId);
+        _navigateToIncomingCall(callId, callerId, isVideo: isVideo);
       });
     } catch (e) {
       debugPrint('[FCM] Error handling incoming call: $e');
@@ -125,14 +139,14 @@ class PushNotificationService {
   }
 
   /// Navigate to incoming call screen with retry logic
-  void _navigateToIncomingCall(String callId, String callerId, {int retryCount = 0}) {
+  void _navigateToIncomingCall(String callId, String callerId, {bool isVideo = false, int retryCount = 0}) {
     try {
       // Check if GetX is ready
       if (!Get.isRegistered<CallController>()) {
         if (retryCount < 5) {
           debugPrint('[FCM] CallController not registered yet, retrying... (attempt ${retryCount + 1})');
           Future.delayed(Duration(milliseconds: 200 * (retryCount + 1)), () {
-            _navigateToIncomingCall(callId, callerId, retryCount: retryCount + 1);
+            _navigateToIncomingCall(callId, callerId, isVideo: isVideo, retryCount: retryCount + 1);
           });
           return;
         } else {
@@ -145,13 +159,13 @@ class PushNotificationService {
       callController.handleIncomingCallFromFCM(
         callId: callId,
         callerId: callerId,
-        isVideo: false, // Always false for audio calls
+        isVideo: isVideo,
       );
     } catch (e) {
       debugPrint('[FCM] Error navigating to incoming call: $e');
       if (retryCount < 5) {
         Future.delayed(Duration(milliseconds: 200 * (retryCount + 1)), () {
-          _navigateToIncomingCall(callId, callerId, retryCount: retryCount + 1);
+          _navigateToIncomingCall(callId, callerId, isVideo: isVideo, retryCount: retryCount + 1);
         });
       }
     }
@@ -164,19 +178,20 @@ class PushNotificationService {
     
     final type = message.data['type'] ?? 'default';
 
-    // Handle incoming audio call notification click
+    // Handle incoming call notification click (audio or video)
     // This is triggered when user taps the system notification (app was backgrounded/closed)
-    if (type == 'incoming_audio_call') {
+    if (type == 'incoming_audio_call' || type == 'incoming_video_call') {
       final callId = message.data['callId'];
       final callerId = message.data['callerId'];
       final callerName = message.data['callerName'] ?? 'Someone';
+      final isVideo = type == 'incoming_video_call' || message.data['video'] == 'true';
 
       if (callId != null && callerId != null) {
         debugPrint('[FCM] Opening incoming call screen from notification click');
-        debugPrint('[FCM] Call details: callId=$callId, callerId=$callerId, callerName=$callerName');
+        debugPrint('[FCM] Call details: callId=$callId, callerId=$callerId, callerName=$callerName, isVideo=$isVideo');
         // Use the same retry logic as foreground handler
         Future.delayed(const Duration(milliseconds: 100), () {
-          _navigateToIncomingCall(callId, callerId);
+          _navigateToIncomingCall(callId, callerId, isVideo: isVideo);
         });
       } else {
         debugPrint('[FCM] Invalid incoming call data in notification click: missing callId or callerId');
@@ -324,25 +339,26 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final localService = LocalNotificationService();
     await localService.initialize();
 
-    // Handle incoming audio call notifications
-    if (message.data['type'] == 'incoming_audio_call') {
+    // Handle incoming call notifications (audio or video)
+    final callType = message.data['type'];
+    if (callType == 'incoming_audio_call' || callType == 'incoming_video_call') {
       final callId = message.data['callId'];
       final callerId = message.data['callerId'];
       final callerName = message.data['callerName'] ?? 'Someone';
+      final isVideo = callType == 'incoming_video_call' || message.data['video'] == 'true';
 
       if (callId != null && callerId != null) {
-        debugPrint('[FCM] (background) Incoming audio call: callId=$callId, callerId=$callerId');
+        debugPrint('[FCM] (background) Incoming ${isVideo ? 'video' : 'audio'} call: callId=$callId, callerId=$callerId');
         
-        // Always show a local notification for incoming calls to ensure it appears
-        // even if the system notification doesn't show
-        await localService.showNotification(
+        // Always show a persistent notification with action buttons for incoming calls
+        await localService.showIncomingCallNotification(
           id: callId.hashCode,
-          title: message.notification?.title ?? 'Incoming Call',
-          body: message.notification?.body ?? 'Call from $callerName',
-          payload: callId,
-          channelId: 'incoming_calls',
-          importance: Importance.high,
-          priority: Priority.high,
+          title: message.notification?.title ?? 'Incoming ${isVideo ? 'Video' : 'Audio'} Call',
+          body: message.notification?.body ?? '${isVideo ? 'Video' : 'Audio'} call from $callerName',
+          callId: callId,
+          callerId: callerId,
+          isVideo: isVideo,
+          callerName: callerName,
         );
       }
       return;

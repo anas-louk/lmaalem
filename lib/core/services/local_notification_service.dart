@@ -1,9 +1,11 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:io' show Platform;
 import '../constants/app_routes.dart';
 import '../../controllers/auth_controller.dart';
+import '../../controllers/call_controller.dart';
 
 /// Service pour gérer les notifications locales dans la barre de statut
 class LocalNotificationService {
@@ -72,7 +74,12 @@ class LocalNotificationService {
   /// Créer les canaux de notification pour Android
   Future<void> _createNotificationChannels() async {
     final androidImplementation = _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    if (androidImplementation == null) return;
+    if (androidImplementation == null) {
+      debugPrint('[LocalNotification] ⚠️ Android implementation not available');
+      return;
+    }
+    
+    debugPrint('[LocalNotification] 📱 Creating notification channels...');
 
     // High importance channel for new requests and employee acceptances
     const AndroidNotificationChannel highImportanceChannel = AndroidNotificationChannel(
@@ -128,6 +135,7 @@ class LocalNotificationService {
     await androidImplementation.createNotificationChannel(employeeAcceptedChannel);
     await androidImplementation.createNotificationChannel(newRequestsChannel);
     await androidImplementation.createNotificationChannel(incomingCallsChannel);
+    debugPrint('[LocalNotification] ✅ Notification channels created successfully');
   }
 
   /// Demander les permissions Android
@@ -137,15 +145,20 @@ class LocalNotificationService {
 
     if (androidImplementation != null) {
       final bool? granted = await androidImplementation.requestNotificationsPermission();
+      debugPrint('[LocalNotification] 📱 Android notification permission result: $granted');
       if (granted == true) {
-        print('Notifications permission granted');
+        debugPrint('[LocalNotification] ✅ Notifications permission granted');
+      } else {
+        debugPrint('[LocalNotification] ⚠️ Notifications permission denied or not granted');
       }
+    } else {
+      debugPrint('[LocalNotification] ⚠️ Android implementation not available');
     }
   }
 
-  /// Gérer le clic sur une notification
+  /// Gérer le clic sur une notification ou une action
   void _onNotificationTapped(NotificationResponse response) {
-    debugPrint('[LocalNotification] Notification tapped: payload=${response.payload}');
+    debugPrint('[LocalNotification] Notification action: actionId=${response.actionId}, payload=${response.payload}');
     
     try {
       // Get current user to determine type
@@ -159,16 +172,72 @@ class LocalNotificationService {
       }
       
       final payload = response.payload;
+      final actionId = response.actionId;
       final isEmployee = user.type.toLowerCase() == 'employee';
+      
+      // Handle call notification actions (accept/decline)
+      if (actionId == 'accept_call' || actionId == 'decline_call') {
+        if (payload != null && payload.startsWith('call_')) {
+          try {
+              final parts = payload.substring(5).split('|');
+              if (parts.length >= 2) {
+                final callId = parts[0];
+                
+                // Get CallController
+                if (Get.isRegistered<CallController>()) {
+                  final callController = Get.find<CallController>();
+                  
+                  if (actionId == 'accept_call') {
+                    debugPrint('[LocalNotification] ✅ Accepting call: callId=$callId');
+                    // Cancel notification
+                    cancelNotification(callId.hashCode);
+                    // Accept the call
+                    callController.acceptCall(callId);
+                  } else if (actionId == 'decline_call') {
+                    debugPrint('[LocalNotification] ❌ Declining call: callId=$callId');
+                    // Cancel notification
+                    cancelNotification(callId.hashCode);
+                    // Decline the call
+                    callController.endCall(callId);
+                  }
+                } else {
+                  debugPrint('[LocalNotification] ⚠️ CallController not available');
+                }
+                return;
+              }
+          } catch (e) {
+            debugPrint('[LocalNotification] ❌ Error handling call action: $e');
+          }
+        }
+        return;
+      }
       
       // Determine notification type from payload
       // Payload is typically: requestId (for new requests or employee accepted)
-      // Or notification type like "new_request", "employee_accepted", or callId
+      // Or notification type like "new_request", "employee_accepted", or call payload like "call_callId|callerId|audio/video"
       if (payload != null) {
-        // Check if it's a call notification (payload is callId)
-        if (payload.startsWith('call_') || payload.contains('call')) {
-          // Handle call notification - this should be handled by FCM handler
-          // But if we get here, navigate to dashboard
+        // Check if it's a call notification (payload format: "call_callId|callerId|audio/video")
+        if (payload.startsWith('call_')) {
+          // Parse call notification payload
+          try {
+            final parts = payload.substring(5).split('|'); // Remove "call_" prefix and split
+            if (parts.length >= 2) {
+              final callId = parts[0];
+              final callerId = parts[1];
+              final isVideo = parts.length >= 3 && parts[2] == 'video';
+              
+              debugPrint('[LocalNotification] Handling call notification: callId=$callId, callerId=$callerId, isVideo=$isVideo');
+              
+              // Navigate to incoming call screen
+              // Use retry logic to ensure GetX and CallController are ready
+              _navigateToCallScreen(callId, callerId, isVideo, retryCount: 0);
+              return;
+            }
+          } catch (e) {
+            debugPrint('[LocalNotification] ❌ Error parsing call payload: $e');
+          }
+          
+          // Fallback: navigate to dashboard if parsing fails
           Get.offAllNamed(isEmployee ? AppRoutes.employeeDashboard : AppRoutes.clientDashboard);
           return;
         }
@@ -384,6 +453,107 @@ class LocalNotificationService {
     }
   }
 
+  /// Afficher une notification d'appel entrant persistante avec boutons d'action (comme WhatsApp)
+  Future<void> showIncomingCallNotification({
+    required int id,
+    required String title,
+    required String body,
+    required String callId,
+    required String callerId,
+    required bool isVideo,
+    required String callerName,
+  }) async {
+    try {
+      debugPrint('[LocalNotification] 📞 Showing incoming call notification: callId=$callId, callerName=$callerName');
+      
+      if (!_initialized) {
+        debugPrint('[LocalNotification] ⚠️ Not initialized, initializing now...');
+        await initialize();
+      }
+
+      // Vérifier les permissions Android
+      if (Platform.isAndroid) {
+        final androidImplementation = _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        if (androidImplementation != null) {
+          final bool? hasPermission = await androidImplementation.areNotificationsEnabled();
+          debugPrint('[LocalNotification] 📱 Android notifications enabled: $hasPermission');
+          if (hasPermission != true) {
+            debugPrint('[LocalNotification] ⚠️ Android notifications not enabled, requesting permission...');
+            await _requestAndroidPermissions();
+          }
+        }
+      }
+
+      // Payload pour la navigation
+      final payload = 'call_$callId|$callerId|${isVideo ? 'video' : 'audio'}';
+
+      // Actions pour accepter/refuser l'appel
+      final List<AndroidNotificationAction> actions = [
+        AndroidNotificationAction(
+          'accept_call',
+          'Accepter',
+          titleColor: const Color(0xFF4CAF50), // Green
+          showsUserInterface: false,
+        ),
+        AndroidNotificationAction(
+          'decline_call',
+          'Refuser',
+          titleColor: const Color(0xFFF44336), // Red
+          showsUserInterface: false,
+        ),
+      ];
+
+      final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+        'incoming_calls',
+        'Appels entrants',
+        channelDescription: 'Notifications pour les appels entrants',
+        importance: Importance.high,
+        priority: Priority.high,
+        showWhen: false,
+        playSound: true,
+        enableVibration: true,
+        icon: '@mipmap/ic_launcher',
+        ongoing: true, // Notification persistante (ne peut pas être balayée)
+        autoCancel: false, // Ne se ferme pas automatiquement
+        onlyAlertOnce: false, // Alerte à chaque mise à jour
+        category: AndroidNotificationCategory.call,
+        fullScreenIntent: false,
+        actions: actions,
+        styleInformation: BigTextStyleInformation(
+          body,
+          contentTitle: title,
+          summaryText: callerName,
+        ),
+      );
+
+      const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        interruptionLevel: InterruptionLevel.critical,
+      );
+
+      final NotificationDetails details = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      await _notifications.show(
+        id,
+        title,
+        body,
+        details,
+        payload: payload,
+      );
+
+      debugPrint('[LocalNotification] ✅ Incoming call notification shown successfully: callId=$callId, id=$id');
+    } catch (e, stackTrace) {
+      debugPrint('[LocalNotification] ❌ Error showing incoming call notification: $e');
+      debugPrint('[LocalNotification] Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
   /// Afficher une notification simple
   Future<void> showNotification({
     required int id,
@@ -457,6 +627,62 @@ class LocalNotificationService {
   Future<int> getPendingNotificationCount() async {
     final List<PendingNotificationRequest> pending = await _notifications.pendingNotificationRequests();
     return pending.length;
+  }
+
+  /// Navigate to incoming call screen with retry logic
+  void _navigateToCallScreen(String callId, String callerId, bool isVideo, {int retryCount = 0}) {
+    try {
+      // Check if GetX is ready
+      if (!Get.isRegistered<CallController>()) {
+        if (retryCount < 10) {
+          debugPrint('[LocalNotification] CallController not registered yet, retrying... (attempt ${retryCount + 1})');
+          Future.delayed(Duration(milliseconds: 200 * (retryCount + 1)), () {
+            _navigateToCallScreen(callId, callerId, isVideo, retryCount: retryCount + 1);
+          });
+          return;
+        } else {
+          debugPrint('[LocalNotification] CallController not available after retries, cannot navigate to call');
+          // Fallback: try direct navigation
+          try {
+            Get.toNamed(AppRoutes.incomingCall, arguments: {
+              'callId': callId,
+              'callerId': callerId,
+              'isVideo': isVideo,
+            });
+          } catch (e) {
+            debugPrint('[LocalNotification] ❌ Direct navigation also failed: $e');
+          }
+          return;
+        }
+      }
+
+      // Get CallController and navigate
+      final callController = Get.find<CallController>();
+      callController.handleIncomingCallFromFCM(
+        callId: callId,
+        callerId: callerId,
+        isVideo: isVideo,
+      );
+      debugPrint('[LocalNotification] ✅ Navigated to incoming call screen');
+    } catch (e) {
+      debugPrint('[LocalNotification] ❌ Error navigating to call screen: $e');
+      if (retryCount < 5) {
+        Future.delayed(Duration(milliseconds: 200 * (retryCount + 1)), () {
+          _navigateToCallScreen(callId, callerId, isVideo, retryCount: retryCount + 1);
+        });
+      } else {
+        // Final fallback: try direct navigation
+        try {
+          Get.toNamed(AppRoutes.incomingCall, arguments: {
+            'callId': callId,
+            'callerId': callerId,
+            'isVideo': isVideo,
+          });
+        } catch (e2) {
+          debugPrint('[LocalNotification] ❌ Final fallback navigation also failed: $e2');
+        }
+      }
+    }
   }
 }
 
