@@ -64,10 +64,31 @@ class _NotificationScreenState extends State<NotificationScreen> {
         _requestController.setEmployeeDocumentId(employee.id);
         
         debugPrint('[NotificationScreen] Loaded employee data: ID=${employee.id}, Category=${employee.categorieId}');
+        
+        // Force rebuild to update UI
+        if (mounted) {
+          setState(() {});
+        }
       }
     } catch (e) {
       debugPrint('[NotificationScreen] Error loading employee data: $e');
     }
+  }
+  
+  // Get employee document ID - try to get it synchronously if available
+  String? _getEmployeeDocumentIdSync() {
+    final user = _authController.currentUser.value;
+    if (user == null) return null;
+    
+    // If already loaded for this user, return it
+    if (_currentEmployeeDocumentId != null && _loadedUserId == user.id) {
+      return _currentEmployeeDocumentId;
+    }
+    
+    // Trigger async load for next rebuild
+    _loadEmployeeData();
+    
+    return null;
   }
   
   Future<void> _refreshRequests() async {
@@ -112,11 +133,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
             return const LoadingWidget();
           }
 
-          // Ensure employee data is loaded
-          if (_loadedUserId != user.id || _currentCategorieId == null) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
+          // Ensure employee data is loaded - do it synchronously if possible
+          if (_loadedUserId != user.id || _currentEmployeeDocumentId == null || _currentCategorieId == null) {
+            // Load immediately if not loaded
+            if (_currentEmployeeDocumentId == null || _loadedUserId != user.id) {
               _loadEmployeeData();
-            });
+            }
           }
           
           // Ensure stream is active (it should be started at dashboard level)
@@ -149,7 +171,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
           // Filter requests - only exclude own requests
           // Keep showing accepted/refused requests, but they won't count in notification counter
-          final filteredRequests = <RequestModel>[];
+          // Store IDs instead of objects to ensure we always get the latest data
+          final filteredRequestIds = <String>[];
           for (var i = 0; i < requestsLength; i++) {
             final request = requestsList[i];
             
@@ -160,13 +183,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
             if (request.clientId == user.id) continue;
             
             // Show all requests (including accepted/refused) - they just won't count in badge
-            filteredRequests.add(request);
+            filteredRequestIds.add(request.id);
           }
           
           // Debug log to verify updates
-          debugPrint('[NotificationScreen] Build: Filtered=${filteredRequests.length}, Total=$requestsLength, Loading=$isLoading');
+          debugPrint('[NotificationScreen] Build: Filtered=${filteredRequestIds.length}, Total=$requestsLength, Loading=$isLoading');
 
-          if (filteredRequests.isEmpty) {
+          if (filteredRequestIds.isEmpty) {
             return RefreshIndicator(
               onRefresh: _refreshRequests,
               child: SingleChildScrollView(
@@ -188,14 +211,29 @@ class _NotificationScreenState extends State<NotificationScreen> {
             color: AppColors.primary,
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: filteredRequests.length,
+              itemCount: filteredRequestIds.length,
               itemBuilder: (context, index) {
-              final request = filteredRequests[index];
-              final isAccepted = _isRequestAccepted(request);
-              final isRefused = _isRequestRefused(request);
-              final isRefusedByClient = _isRequestRefusedByClient(request);
-              debugPrint('[NotificationScreen] Request ${request.id}: isAccepted=$isAccepted, isRefused=$isRefused, isRefusedByClient=$isRefusedByClient');
-              return _buildNotificationCard(context, request, isAccepted, isRefused, isRefusedByClient, index);
+              final requestId = filteredRequestIds[index];
+              // Use Obx to ensure reactivity when requests list updates
+              return Obx(() {
+                // Always get the latest request from the reactive list
+                final currentRequests = _requestController.requests;
+                final request = currentRequests.firstWhere(
+                  (r) => r.id == requestId,
+                  orElse: () => RequestModel(
+                    id: requestId,
+                    description: '',
+                    latitude: 0,
+                    longitude: 0,
+                    address: '',
+                    categorieId: '',
+                    clientId: '',
+                    createdAt: DateTime.now(),
+                    updatedAt: DateTime.now(),
+                  ),
+                );
+                return _buildNotificationCard(context, request, index);
+              });
               },
             ),
           );
@@ -207,9 +245,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Widget _buildNotificationCard(
     BuildContext context,
     RequestModel request,
-    bool isAccepted,
-    bool isRefused,
-    bool isRefusedByClient,
     int index,
   ) {
     return TweenAnimationBuilder<double>(
@@ -265,7 +300,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           gradient: LinearGradient(
                             colors: [
                               AppColors.primary.withOpacity(0.15),
-                              AppColors.primaryLight.withOpacity(0.1),
+                              const Color.fromARGB(255, 6, 8, 24).withOpacity(0.1),
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -444,76 +479,107 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  // Waiting Banner (if accepted)
-                  if (isAccepted) ...[
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.info.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppColors.info.withOpacity(0.3),
-                          width: 1,
+                  // Waiting Banner (if accepted) and Action Buttons - calculated reactively
+                  Obx(() {
+                    // Force reactivity by accessing the requests list length first
+                    final requestsLength = _requestController.requests.length;
+                    
+                    // Get the latest request from the reactive list to ensure we have the most up-to-date data
+                    // Access the list directly to ensure reactivity
+                    final latestRequest = _requestController.requests.firstWhere(
+                      (r) => r.id == request.id,
+                      orElse: () {
+                        // If request not found, return the passed request as fallback
+                        debugPrint('[NotificationScreen] ⚠️ Request ${request.id} not found in requests list (length: $requestsLength)');
+                        return request;
+                      },
+                    );
+                    
+                    // Get employee document ID - ensure it's loaded
+                    String? employeeDocumentId = _getEmployeeDocumentIdSync();
+                    
+                    // If employee ID is not yet loaded, show loading state
+                    // This ensures we always have the correct employee ID before checking request status
+                    if (employeeDocumentId == null) {
+                      // Employee ID not loaded yet - trigger load and show loading
+                      // On next rebuild after _loadEmployeeData completes, employeeDocumentId will be available
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: CircularProgressIndicator(),
                         ),
-                      ),
-                      child: Row(
-                        children: [
+                      );
+                    }
+                    
+                    // Recalculate these values reactively inside Obx to ensure updates
+                    final currentIsRefused = _isRequestRefused(latestRequest, employeeDocumentId);
+                    final currentIsRefusedByClient = _isRequestRefusedByClient(latestRequest, employeeDocumentId);
+                    final currentIsAccepted = _isRequestAccepted(latestRequest, employeeDocumentId);
+                    
+                    // Debug log to verify state
+                    debugPrint('[NotificationScreen] Request ${request.id}: employeeId=$employeeDocumentId, refusedIds=${latestRequest.refusedEmployeeIds}, acceptedIds=${latestRequest.acceptedEmployeeIds}, clientRefusedIds=${latestRequest.clientRefusedEmployeeIds}');
+                    debugPrint('[NotificationScreen] Request ${request.id}: isRefused=$currentIsRefused, isRefusedByClient=$currentIsRefusedByClient, isAccepted=$currentIsAccepted');
+                    
+                    return Column(
+                      children: [
+                        // Waiting Banner (if accepted)
+                        if (currentIsAccepted) ...[
                           Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: AppColors.info.withOpacity(0.2),
-                              shape: BoxShape.circle,
+                              color: AppColors.info.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppColors.info.withOpacity(0.3),
+                                width: 1,
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.hourglass_empty_rounded,
-                              color: AppColors.info,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            child: Row(
                               children: [
-                                Text(
-                                  'waiting_for_client'.tr,
-                                  style: AppTextStyles.bodyMedium.copyWith(
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.info.withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.hourglass_empty_rounded,
                                     color: AppColors.info,
-                                    fontWeight: FontWeight.bold,
+                                    size: 20,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'waiting_for_client_message'.tr,
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 11,
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'waiting_for_client'.tr,
+                                        style: AppTextStyles.bodyMedium.copyWith(
+                                          color: AppColors.info,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'waiting_for_client_message'.tr,
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
                           ),
+                          const SizedBox(height: 16),
                         ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  // Show refused message if employee refused or client refused, otherwise show action buttons
-                  Obx(() {
-                    // Get the latest request from the reactive list to ensure we have the most up-to-date data
-                    final latestRequest = _requestController.requests.firstWhere(
-                      (r) => r.id == request.id,
-                      orElse: () => request,
-                    );
-                    
-                    // Recalculate these values reactively inside Obx to ensure updates
-                    final currentIsRefused = _isRequestRefused(latestRequest);
-                    final currentIsRefusedByClient = _isRequestRefusedByClient(latestRequest);
-                    final currentIsAccepted = _isRequestAccepted(latestRequest);
-                    
-                    if (currentIsRefused || currentIsRefusedByClient) {
-                      // Refused Message
-                      return Container(
+                        // Show refused message or action buttons
+                        if (currentIsRefused || currentIsRefusedByClient)
+                          // Refused Message
+                          Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: AppColors.error.withOpacity(0.1),
@@ -549,10 +615,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
                             ),
                           ],
                         ),
-                      );
-                    } else {
-                      // Action Buttons
-                      return Row(
+                      )
+                        else
+                          // Action Buttons
+                          Row(
                         children: [
                           Expanded(
                             child: _buildActionButton(
@@ -584,8 +650,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
                             ),
                           ),
                         ],
-                      );
-                    }
+                      ),
+                      ],
+                    );
                   }),
                 ],
               ),
@@ -744,24 +811,22 @@ class _NotificationScreenState extends State<NotificationScreen> {
     }
   }
 
-  bool _isRequestAccepted(RequestModel request) {
-    if (_currentEmployeeDocumentId == null) return false;
-    return request.acceptedEmployeeIds.contains(_currentEmployeeDocumentId);
+
+  bool _isRequestAccepted(RequestModel request, String? employeeDocumentId) {
+    if (employeeDocumentId == null) return false;
+    return request.acceptedEmployeeIds.contains(employeeDocumentId);
   }
 
-  bool _isRequestRefused(RequestModel request) {
-    if (_currentEmployeeDocumentId == null) return false;
-    return request.refusedEmployeeIds.contains(_currentEmployeeDocumentId);
+  bool _isRequestRefused(RequestModel request, String? employeeDocumentId) {
+    if (employeeDocumentId == null) return false;
+    return request.refusedEmployeeIds.contains(employeeDocumentId);
   }
 
-  bool _isRequestRefusedByClient(RequestModel request) {
-    if (_currentEmployeeDocumentId == null) {
-      debugPrint('[NotificationScreen] _isRequestRefusedByClient: _currentEmployeeDocumentId is null');
+  bool _isRequestRefusedByClient(RequestModel request, String? employeeDocumentId) {
+    if (employeeDocumentId == null) {
       return false;
     }
-    final isRefused = request.clientRefusedEmployeeIds.contains(_currentEmployeeDocumentId);
-    debugPrint('[NotificationScreen] _isRequestRefusedByClient: Request=${request.id}, EmployeeId=$_currentEmployeeDocumentId, ClientRefusedIds=${request.clientRefusedEmployeeIds}, Result=$isRefused');
-    return isRefused;
+    return request.clientRefusedEmployeeIds.contains(employeeDocumentId);
   }
 
   Future<void> _acceptRequest(String requestId) async {

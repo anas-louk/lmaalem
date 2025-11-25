@@ -14,7 +14,6 @@ import '../../components/empty_state.dart';
 import '../../components/app_sidebar.dart';
 import '../../components/language_switcher.dart';
 import 'notification_screen.dart';
-import 'history_screen.dart';
 import 'chat_screen.dart';
 import '../../widgets/call_button.dart';
 
@@ -27,18 +26,11 @@ class EmployeeDashboardScreen extends StatefulWidget {
 }
 
 class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
-  int _currentIndex = 1; // Default to Home (middle)
   final RequestController _requestController = Get.put(RequestController());
   final AuthController _authController = Get.find<AuthController>();
   final EmployeeController _employeeController = Get.put(EmployeeController());
   String? _loadedUserId;
   String? _currentCategorieId;
-
-  final List<Widget> _screens = [
-    const NotificationScreen(),
-    const _EmployeeHomeScreen(),
-    const HistoryScreen(),
-  ];
 
   @override
   void initState() {
@@ -98,12 +90,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
       });
     }
 
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-    );
+    return const _EmployeeHomeScreen();
   }
 }
 
@@ -121,6 +108,7 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
   final EmployeeController _employeeController = Get.put(EmployeeController());
   final RequestController _requestController = Get.find<RequestController>();
   String? _loadedUserId;
+  String? _currentEmployeeDocumentId;
 
   void _openQRScanner() async {
     final result = await Get.toNamed(AppRoutes.AppRoutes.qrScanner);
@@ -148,6 +136,7 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
       final employee = await _employeeController.getEmployeeByUserId(user.id);
       if (employee != null) {
         _loadedUserId = user.id;
+        _currentEmployeeDocumentId = employee.id;
         // Stream missions using employee document ID for real-time updates
         await _missionController.streamMissionsByEmployee(employee.id);
       }
@@ -210,9 +199,88 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
-        actions: const [
-          LanguageSwitcher(),
-          SizedBox(width: 8),
+        actions: [
+          // Notification icon with badge
+          Obx(
+            () {
+              final user = _authController.currentUser.value;
+              final requestsList = _requestController.requests;
+              
+              // Get employee document ID - use cached value if available
+              String? employeeDocumentId = _currentEmployeeDocumentId;
+              
+              // If not loaded, try to get from RequestController cache or load it
+              if (employeeDocumentId == null && user != null) {
+                // RequestController should have it cached from stream initialization
+                // We'll load it in background for next rebuild
+                WidgetsBinding.instance.addPostFrameCallback((_) async {
+                  final employee = await _employeeController.getEmployeeByUserId(user.id);
+                  if (employee != null && mounted) {
+                    setState(() {
+                      _currentEmployeeDocumentId = employee.id;
+                    });
+                  }
+                });
+              }
+              
+              final notificationCount = requestsList.where((request) {
+                // Only count pending requests
+                if (request.statut.toLowerCase() != 'pending') return false;
+                // Don't count own requests
+                if (user != null && request.clientId == user.id) return false;
+                // Don't count requests that employee has already accepted
+                if (employeeDocumentId != null && 
+                    request.acceptedEmployeeIds.contains(employeeDocumentId)) {
+                  return false;
+                }
+                // Don't count requests that employee has already refused
+                if (employeeDocumentId != null && 
+                    request.refusedEmployeeIds.contains(employeeDocumentId)) {
+                  return false;
+                }
+                return true;
+              }).length;
+
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined),
+                    onPressed: () {
+                      Get.to(() => const NotificationScreen());
+                    },
+                  ),
+                  if (notificationCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppColors.error,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          notificationCount > 99 ? '99+' : notificationCount.toString(),
+                          style: const TextStyle(
+                            color: AppColors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          const LanguageSwitcher(),
+          const SizedBox(width: 8),
         ],
       ),
       body: Obx(
@@ -278,7 +346,13 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
                       return const LoadingWidget();
                     }
 
-                    if (missionsLength == 0) {
+                    // Filter only active missions (not completed or cancelled)
+                    final activeMissions = _missionController.missions.where((mission) {
+                      final status = mission.statutMission.toLowerCase();
+                      return status != 'completed' && status != 'cancelled';
+                    }).toList();
+
+                    if (activeMissions.isEmpty) {
                       return EmptyState(
                         icon: Icons.work_outline,
                         title: 'no_missions'.tr,
@@ -289,9 +363,9 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
                     return ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _missionController.missions.length,
+                      itemCount: activeMissions.length,
                       itemBuilder: (context, index) {
-                        final mission = _missionController.missions[index];
+                        final mission = activeMissions[index];
                         final canChat = mission.requestId != null &&
                             mission.statutMission.toLowerCase() != 'completed';
 

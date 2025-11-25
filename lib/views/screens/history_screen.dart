@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/request_controller.dart';
+import '../../controllers/mission_controller.dart';
+import '../../controllers/employee_controller.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../components/loading_widget.dart';
@@ -21,19 +23,51 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   final AuthController _authController = Get.find<AuthController>();
   final RequestController _requestController = Get.put(RequestController());
+  final MissionController _missionController = Get.put(MissionController());
+  final EmployeeController _employeeController = Get.put(EmployeeController());
   bool _requestsLoaded = false;
+  bool _missionsLoaded = false;
+  String? _loadedUserId;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadRequests());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
-  void _loadRequests() {
+  void _loadData() {
     final user = _authController.currentUser.value;
-    if (user != null && !_requestsLoaded) {
-      _requestController.streamRequestsByClient(user.id);
+    if (user == null) return;
+
+    if (user.type.toLowerCase() == 'employee') {
+      _loadMissions(user.id);
+    } else {
+      _loadRequests(user.id);
+    }
+  }
+
+  void _loadRequests(String userId) {
+    if (!_requestsLoaded || _loadedUserId != userId) {
+      _requestController.streamRequestsByClient(userId);
       _requestsLoaded = true;
+      _loadedUserId = userId;
+    }
+  }
+
+  Future<void> _loadMissions(String userId) async {
+    if (!_missionsLoaded || _loadedUserId != userId) {
+      try {
+        final employee = await _employeeController.getEmployeeByUserId(userId);
+        if (employee != null) {
+          await _missionController.streamMissionsByEmployee(employee.id);
+          _missionsLoaded = true;
+          _loadedUserId = userId;
+        }
+      } catch (e) {
+        // Handle error
+      }
     }
   }
 
@@ -47,10 +81,119 @@ class _HistoryScreenState extends State<HistoryScreen> {
           return const LoadingWidget();
         }
 
+        // Reload if user changes
+        if (_loadedUserId != user.id) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _loadData();
+            }
+          });
+        }
+
+        // For employees, show missions history
+        if (user.type.toLowerCase() == 'employee') {
+          if (_missionController.isLoading.value &&
+              _missionController.missions.isEmpty) {
+            return const LoadingWidget();
+          }
+
+          // Filter completed or cancelled missions
+          final archivedMissions = _missionController.missions
+              .where((mission) {
+                final status = mission.statutMission.toLowerCase();
+                return status == 'completed' || status == 'cancelled';
+              })
+              .toList();
+
+          if (archivedMissions.isEmpty) {
+            return EmptyState(
+              icon: Icons.history,
+              title: 'no_history'.tr,
+              message: 'no_history_message'.tr,
+            );
+          }
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+            children: [
+              InDriveSectionTitle(
+                title: 'my_missions'.tr,
+                subtitle: 'Toutes les missions terminées ou annulées.',
+              ),
+              const SizedBox(height: 16),
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: archivedMissions.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final mission = archivedMissions[index];
+                  final statusColor = _getMissionStatusColor(mission.statutMission);
+                  return InDriveCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${'mission'.tr} #${mission.id.substring(0, 8)}',
+                                style: AppTextStyles.h4,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: statusColor.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Text(
+                                _getMissionStatusText(mission.statutMission),
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: statusColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${'mission_price'.tr}: ${mission.prixMission.toStringAsFixed(2)} DH',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.7),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${'mission_date'.tr}: ${_formatDate(mission.dateStart)}',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          );
+        }
+
+        // For clients, show requests history
         if (!_requestsLoaded) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
-              _loadRequests();
+              _loadRequests(user.id);
             }
           });
         }
@@ -188,6 +331,36 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   String _getStatusText(String statut) {
     switch (statut.toLowerCase()) {
+      case 'completed':
+        return 'status_completed'.tr;
+      case 'cancelled':
+        return 'status_cancelled'.tr;
+      default:
+        return statut;
+    }
+  }
+
+  Color _getMissionStatusColor(String statut) {
+    switch (statut.toLowerCase()) {
+      case 'pending':
+        return AppColors.warning;
+      case 'in progress':
+        return AppColors.info;
+      case 'completed':
+        return AppColors.success;
+      case 'cancelled':
+        return AppColors.error;
+      default:
+        return AppColors.grey;
+    }
+  }
+
+  String _getMissionStatusText(String statut) {
+    switch (statut.toLowerCase()) {
+      case 'pending':
+        return 'status_pending'.tr;
+      case 'in progress':
+        return 'status_in_progress'.tr;
       case 'completed':
         return 'status_completed'.tr;
       case 'cancelled':
