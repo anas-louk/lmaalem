@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../core/enums/request_flow_state.dart';
+import 'accepted_employee_summary.dart';
+
 /// Modèle de données pour une demande client
 class RequestModel {
   final String id;
@@ -140,6 +143,25 @@ class RequestModel {
   @override
   String toString() {
     return 'RequestModel(id: $id, statut: $statut, categorieId: $categorieId)';
+  }
+}
+
+/// Extension pour ajouter des propriétés calculées à RequestModel
+extension RequestModelX on RequestModel {
+  /// Convertit le statut String en RequestFlowState
+  RequestFlowState get requestStatus {
+    return RequestFlowStateX.fromLegacyStatut(statut);
+  }
+
+  /// Récupère l'employé accepté (si disponible)
+  /// Note: Cette propriété peut être null si aucun employé n'a été accepté
+  AcceptedEmployeeSummary? get acceptedEmployee {
+    // Si employeeId est défini, on peut créer un résumé basique
+    // Dans un cas réel, on devrait charger les détails de l'employé depuis la base de données
+    if (employeeId != null && employeeId!.isNotEmpty) {
+      return AcceptedEmployeeSummary(id: employeeId!);
+    }
+    return null;
   }
 }
 

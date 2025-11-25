@@ -1,6 +1,8 @@
 import '../models/request_model.dart';
 import '../../core/services/firestore_service.dart';
 import '../../core/utils/logger.dart';
+import '../../core/enums/request_flow_state.dart';
+import '../models/accepted_employee_summary.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Repository pour gérer les demandes dans Firestore
@@ -206,6 +208,75 @@ class RequestRepository {
           requests.sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Descending
           return requests;
         });
+  }
+
+  /// Récupérer la demande active d'un client (Pending ou Accepted)
+  Future<RequestModel?> getActiveRequestForClient(String clientId) async {
+    try {
+      final clientRequests = await getRequestsByClientId(clientId);
+      return clientRequests.firstWhere(
+        (request) =>
+            request.statut.toLowerCase() == 'pending' ||
+            request.statut.toLowerCase() == 'accepted',
+        orElse: () => throw StateError('No active request found'),
+      );
+    } on StateError {
+      return null;
+    } catch (e, stackTrace) {
+      Logger.logError('RequestRepository.getActiveRequestForClient', e, stackTrace);
+      return null;
+    }
+  }
+
+  /// Mettre à jour les champs du flux de demande
+  Future<void> updateRequestFlowFields({
+    required String requestId,
+    required RequestFlowState flowState,
+    AcceptedEmployeeSummary? acceptedEmployee,
+  }) async {
+    try {
+      final request = await getRequestById(requestId);
+      if (request == null) {
+        throw 'Demande non trouvée';
+      }
+
+      // Convertir RequestFlowState en statut String
+      String newStatut;
+      switch (flowState) {
+        case RequestFlowState.pending:
+          newStatut = 'Pending';
+          break;
+        case RequestFlowState.accepted:
+          newStatut = 'Accepted';
+          break;
+        case RequestFlowState.completed:
+          newStatut = 'Completed';
+          break;
+        case RequestFlowState.canceled:
+          newStatut = 'Cancelled';
+          break;
+        case RequestFlowState.idle:
+          newStatut = request.statut; // Garder le statut actuel
+          break;
+      }
+
+      // Mettre à jour l'employeeId si un employé accepté est fourni
+      String? newEmployeeId = request.employeeId;
+      if (acceptedEmployee != null && acceptedEmployee.id.isNotEmpty) {
+        newEmployeeId = acceptedEmployee.id;
+      }
+
+      final updatedRequest = request.copyWith(
+        statut: newStatut,
+        employeeId: newEmployeeId,
+        updatedAt: DateTime.now(),
+      );
+
+      await updateRequest(updatedRequest);
+    } catch (e, stackTrace) {
+      Logger.logError('RequestRepository.updateRequestFlowFields', e, stackTrace);
+      throw 'Erreur lors de la mise à jour du flux de demande: $e';
+    }
   }
 }
 
