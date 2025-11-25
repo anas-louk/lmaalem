@@ -145,16 +145,16 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
   final ClientRepository _clientRepository = ClientRepository();
   String? _loadedUserId;
 
-  // Formulaire de demande
+  // Formulaire de demande - Utiliser ValueNotifier pour éviter les setState()
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
-  String? _selectedCategorieId;
-  String? _currentAddress;
-  double? _latitude;
-  double? _longitude;
-  bool _isLoadingLocation = false;
-  bool _isSubmitting = false;
-  List<File> _selectedImages = [];
+  final ValueNotifier<String?> _selectedCategorieIdNotifier = ValueNotifier<String?>(null);
+  final ValueNotifier<String?> _currentAddressNotifier = ValueNotifier<String?>(null);
+  final ValueNotifier<double?> _latitudeNotifier = ValueNotifier<double?>(null);
+  final ValueNotifier<double?> _longitudeNotifier = ValueNotifier<double?>(null);
+  final ValueNotifier<bool> _isLoadingLocationNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _isSubmittingNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<List<File>> _selectedImagesNotifier = ValueNotifier<List<File>>([]);
 
   // Employés acceptés (gérés par stream temps réel)
   final ValueNotifier<List<EmployeeModel>> _acceptedEmployeesNotifier = ValueNotifier<List<EmployeeModel>>([]);
@@ -162,8 +162,8 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
   final ValueNotifier<bool> _isLoadingEmployees = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _isConnected = ValueNotifier<bool>(true);
   
-  // Employé sélectionné (si demande acceptée)
-  EmployeeModel? _selectedEmployee;
+  // Employé sélectionné (si demande acceptée) - Utiliser ValueNotifier
+  final ValueNotifier<EmployeeModel?> _selectedEmployeeNotifier = ValueNotifier<EmployeeModel?>(null);
   
   // RequestModel actif pour les animations
   RequestModel? _currentRequestForAnimation;
@@ -190,6 +190,14 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
     _acceptedEmployeesNotifier.dispose();
     _isLoadingEmployees.dispose();
     _isConnected.dispose();
+    _selectedCategorieIdNotifier.dispose();
+    _currentAddressNotifier.dispose();
+    _latitudeNotifier.dispose();
+    _longitudeNotifier.dispose();
+    _isLoadingLocationNotifier.dispose();
+    _isSubmittingNotifier.dispose();
+    _selectedImagesNotifier.dispose();
+    _selectedEmployeeNotifier.dispose();
     super.dispose();
   }
 
@@ -228,11 +236,9 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
     try {
       final locationData = await _locationService.getCurrentLocationWithAddress();
       if (mounted) {
-        setState(() {
-          _latitude = locationData['latitude'] as double;
-          _longitude = locationData['longitude'] as double;
-          _currentAddress = locationData['address'] as String;
-        });
+        _latitudeNotifier.value = locationData['latitude'] as double;
+        _longitudeNotifier.value = locationData['longitude'] as double;
+        _currentAddressNotifier.value = locationData['address'] as String;
       }
     } catch (e) {
       // Silently fail - location will be requested when submitting
@@ -242,26 +248,20 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
   Future<void> _getCurrentLocation() async {
     try {
       if (!mounted) return;
-      setState(() {
-        _isLoadingLocation = true;
-      });
+      _isLoadingLocationNotifier.value = true;
 
       final locationData = await _locationService.getCurrentLocationWithAddress();
 
       if (mounted) {
-        setState(() {
-          _latitude = locationData['latitude'] as double;
-          _longitude = locationData['longitude'] as double;
-          _currentAddress = locationData['address'] as String;
-          _isLoadingLocation = false;
-        });
+        _latitudeNotifier.value = locationData['latitude'] as double;
+        _longitudeNotifier.value = locationData['longitude'] as double;
+        _currentAddressNotifier.value = locationData['address'] as String;
+        _isLoadingLocationNotifier.value = false;
         SnackbarHelper.showSuccess('location_retrieved'.tr);
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isLoadingLocation = false;
-        });
+        _isLoadingLocationNotifier.value = false;
         SnackbarHelper.showError(e.toString());
       }
     }
@@ -340,12 +340,12 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
       return;
     }
 
-    if (_selectedCategorieId == null) {
+    if (_selectedCategorieIdNotifier.value == null) {
       SnackbarHelper.showError('category_required'.tr);
       return;
     }
 
-    if (_latitude == null || _longitude == null || _currentAddress == null) {
+    if (_latitudeNotifier.value == null || _longitudeNotifier.value == null || _currentAddressNotifier.value == null) {
       SnackbarHelper.showError('location_required'.tr);
       return;
     }
@@ -378,20 +378,18 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
       return;
     }
 
-    setState(() {
-      _isSubmitting = true;
-    });
+    _isSubmittingNotifier.value = true;
 
     try {
       final requestId = FirebaseFirestore.instance.collection('requests').doc().id;
 
       // Uploader les images si disponibles
       List<String> imageUrls = [];
-      if (_selectedImages.isNotEmpty) {
-        for (int i = 0; i < _selectedImages.length; i++) {
+      if (_selectedImagesNotifier.value.isNotEmpty) {
+        for (int i = 0; i < _selectedImagesNotifier.value.length; i++) {
           final imageUrl = await _storageService.uploadRequestImage(
             requestId: requestId,
-            imageFile: _selectedImages[i],
+            imageFile: _selectedImagesNotifier.value[i],
             index: i,
           );
           imageUrls.add(imageUrl);
@@ -403,10 +401,10 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
         id: requestId,
         description: _descriptionController.text.trim(),
         images: imageUrls.isEmpty ? null : imageUrls,
-        latitude: _latitude!,
-        longitude: _longitude!,
-        address: _currentAddress!,
-        categorieId: _selectedCategorieId!,
+        latitude: _latitudeNotifier.value!,
+        longitude: _longitudeNotifier.value!,
+        address: _currentAddressNotifier.value!,
+        categorieId: _selectedCategorieIdNotifier.value!,
         clientId: _authController.currentUser.value!.id,
         statut: 'Pending',
         createdAt: DateTime.now(),
@@ -423,10 +421,8 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
         if (mounted) {
           // Réinitialiser le formulaire
           _descriptionController.clear();
-          setState(() {
-            _selectedCategorieId = null;
-            _selectedImages = [];
-          });
+          _selectedCategorieIdNotifier.value = null;
+          _selectedImagesNotifier.value = [];
           
         // Le stream temps réel sera initialisé automatiquement dans build()
           
@@ -437,9 +433,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
       SnackbarHelper.showError('${'error_submitting'.tr}: $e');
     } finally {
       if (mounted) {
-        setState(() {
-          _isSubmitting = false;
-        });
+        _isSubmittingNotifier.value = false;
       }
     }
   }
@@ -449,9 +443,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
     if (activeRequest == null) return;
 
     if (!mounted) return;
-    setState(() {
-      _isSubmitting = true;
-    });
+    _isSubmittingNotifier.value = true;
 
     try {
       final success = await _requestController.acceptEmployeeForRequest(
@@ -467,14 +459,15 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
         await _loadSelectedEmployee(employeeId);
         
         // Mettre à jour le RequestFlowController
+        final selectedEmployee = _selectedEmployeeNotifier.value;
         await _requestFlowController.markAccepted(
           AcceptedEmployeeSummary(
             id: employeeId,
-            name: _selectedEmployee?.nomComplet,
-            service: _selectedEmployee?.competence,
-            city: _selectedEmployee?.ville,
+            name: selectedEmployee?.nomComplet,
+            service: selectedEmployee?.competence,
+            city: selectedEmployee?.ville,
             rating: _employeeStatistics[employeeId]?.averageRating,
-            photoUrl: _selectedEmployee?.image,
+            photoUrl: selectedEmployee?.image,
           ),
         );
         
@@ -487,9 +480,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
       SnackbarHelper.showError('${'error_accepting_employee'.tr}: $e');
     } finally {
       if (mounted) {
-        setState(() {
-          _isSubmitting = false;
-        });
+        _isSubmittingNotifier.value = false;
       }
     }
   }
@@ -555,9 +546,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
     try {
       final employee = await _employeeController.getEmployeeById(employeeId);
       if (employee != null && mounted) {
-        setState(() {
-          _selectedEmployee = employee;
-        });
+        _selectedEmployeeNotifier.value = employee;
         // Charger les statistiques
         if (!_employeeStatistics.containsKey(employeeId)) {
           final stats = await _statisticsService.getEmployeeStatisticsByStringId(employeeId);
@@ -577,9 +566,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
       final List<XFile> images = await picker.pickMultiImage();
 
       if (images.isNotEmpty && mounted) {
-        setState(() {
-          _selectedImages = images.map((image) => File(image.path)).toList();
-        });
+        _selectedImagesNotifier.value = images.map((image) => File(image.path)).toList();
       }
     } catch (e) {
       SnackbarHelper.showError('${'error_selecting_images'.tr}: $e');
@@ -629,8 +616,21 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
             _requestStreamSubscription = _requestRepository.streamRequest(activeRequest.id).listen((request) {
               if (request != null && mounted) {
                 // Si un employé est sélectionné, le charger
-                if (request.employeeId != null && _selectedEmployee == null) {
+                if (request.employeeId != null && _selectedEmployeeNotifier.value == null) {
                   _loadSelectedEmployee(request.employeeId!);
+                }
+                // Mettre à jour le RequestFlowController si l'état change
+                if (request.statut.toLowerCase() == 'accepted' && flowState == RequestFlowState.pending) {
+                  _requestFlowController.markAccepted(
+                    AcceptedEmployeeSummary(
+                      id: request.employeeId ?? '',
+                      name: _selectedEmployeeNotifier.value?.nomComplet,
+                      service: _selectedEmployeeNotifier.value?.competence,
+                      city: _selectedEmployeeNotifier.value?.ville,
+                      rating: _employeeStatistics[request.employeeId ?? '']?.averageRating,
+                      photoUrl: _selectedEmployeeNotifier.value?.image,
+                    ),
+                  );
                 }
               }
             });
@@ -642,7 +642,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
             }
             
             // Charger l'employé sélectionné si nécessaire
-            if (flowState == RequestFlowState.accepted && activeRequest.employeeId != null && _selectedEmployee == null) {
+            if (flowState == RequestFlowState.accepted && activeRequest.employeeId != null && _selectedEmployeeNotifier.value == null) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) {
                   _loadSelectedEmployee(activeRequest.employeeId!);
@@ -674,37 +674,78 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Section A : Header client OU Liste employés
-          if (flowState == RequestFlowState.idle)
-            _buildUserHeader(user)
-          else if (flowState == RequestFlowState.pending && activeRequest != null)
-            _buildAcceptedEmployeesList(activeRequest)
-          else if (flowState == RequestFlowState.accepted && activeRequest != null)
-            _selectedEmployee != null
-                ? _buildSelectedEmployeeHeader(_selectedEmployee!)
-                : const LoadingWidget()
-          else
-            _buildUserHeader(user),
+          // Section A : Header client OU Liste employés avec transition fluide
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0.0, 0.1),
+                    end: Offset.zero,
+                  ).animate(CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOut,
+                  )),
+                  child: child,
+                ),
+              );
+            },
+            child: flowState == RequestFlowState.idle
+                ? _buildUserHeader(user)
+                : flowState == RequestFlowState.pending && activeRequest != null
+                    ? _buildAcceptedEmployeesList(activeRequest)
+                    : flowState == RequestFlowState.accepted && activeRequest != null
+                        ? ValueListenableBuilder<EmployeeModel?>(
+                            valueListenable: _selectedEmployeeNotifier,
+                            builder: (context, selectedEmployee, _) {
+                              return selectedEmployee != null
+                                  ? _buildSelectedEmployeeHeader(selectedEmployee)
+                                  : const LoadingWidget();
+                            },
+                          )
+                        : _buildUserHeader(user),
+          ),
           
           const SizedBox(height: 24),
 
-          // Section B : Formulaire OU Infos demande
-          if (flowState == RequestFlowState.idle)
-            Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildCategorySelector(),
-                  const SizedBox(height: 24),
-                  _buildDescriptionForm(),
-                  const SizedBox(height: 24),
-                  _buildSubmitButton(),
-                ],
-              ),
-            )
-          else if (activeRequest != null)
-            _buildRequestDetailsCard(activeRequest, flowState),
+          // Section B : Formulaire OU Infos demande avec transition fluide
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0.0, 0.1),
+                    end: Offset.zero,
+                  ).animate(CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOut,
+                  )),
+                  child: child,
+                ),
+              );
+            },
+            child: flowState == RequestFlowState.idle
+                ? Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildCategorySelector(),
+                        const SizedBox(height: 24),
+                        _buildDescriptionForm(),
+                        const SizedBox(height: 24),
+                        _buildSubmitButton(),
+                      ],
+                    ),
+                  )
+                : activeRequest != null
+                    ? _buildRequestDetailsCard(activeRequest, flowState)
+                    : const SizedBox.shrink(),
+          ),
           
           const SizedBox(height: 24),
 
@@ -769,25 +810,35 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  _currentAddress ?? 'Localisation non disponible',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                  ),
-                ),
+                child: ValueListenableBuilder<String?>(
+                valueListenable: _currentAddressNotifier,
+                builder: (context, address, _) {
+                  return Text(
+                    address ?? 'Localisation non disponible',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    ),
+                  );
+                },
               ),
-              if (_isLoadingLocation)
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              else
-                IconButton(
-                  icon: const Icon(Icons.refresh, size: 20),
-                  onPressed: _getCurrentLocation,
-                  tooltip: 'refresh_location'.tr,
-                ),
+              ),
+              ValueListenableBuilder<bool>(
+                valueListenable: _isLoadingLocationNotifier,
+                builder: (context, isLoading, _) {
+                  if (isLoading) {
+                    return const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    );
+                  }
+                  return IconButton(
+                    icon: const Icon(Icons.refresh, size: 20),
+                    onPressed: _getCurrentLocation,
+                    tooltip: 'refresh_location'.tr,
+                  );
+                },
+              ),
             ],
           ),
         ],
@@ -823,63 +874,66 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
               spacing: 16,
               runSpacing: 16,
               children: _categorieController.categories.map((categorie) {
-                final isSelected = _selectedCategorieId == categorie.id;
-                return GestureDetector(
-                  onTap: () {
-                    if (mounted) {
-                      setState(() {
-                        _selectedCategorieId = categorie.id;
-                      });
-                    }
-                  },
-                  child: Container(
-                    width: 80,
-                    child: Column(
-                      children: [
-                        // Icône circulaire
-                        Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isSelected
-                                ? AppColors.secondary.withOpacity(0.15)
-                                : AppColors.greyLight,
-                            border: Border.all(
-                              color: isSelected
-                                  ? AppColors.secondary
-                                  : Colors.transparent,
-                              width: 3,
+                return ValueListenableBuilder<String?>(
+                  valueListenable: _selectedCategorieIdNotifier,
+                  builder: (context, selectedId, _) {
+                    final isSelected = selectedId == categorie.id;
+                    return GestureDetector(
+                      onTap: () {
+                        if (mounted) {
+                          _selectedCategorieIdNotifier.value = categorie.id;
+                        }
+                      },
+                      child: Container(
+                        width: 80,
+                        child: Column(
+                          children: [
+                            // Icône circulaire
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isSelected
+                                    ? AppColors.secondary.withOpacity(0.15)
+                                    : AppColors.greyLight,
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppColors.secondary
+                                      : Colors.transparent,
+                                  width: 3,
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  categorie.nom.substring(0, 1).toUpperCase(),
+                                  style: AppTextStyles.h3.copyWith(
+                                    color: isSelected
+                                        ? AppColors.secondary
+                                        : AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              categorie.nom.substring(0, 1).toUpperCase(),
-                              style: AppTextStyles.h3.copyWith(
+                            const SizedBox(height: 8),
+                            // Nom de la catégorie
+                            Text(
+                              categorie.nom,
+                              style: AppTextStyles.bodySmall.copyWith(
                                 color: isSelected
                                     ? AppColors.secondary
                                     : AppColors.textSecondary,
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                               ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        // Nom de la catégorie
-                        Text(
-                          categorie.nom,
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: isSelected
-                                ? AppColors.secondary
-                                : AppColors.textSecondary,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 );
               }).toList(),
             ),
@@ -913,59 +967,67 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
             },
           ),
         ),
-        if (_selectedImages.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 100,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _selectedImages.length,
-              itemBuilder: (context, index) {
-                return Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  child: Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          _selectedImages[index],
-                          width: 100,
-                          height: 100,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: GestureDetector(
-                          onTap: () {
-                            if (mounted) {
-                              setState(() {
-                                _selectedImages.removeAt(index);
-                              });
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: AppColors.error,
-                              shape: BoxShape.circle,
+        ValueListenableBuilder<List<File>>(
+          valueListenable: _selectedImagesNotifier,
+          builder: (context, images, _) {
+            if (images.isEmpty) return const SizedBox.shrink();
+            return Column(
+              children: [
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 100,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: images.length,
+                    itemBuilder: (context, index) {
+                      return Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        child: Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.file(
+                                images[index],
+                                width: 100,
+                                height: 100,
+                                fit: BoxFit.cover,
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.close,
-                              size: 16,
-                              color: AppColors.white,
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: GestureDetector(
+                                onTap: () {
+                                  if (mounted) {
+                                    final newImages = List<File>.from(images);
+                                    newImages.removeAt(index);
+                                    _selectedImagesNotifier.value = newImages;
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.error,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 16,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                );
-              },
-            ),
-          ),
-        ],
+                ),
+              ],
+            );
+          },
+        ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
           onPressed: _pickImages,
@@ -984,10 +1046,15 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
 
   /// Bouton de soumission
   Widget _buildSubmitButton() {
-    return InDriveButton(
-      label: _isSubmitting ? 'submitting'.tr : 'confirm_request'.tr,
-      onPressed: _isSubmitting ? null : _submitRequest,
-      variant: InDriveButtonVariant.primary,
+    return ValueListenableBuilder<bool>(
+      valueListenable: _isSubmittingNotifier,
+      builder: (context, isSubmitting, _) {
+        return InDriveButton(
+          label: isSubmitting ? 'submitting'.tr : 'confirm_request'.tr,
+          onPressed: isSubmitting ? null : _submitRequest,
+          variant: InDriveButtonVariant.primary,
+        );
+      },
     );
   }
 
@@ -1339,9 +1406,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                     }
                     // Réinitialiser l'état local
                     if (mounted) {
-                      setState(() {
-                        _selectedEmployee = null;
-                      });
+                      _selectedEmployeeNotifier.value = null;
                       _acceptedEmployeesNotifier.value = [];
                       _employeeStatistics.clear();
                       _currentRequestForAnimation = null;
