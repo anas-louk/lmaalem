@@ -441,4 +441,58 @@ class AuthController extends GetxController {
       isLoading.value = false;
     }
   }
+
+  /// Supprimer le compte utilisateur
+  Future<bool> deleteAccount() async {
+    try {
+      if (currentUser.value == null) {
+        errorMessage.value = 'user_not_connected'.tr;
+        return false;
+      }
+
+      isLoading.value = true;
+      errorMessage.value = '';
+
+      final userId = currentUser.value!.id;
+
+      // Stop all active streams before deleting
+      try {
+        final requestController = Get.find<RequestController>();
+        requestController.stopStreaming();
+      } catch (e) {
+        // RequestController might not be initialized, ignore
+      }
+
+      // Stop background notification polling
+      try {
+        await BackgroundNotificationService().reset();
+      } catch (e) {
+        // BackgroundNotificationService might not be initialized, ignore
+      }
+
+      // Clear user info from SharedPreferences
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('current_user_id');
+        await prefs.remove('current_user_type');
+        debugPrint('[AuthController] Cleared user info from SharedPreferences');
+      } catch (e) {
+        debugPrint('[AuthController] Error clearing user info: $e');
+      }
+
+      // Delete account from Firebase
+      await _authService.deleteAccount(userId);
+
+      currentUser.value = null;
+      Get.offAllNamed(AppRoutes.AppRoutes.login);
+      SnackbarHelper.showSuccess('delete_account_success'.tr);
+      return true;
+    } catch (e) {
+      errorMessage.value = e.toString();
+      SnackbarHelper.showError('delete_account_error'.tr);
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
 }

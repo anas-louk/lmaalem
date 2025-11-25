@@ -419,6 +419,52 @@ Si le problème persiste :
     }
   }
 
+  /// Supprimer le compte utilisateur
+  Future<void> deleteAccount(String userId) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null || user.uid != userId) {
+        throw 'Utilisateur non authentifié';
+      }
+
+      // Supprimer le document user dans Firestore
+      await _firestore.collection('users').doc(userId).delete();
+
+      // Supprimer le document employee si existe
+      try {
+        final employeeSnapshot = await _firestore
+            .collection('employees')
+            .where('userId', isEqualTo: userId)
+            .limit(1)
+            .get();
+        if (employeeSnapshot.docs.isNotEmpty) {
+          await employeeSnapshot.docs.first.reference.delete();
+        }
+      } catch (e) {
+        // Ignore si l'employé n'existe pas
+      }
+
+      // Supprimer le document client si existe
+      try {
+        final clientSnapshot = await _firestore
+            .collection('clients')
+            .where('userId', isEqualTo: userId)
+            .limit(1)
+            .get();
+        if (clientSnapshot.docs.isNotEmpty) {
+          await clientSnapshot.docs.first.reference.delete();
+        }
+      } catch (e) {
+        // Ignore si le client n'existe pas
+      }
+
+      // Supprimer le compte Firebase Auth
+      await user.delete();
+    } catch (e) {
+      throw 'Erreur lors de la suppression du compte: $e';
+    }
+  }
+
   /// Gérer les exceptions Firebase Auth
   String _handleAuthException(FirebaseAuthException e) {
     switch (e.code) {

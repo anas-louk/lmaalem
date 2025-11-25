@@ -22,6 +22,9 @@ import '../../core/utils/logger.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../widgets/call_button.dart';
 import '../../core/services/qr_code_service.dart';
+import '../../core/services/employee_statistics_service.dart';
+import '../../widgets/employee_statistics_widget.dart';
+import '../../data/models/employee_statistics.dart';
 import 'chat_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -56,6 +59,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   EmployeeModel? _assignedEmployee;
   StreamSubscription<RequestModel?>? _requestStreamSubscription;
   Set<String> _previousAcceptedEmployeeIds = {}; // Track previous accepted employees
+  final EmployeeStatisticsService _statisticsService = EmployeeStatisticsService();
+  final Map<String, EmployeeStatistics> _employeeStatistics = {}; // Cache des statistiques
 
   @override
   void initState() {
@@ -166,6 +171,11 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         final employee = await _employeeController.getEmployeeById(employeeId);
         if (employee != null) {
           employees.add(employee);
+          // Load statistics for this employee
+          if (!_employeeStatistics.containsKey(employeeId)) {
+            final stats = await _statisticsService.getEmployeeStatisticsByStringId(employeeId);
+            _employeeStatistics[employeeId] = stats;
+          }
         }
       }
       setState(() {
@@ -879,6 +889,14 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                             style: AppTextStyles.bodySmall,
                                             maxLines: 3,
                                             overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                        // Employee Statistics (Brief)
+                                        if (_employeeStatistics.containsKey(employee.id)) ...[
+                                          const SizedBox(height: 12),
+                                          EmployeeStatisticsWidget(
+                                            statistics: _employeeStatistics[employee.id]!,
+                                            isCompact: true,
                                           ),
                                         ],
                                         const SizedBox(height: 12),

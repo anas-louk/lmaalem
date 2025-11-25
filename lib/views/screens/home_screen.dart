@@ -6,6 +6,7 @@ import '../../components/loading_widget.dart';
 import '../../components/empty_state.dart';
 import '../../components/indrive_app_bar.dart';
 import '../../components/indrive_section_title.dart';
+import '../../components/language_switcher.dart';
 import '../widgets/employee_card.dart';
 
 /// Écran d'accueil
@@ -24,10 +25,8 @@ class HomeScreen extends StatelessWidget {
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () => Get.toNamed(AppRoutes.AppRoutes.notifications),
           ),
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            onPressed: () => Get.toNamed(AppRoutes.AppRoutes.profile),
-          ),
+          const LanguageSwitcher(),
+          const SizedBox(width: 8),
         ],
       ),
       body: Obx(

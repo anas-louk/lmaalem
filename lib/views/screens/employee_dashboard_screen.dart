@@ -11,6 +11,8 @@ import '../../core/constants/app_routes.dart' as AppRoutes;
 import '../../core/helpers/snackbar_helper.dart';
 import '../../components/loading_widget.dart';
 import '../../components/empty_state.dart';
+import '../../components/app_sidebar.dart';
+import '../../components/language_switcher.dart';
 import 'notification_screen.dart';
 import 'history_screen.dart';
 import 'chat_screen.dart';
@@ -88,121 +90,18 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Ensure stream is active when user changes
+    final user = _authController.currentUser.value;
+    if (user != null && (_loadedUserId != user.id || _currentCategorieId == null)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _initializeStreaming();
+      });
+    }
+
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
         children: _screens,
-      ),
-      bottomNavigationBar: Obx(
-        () {
-          // Ensure stream is active when user changes
-          final user = _authController.currentUser.value;
-          if (user != null && (_loadedUserId != user.id || _currentCategorieId == null)) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _initializeStreaming();
-            });
-          }
-          
-          // Calculate notification count directly from observable variables
-          // Access requests directly to trigger GetX reactivity
-          final requestsList = _requestController.requests;
-          final notificationCount = requestsList.where((request) {
-            // Only count pending requests
-            if (request.statut.toLowerCase() != 'pending') return false;
-            // Don't count own requests
-            if (user != null && request.clientId == user.id) return false;
-            return true;
-          }).length;
-          
-          return BottomNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            },
-            type: BottomNavigationBarType.fixed,
-            selectedItemColor: AppColors.primary,
-            unselectedItemColor: AppColors.textSecondary,
-            items: [
-              BottomNavigationBarItem(
-                icon: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    const Icon(Icons.notifications_outlined),
-                    if (notificationCount > 0)
-                      Positioned(
-                        right: -8,
-                        top: -4,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: AppColors.error,
-                            shape: BoxShape.circle,
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 16,
-                            minHeight: 16,
-                          ),
-                          child: Text(
-                            notificationCount > 99 ? '99+' : notificationCount.toString(),
-                            style: const TextStyle(
-                              color: AppColors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                activeIcon: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    const Icon(Icons.notifications),
-                    if (notificationCount > 0)
-                      Positioned(
-                        right: -8,
-                        top: -4,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: AppColors.error,
-                            shape: BoxShape.circle,
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 16,
-                            minHeight: 16,
-                          ),
-                          child: Text(
-                            notificationCount > 99 ? '99+' : notificationCount.toString(),
-                            style: const TextStyle(
-                              color: AppColors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                label: 'notifications'.tr,
-              ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.home_outlined),
-                activeIcon: const Icon(Icons.home),
-                label: 'home'.tr,
-              ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.history_outlined),
-                activeIcon: const Icon(Icons.history),
-                label: 'history'.tr,
-              ),
-            ],
-          );
-        },
       ),
     );
   }
@@ -302,15 +201,18 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const AppSidebar(),
       appBar: AppBar(
         title: const Text('Tableau de bord Employé'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () {
-              Get.toNamed(AppRoutes.AppRoutes.profile);
-            },
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
           ),
+        ),
+        actions: const [
+          LanguageSwitcher(),
+          SizedBox(width: 8),
         ],
       ),
       body: Obx(

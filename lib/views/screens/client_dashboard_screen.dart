@@ -11,12 +11,13 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
 import '../../components/loading_widget.dart';
 import '../../components/empty_state.dart';
-import '../../components/indrive_bottom_nav.dart';
 import '../../components/indrive_app_bar.dart';
 import '../../components/indrive_card.dart';
 import '../../components/indrive_button.dart';
 import '../../components/indrive_section_title.dart';
 import '../../components/indrive_dialog_template.dart';
+import '../../components/app_sidebar.dart';
+import '../../components/language_switcher.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import 'chat_screen.dart';
 import 'history_screen.dart';
@@ -45,29 +46,6 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
       body: IndexedStack(
         index: _currentIndex,
         children: _screens,
-      ),
-      bottomNavigationBar: InDriveBottomNav(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() => _currentIndex = index);
-        },
-        items: [
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.history_outlined),
-            activeIcon: const Icon(Icons.history),
-            label: 'history'.tr,
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.home_outlined),
-            activeIcon: const Icon(Icons.home),
-            label: 'home'.tr,
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.category_outlined),
-            activeIcon: const Icon(Icons.category),
-            label: 'categories'.tr,
-          ),
-        ],
       ),
     );
   }
@@ -192,13 +170,18 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const AppSidebar(),
       appBar: InDriveAppBar(
         title: 'client_dashboard'.tr,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            onPressed: () => Get.toNamed(AppRoutes.AppRoutes.profile),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
           ),
+        ),
+        actions: const [
+          LanguageSwitcher(),
+          SizedBox(width: 8),
         ],
       ),
       body: Obx(

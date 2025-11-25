@@ -9,6 +9,10 @@ import '../../components/custom_text_field.dart';
 import '../../components/language_switcher.dart';
 import '../../data/models/user_model.dart';
 import '../../core/helpers/snackbar_helper.dart';
+import '../../utils/battery_optimization.dart';
+import '../../core/services/employee_statistics_service.dart';
+import '../../widgets/employee_statistics_widget.dart';
+import '../../data/models/employee_statistics.dart';
 
 /// Écran de profil
 class ProfileScreen extends StatelessWidget {
@@ -141,13 +145,37 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 if (user.type.toLowerCase() == 'employee') const SizedBox(height: 16),
 
-                // Logout button
+                // Statistics Section (for employees only)
+                if (user.type.toLowerCase() == 'employee') ...[
+                  const Divider(height: 48),
+                  _EmployeeStatisticsSection(employeeId: user.id),
+                  const Divider(height: 48),
+                ],
+
+                // Settings Section
+                const Divider(height: 48),
+                Text(
+                  'settings'.tr,
+                  style: AppTextStyles.h3.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Battery Optimization Setting
+                _BatteryOptimizationTile(),
+
+                const SizedBox(height: 24),
+
+                // Delete account button
                 Obx(
                   () => CustomButton(
-                    onPressed: () async {
-                      await _authController.signOut();
-                    },
-                    text: 'logout'.tr,
+                    onPressed: _authController.isLoading.value
+                        ? null
+                        : () {
+                            _showDeleteAccountDialog(context, _authController);
+                          },
+                    text: 'delete_account'.tr,
                     isLoading: _authController.isLoading.value,
                     backgroundColor: AppColors.error,
                   ),
@@ -528,6 +556,235 @@ class ProfileScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  void _showDeleteAccountDialog(
+    BuildContext context,
+    AuthController authController,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('delete_account'.tr),
+        content: Text('delete_account_confirmation'.tr),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text('cancel'.tr),
+          ),
+          Obx(
+            () => ElevatedButton(
+              onPressed: authController.isLoading.value
+                  ? null
+                  : () async {
+                      final success = await authController.deleteAccount();
+                      if (success && context.mounted) {
+                        Get.back(); // Close dialog
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: AppColors.white,
+              ),
+              child: authController.isLoading.value
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text('delete'.tr),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Widget pour afficher et gérer l'optimisation de la batterie
+class _BatteryOptimizationTile extends StatefulWidget {
+  @override
+  State<_BatteryOptimizationTile> createState() => _BatteryOptimizationTileState();
+}
+
+class _BatteryOptimizationTileState extends State<_BatteryOptimizationTile> {
+  bool _isOptimizationDisabled = false;
+  bool _isChecking = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBatteryOptimization();
+  }
+
+  Future<void> _checkBatteryOptimization() async {
+    setState(() {
+      _isChecking = true;
+    });
+    try {
+      final isIgnored = await BatteryOptimization.isIgnoringBatteryOptimizations();
+      setState(() {
+        _isOptimizationDisabled = isIgnored;
+        _isChecking = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isOptimizationDisabled = false;
+        _isChecking = false;
+      });
+    }
+  }
+
+  Future<void> _handleBatteryOptimization() async {
+    if (_isOptimizationDisabled) {
+      // Already disabled, show info
+      SnackbarHelper.showSnackbar(
+        title: 'Optimisation désactivée',
+        message: 'L\'optimisation de la batterie est déjà désactivée. Les notifications en arrière-plan fonctionnent correctement.',
+        backgroundColor: AppColors.success.withOpacity(0.9),
+        colorText: AppColors.white,
+        duration: const Duration(seconds: 3),
+      );
+    } else {
+      // Request to disable
+      final success = await BatteryOptimization.requestIgnoreBatteryOptimizations();
+      if (success) {
+        // Refresh status
+        await _checkBatteryOptimization();
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: _isChecking ? null : _handleBatteryOptimization,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Icon(
+                _isOptimizationDisabled ? Icons.battery_charging_full : Icons.battery_alert,
+                color: _isOptimizationDisabled ? AppColors.success : AppColors.warning,
+                size: 32,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'battery_optimization'.tr,
+                      style: AppTextStyles.bodyLarge.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    if (_isChecking)
+                      Text(
+                        'checking'.tr,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      )
+                    else
+                      Text(
+                        _isOptimizationDisabled
+                            ? 'battery_optimization_disabled'.tr
+                            : 'battery_optimization_enabled'.tr,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: _isOptimizationDisabled
+                              ? AppColors.success
+                              : AppColors.warning,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (_isChecking)
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                Icon(
+                  _isOptimizationDisabled ? Icons.check_circle : Icons.arrow_forward_ios,
+                  color: _isOptimizationDisabled ? AppColors.success : AppColors.textSecondary,
+                  size: 20,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Widget pour afficher les statistiques de l'employé dans le profil
+class _EmployeeStatisticsSection extends StatefulWidget {
+  final String employeeId;
+
+  const _EmployeeStatisticsSection({required this.employeeId});
+
+  @override
+  State<_EmployeeStatisticsSection> createState() => _EmployeeStatisticsSectionState();
+}
+
+class _EmployeeStatisticsSectionState extends State<_EmployeeStatisticsSection> {
+  final EmployeeStatisticsService _statisticsService = EmployeeStatisticsService();
+  EmployeeStatistics? _statistics;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStatistics();
+  }
+
+  Future<void> _loadStatistics() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+      final stats = await _statisticsService.getEmployeeStatisticsByStringId(widget.employeeId);
+      setState(() {
+        _statistics = stats;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_statistics == null) {
+      return const SizedBox.shrink();
+    }
+
+    return EmployeeStatisticsWidget(
+      statistics: _statistics!,
+      isCompact: false,
     );
   }
 }
