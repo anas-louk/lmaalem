@@ -425,6 +425,32 @@ class RequestController extends GetxController {
     }
   }
 
+  /// Notifier l'employé qu'un client l'a accepté pour une demande
+  /// Cette méthode est appelée après qu'une mission soit créée avec le requestId et employeeId
+  Future<void> notifyEmployeeAboutClientAcceptance({
+    required RequestModel request,
+    required String employeeUserId,
+    required String clientName,
+  }) async {
+    try {
+      debugPrint('[RequestController] notifyEmployeeAboutClientAcceptance called');
+      debugPrint('[RequestController] Request ID: ${request.id}, Employee User ID: $employeeUserId, Client Name: $clientName');
+      
+      // Show local notification
+      await _notificationService.showClientAcceptedEmployeeNotification(
+        requestId: request.id,
+        clientName: clientName,
+        requestDescription: request.description,
+      );
+      
+      debugPrint('[RequestController] ✅ Notified employee $employeeUserId about client $clientName accepting them for request ${request.id}');
+    } catch (e, stackTrace) {
+      // Log error but don't fail
+      debugPrint('[RequestController] ❌ Error notifying employee: $e');
+      Logger.logError('RequestController.notifyEmployeeAboutClientAcceptance', e, stackTrace);
+    }
+  }
+
   /// Créer une demande
   Future<bool> createRequest(RequestModel request) async {
     try {
@@ -708,6 +734,23 @@ class RequestController extends GetxController {
         );
       } catch (chatError, chatStack) {
         Logger.logError('RequestController.acceptEmployeeForRequest.Chat', chatError, chatStack);
+      }
+
+      // Notifier l'employé qu'il a été accepté par le client
+      // This happens when request statut changes to "Accepted"
+      if (employeeUserId != null) {
+        try {
+          final authController = Get.find<AuthController>();
+          final clientName = authController.currentUser.value?.nomComplet ?? 'Client';
+          await notifyEmployeeAboutClientAcceptance(
+            request: updatedRequest,
+            employeeUserId: employeeUserId,
+            clientName: clientName,
+          );
+        } catch (notifError) {
+          // Silently handle errors - notification is not critical
+          Logger.logError('RequestController.acceptEmployeeForRequest.Notification', notifError, StackTrace.current);
+        }
       }
 
       SnackbarHelper.showSuccess('employee_accepted'.tr);

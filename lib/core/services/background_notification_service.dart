@@ -213,6 +213,25 @@ class BackgroundNotificationService {
         await _pollForClientNotifications(currentUser.id);
       }
       
+      // Also check for accepted requests (when client accepts employee)
+      // This detects requests with statut "Accepted" assigned to this employee
+      if (isEmployee) {
+        try {
+          final employeeDoc = await _firestore
+              .collection('employees')
+              .where('userId', isEqualTo: currentUser.id)
+              .limit(1)
+              .get();
+          
+          if (employeeDoc.docs.isNotEmpty) {
+            final employeeDocumentId = employeeDoc.docs.first.id;
+            await _checkForAcceptedRequests(employeeDocumentId, _notificationService);
+          }
+        } catch (acceptedError) {
+          debugPrint('[BackgroundNotification] ⚠️ Error checking accepted requests: $acceptedError');
+        }
+      }
+      
       debugPrint('[BackgroundNotification] ✅ Poll completed successfully');
     } catch (e, stackTrace) {
       debugPrint('[BackgroundNotification] ❌ Error polling: $e');
@@ -864,5 +883,109 @@ Future<void> _pollForClientNotificationsInIsolate(
     }
   } catch (e) {
     debugPrint('[WorkManager] Error polling client notifications: $e');
+  }
+}
+
+/// Check for accepted requests for an employee (when client accepts them)
+Future<void> _checkForAcceptedRequests(
+  String employeeDocumentId,
+  LocalNotificationService notificationService,
+) async {
+  try {
+    debugPrint('[BackgroundNotification] 🔍 Checking for accepted requests for employee: $employeeDocumentId');
+    
+    final firestore = FirebaseFirestore.instance;
+    
+    // Query for requests with statut "Accepted" and employeeId matching this employee
+    final requestsQuery = await firestore
+        .collection('requests')
+        .where('statut', isEqualTo: 'Accepted')
+        .where('employeeId', isEqualTo: employeeDocumentId)
+        .get();
+    
+    debugPrint('[BackgroundNotification] Found ${requestsQuery.docs.length} accepted requests');
+    
+    // Get last checked request IDs from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final lastCheckedKey = 'last_employee_accepted_request_ids_$employeeDocumentId';
+    final lastCheckedStr = prefs.getString(lastCheckedKey) ?? '';
+    final lastCheckedIds = lastCheckedStr.isEmpty
+        ? <String>{}
+        : lastCheckedStr.split(',').where((id) => id.isNotEmpty).toSet();
+    
+    final currentRequestIds = <String>{};
+    final newRequestIds = <String>{};
+    
+    for (final requestDoc in requestsQuery.docs) {
+      final requestId = requestDoc.id;
+      final requestData = requestDoc.data();
+      
+      currentRequestIds.add(requestId);
+      
+      // Skip if already checked
+      if (lastCheckedIds.contains(requestId)) {
+        continue;
+      }
+      
+      // This is a new accepted request - notify the employee
+      newRequestIds.add(requestId);
+      
+      // Get client name from request
+      String clientName = 'Un client';
+      try {
+        final clientId = requestData['clientId'];
+        if (clientId != null) {
+          // clientId might be a DocumentReference or a string
+          String clientDocId;
+          if (clientId is DocumentReference) {
+            clientDocId = clientId.id;
+          } else {
+            clientDocId = clientId.toString();
+          }
+          
+          final clientDoc = await firestore.collection('clients').doc(clientDocId).get();
+          if (clientDoc.exists) {
+            final clientData = clientDoc.data();
+            final clientUserId = clientData?['userId'];
+            if (clientUserId != null) {
+              String userIdStr;
+              if (clientUserId is DocumentReference) {
+                userIdStr = clientUserId.id;
+              } else {
+                userIdStr = clientUserId.toString();
+              }
+              
+              final userDoc = await firestore.collection('users').doc(userIdStr).get();
+              if (userDoc.exists) {
+                final userData = userDoc.data();
+                clientName = userData?['nomComplet'] ?? 'Un client';
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('[BackgroundNotification] ⚠️ Error getting client name: $e');
+      }
+      
+      // Show notification
+      notificationService.showClientAcceptedEmployeeNotification(
+        requestId: requestId,
+        clientName: clientName,
+        requestDescription: requestData['description'] ?? 'Nouvelle demande',
+      );
+      
+      debugPrint('[BackgroundNotification] ✅ Notified employee about accepted request $requestId');
+    }
+    
+    // Save updated checked IDs
+    if (currentRequestIds.isNotEmpty) {
+      await prefs.setString(lastCheckedKey, currentRequestIds.join(','));
+    }
+    
+    if (newRequestIds.isNotEmpty) {
+      debugPrint('[BackgroundNotification] 🆕 Found ${newRequestIds.length} new accepted requests: ${newRequestIds.toList()}');
+    }
+  } catch (e) {
+    debugPrint('[BackgroundNotification] ❌ Error checking for accepted requests: $e');
   }
 }

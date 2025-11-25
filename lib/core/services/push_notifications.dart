@@ -187,18 +187,58 @@ class PushNotificationService {
     // Navigate based on other notification types
     final requestId = message.data['requestId'];
 
-    // Les types attendus correspondent à ton JSON FCM : "new_request" et "employee_accepted"
-    if (requestId != null && type == 'new_request') {
-      // Nouvelle demande : aller au détail de la demande (employé)
-      Get.toNamed(AppRoutes.requestDetail, arguments: requestId);
-    } else if (requestId != null && type == 'employee_accepted') {
-      // Un employé a accepté : aller au détail de la demande (client)
-      Get.toNamed(AppRoutes.requestDetail, arguments: requestId);
-    } else if (type == 'new_request') {
-      // Sans requestId on envoie au centre de notifications employé
-      Get.toNamed(AppRoutes.notifications);
-    } else {
-      // Cas par défaut : dashboard
+    // Get current user to determine navigation
+    try {
+      final authController = Get.find<AuthController>();
+      final user = authController.currentUser.value;
+      final isEmployee = user?.type.toLowerCase() == 'employee';
+
+      // Les types attendus correspondent à ton JSON FCM : "new_request" et "employee_accepted"
+      if (type == 'new_request') {
+        // Nouvelle demande : rediriger l'employé vers l'écran de notifications
+        if (isEmployee) {
+          // Ensure we're on employee dashboard first
+          Get.offAllNamed(AppRoutes.employeeDashboard);
+          // Navigate to notification screen after a short delay
+          Future.delayed(const Duration(milliseconds: 300), () {
+            Get.toNamed(AppRoutes.notifications);
+          });
+        } else {
+          // Client shouldn't receive new_request notifications, but handle it anyway
+          Get.offAllNamed(AppRoutes.clientDashboard);
+        }
+      } else if (type == 'employee_accepted' && requestId != null) {
+        // Un employé a accepté : aller au détail de la demande (client)
+        if (!isEmployee) {
+          // For clients, go to request detail
+          Get.offAllNamed(AppRoutes.clientDashboard);
+          Future.delayed(const Duration(milliseconds: 300), () {
+            Get.toNamed(AppRoutes.requestDetail, arguments: requestId);
+          });
+        } else {
+          // Employee shouldn't receive employee_accepted, but handle it
+          Get.offAllNamed(AppRoutes.employeeDashboard);
+        }
+      } else if (requestId != null) {
+        // We have a requestId but unknown type - navigate based on user type
+        if (isEmployee) {
+          Get.offAllNamed(AppRoutes.employeeDashboard);
+          Future.delayed(const Duration(milliseconds: 300), () {
+            Get.toNamed(AppRoutes.notifications);
+          });
+        } else {
+          Get.offAllNamed(AppRoutes.clientDashboard);
+          Future.delayed(const Duration(milliseconds: 300), () {
+            Get.toNamed(AppRoutes.requestDetail, arguments: requestId);
+          });
+        }
+      } else {
+        // Cas par défaut : dashboard approprié
+        Get.offAllNamed(isEmployee ? AppRoutes.employeeDashboard : AppRoutes.clientDashboard);
+      }
+    } catch (e) {
+      debugPrint('[FCM] Error getting user type, using default navigation: $e');
+      // Fallback: go to home
       Get.offAllNamed(AppRoutes.home);
     }
   }

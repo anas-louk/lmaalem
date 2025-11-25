@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'dart:io' show Platform;
 import '../constants/app_routes.dart';
+import '../../controllers/auth_controller.dart';
 
 /// Service pour gérer les notifications locales dans la barre de statut
 class LocalNotificationService {
@@ -144,14 +145,89 @@ class LocalNotificationService {
 
   /// Gérer le clic sur une notification
   void _onNotificationTapped(NotificationResponse response) {
-    // Naviguer vers l'écran de notifications (employee dashboard)
-    // Utiliser Get.offAllNamed pour éviter les problèmes de navigation
-    if (response.payload != null) {
-      // Si un payload (requestId) est fourni, on peut naviguer vers le détail
-      // Sinon, aller au dashboard
-      Get.offAllNamed(AppRoutes.employeeDashboard);
-    } else {
-      Get.offAllNamed(AppRoutes.employeeDashboard);
+    debugPrint('[LocalNotification] Notification tapped: payload=${response.payload}');
+    
+    try {
+      // Get current user to determine type
+      final authController = Get.find<AuthController>();
+      final user = authController.currentUser.value;
+      
+      if (user == null) {
+        // User not logged in, go to login
+        Get.offAllNamed(AppRoutes.login);
+        return;
+      }
+      
+      final payload = response.payload;
+      final isEmployee = user.type.toLowerCase() == 'employee';
+      
+      // Determine notification type from payload
+      // Payload is typically: requestId (for new requests or employee accepted)
+      // Or notification type like "new_request", "employee_accepted", or callId
+      if (payload != null) {
+        // Check if it's a call notification (payload is callId)
+        if (payload.startsWith('call_') || payload.contains('call')) {
+          // Handle call notification - this should be handled by FCM handler
+          // But if we get here, navigate to dashboard
+          Get.offAllNamed(isEmployee ? AppRoutes.employeeDashboard : AppRoutes.clientDashboard);
+          return;
+        }
+        
+        // Check if payload is a notification type string
+        if (payload == 'new_request') {
+          // New request notification - redirect employee to notification screen
+          if (isEmployee) {
+            Get.offAllNamed(AppRoutes.employeeDashboard);
+            // Navigate to notification screen after a short delay to ensure dashboard is loaded
+            Future.delayed(const Duration(milliseconds: 300), () {
+              Get.toNamed(AppRoutes.notifications);
+            });
+          } else {
+            Get.offAllNamed(AppRoutes.clientDashboard);
+          }
+          return;
+        }
+        
+        if (payload == 'employee_accepted') {
+          // Employee accepted notification - redirect client to dashboard
+          // (requestId should be in the notification data, but we'll go to dashboard)
+          Get.offAllNamed(isEmployee ? AppRoutes.employeeDashboard : AppRoutes.clientDashboard);
+          return;
+        }
+        
+        // Payload is likely a requestId - determine navigation based on user type
+        // For employees: 
+        //   - new request notifications -> go to notification screen
+        //   - client accepted employee notifications -> go to request detail to see accepted request
+        // For clients: employee accepted notifications -> go to request detail
+        if (isEmployee) {
+          // Employee clicked on notification
+          // Could be a new request or client accepted them
+          // Navigate to request detail to see the request (if accepted, they'll see it's accepted)
+          Get.offAllNamed(AppRoutes.employeeDashboard);
+          Future.delayed(const Duration(milliseconds: 300), () {
+            Get.toNamed(AppRoutes.requestDetail, arguments: payload);
+          });
+        } else {
+          // Client clicked on notification - likely employee accepted their request
+          // Navigate to request detail to see the accepted request
+          Get.offAllNamed(AppRoutes.clientDashboard);
+          Future.delayed(const Duration(milliseconds: 300), () {
+            Get.toNamed(AppRoutes.requestDetail, arguments: payload);
+          });
+        }
+      } else {
+        // No payload - go to appropriate dashboard
+        Get.offAllNamed(isEmployee ? AppRoutes.employeeDashboard : AppRoutes.clientDashboard);
+      }
+    } catch (e) {
+      debugPrint('[LocalNotification] Error handling notification tap: $e');
+      // Fallback: go to login or home
+      try {
+        Get.offAllNamed(AppRoutes.login);
+      } catch (_) {
+        // If routes not available, do nothing
+      }
     }
   }
 
@@ -244,6 +320,68 @@ class LocalNotificationService {
       details,
       payload: requestId, // Passer l'ID de la demande comme payload
     );
+  }
+
+  /// Afficher une notification lorsqu'un client accepte un employé
+  Future<void> showClientAcceptedEmployeeNotification({
+    required String requestId,
+    required String clientName,
+    required String requestDescription,
+  }) async {
+    try {
+      debugPrint('[LocalNotification] showClientAcceptedEmployeeNotification called');
+      debugPrint('[LocalNotification] Request ID: $requestId, Client Name: $clientName');
+      
+      if (!_initialized) {
+        debugPrint('[LocalNotification] Service not initialized, initializing...');
+        await initialize();
+      }
+
+      final title = 'client_accepted_employee'.tr;
+      final message = 'client_accepted_employee_notification_message'.tr.replaceAll('{client}', clientName);
+      
+      debugPrint('[LocalNotification] Title: $title');
+      debugPrint('[LocalNotification] Message: $message');
+
+      final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+        'new_requests_channel', // Use same channel as new requests
+        title,
+        channelDescription: 'notifications_channel_description'.tr,
+        importance: Importance.high,
+        priority: Priority.high,
+        showWhen: true,
+        icon: '@mipmap/ic_launcher',
+        styleInformation: BigTextStyleInformation(message),
+      );
+
+      const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      final NotificationDetails details = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      final notificationId = ('client_accepted_employee_$requestId').hashCode;
+      debugPrint('[LocalNotification] Showing notification with ID: $notificationId');
+      
+      await _notifications.show(
+        notificationId,
+        title,
+        message,
+        details,
+        payload: requestId, // Passer l'ID de la demande comme payload
+      );
+      
+      debugPrint('[LocalNotification] ✅ Notification shown successfully');
+    } catch (e, stackTrace) {
+      debugPrint('[LocalNotification] ❌ Error showing client accepted employee notification: $e');
+      debugPrint('[LocalNotification] Stack trace: $stackTrace');
+      rethrow; // Re-throw to let caller handle it
+    }
   }
 
   /// Afficher une notification simple
