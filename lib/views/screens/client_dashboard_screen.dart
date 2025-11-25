@@ -308,21 +308,43 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
       (employees) async {
         if (!mounted) return;
 
-        // Charger les statistiques pour les nouveaux employés
-        for (final employee in employees) {
-          if (!_employeeStatistics.containsKey(employee.id)) {
-            final stats = await _statisticsService.getEmployeeStatisticsByStringId(employee.id);
-            if (mounted) {
-              _employeeStatistics[employee.id] = stats;
+        // Mettre à jour la liste immédiatement pour un feedback visuel rapide
+        _acceptedEmployeesNotifier.value = employees;
+        _isLoadingEmployees.value = false;
+
+        // Charger les statistiques en arrière-plan (de manière asynchrone et non-bloquante)
+        // Utiliser un microtask pour éviter de bloquer le thread principal
+        scheduleMicrotask(() async {
+          if (!mounted) return;
+          
+          final statsToLoad = <String>[];
+          for (final employee in employees) {
+            if (!_employeeStatistics.containsKey(employee.id)) {
+              statsToLoad.add(employee.id);
             }
           }
-        }
 
-        if (mounted) {
-          // Mettre à jour la liste (les animations seront gérées par AnimatedSwitcher)
-          _acceptedEmployeesNotifier.value = employees;
-          _isLoadingEmployees.value = false;
-        }
+          // Charger les statistiques en parallèle pour améliorer les performances
+          if (statsToLoad.isNotEmpty) {
+            final futures = statsToLoad.map((id) async {
+              try {
+                final stats = await _statisticsService.getEmployeeStatisticsByStringId(id);
+                if (mounted) {
+                  _employeeStatistics[id] = stats;
+                }
+              } catch (e) {
+                debugPrint('Error loading stats for employee $id: $e');
+              }
+            });
+            
+            await Future.wait(futures);
+            
+            // Forcer un rebuild pour afficher les statistiques chargées
+            if (mounted) {
+              _acceptedEmployeesNotifier.value = List.from(_acceptedEmployeesNotifier.value);
+            }
+          }
+        });
       },
       onError: (error) {
         if (mounted) {
@@ -573,6 +595,9 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
     }
   }
 
+  String? _lastActiveRequestId;
+  RequestFlowState? _lastFlowState;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -609,55 +634,62 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
           final flowState = _requestFlowController.currentState.value;
           final activeRequest = _requestFlowController.activeRequest.value;
 
-          // Écouter les changements de la demande en temps réel
-          if (activeRequest != null && (flowState == RequestFlowState.pending || flowState == RequestFlowState.accepted)) {
-            // Stream de la demande pour les mises à jour d'état
-            _requestStreamSubscription?.cancel();
-            _requestStreamSubscription = _requestRepository.streamRequest(activeRequest.id).listen((request) {
-              if (request != null && mounted) {
-                // Si un employé est sélectionné, le charger
-                if (request.employeeId != null && _selectedEmployeeNotifier.value == null) {
-                  _loadSelectedEmployee(request.employeeId!);
+          // Initialiser les streams UNIQUEMENT si l'état a changé (évite les rebuilds inutiles)
+          final currentRequestId = activeRequest?.id;
+          if (currentRequestId != _lastActiveRequestId || flowState != _lastFlowState) {
+            _lastActiveRequestId = currentRequestId;
+            _lastFlowState = flowState;
+            
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              
+              // Écouter les changements de la demande en temps réel
+              if (activeRequest != null && (flowState == RequestFlowState.pending || flowState == RequestFlowState.accepted)) {
+                // Stream de la demande pour les mises à jour d'état
+                _requestStreamSubscription?.cancel();
+                _requestStreamSubscription = _requestRepository.streamRequest(activeRequest.id).listen((request) {
+                  if (request != null && mounted) {
+                    // Si un employé est sélectionné, le charger
+                    if (request.employeeId != null && _selectedEmployeeNotifier.value == null) {
+                      _loadSelectedEmployee(request.employeeId!);
+                    }
+                    // Mettre à jour le RequestFlowController si l'état change
+                    if (request.statut.toLowerCase() == 'accepted' && flowState == RequestFlowState.pending) {
+                      _requestFlowController.markAccepted(
+                        AcceptedEmployeeSummary(
+                          id: request.employeeId ?? '',
+                          name: _selectedEmployeeNotifier.value?.nomComplet,
+                          service: _selectedEmployeeNotifier.value?.competence,
+                          city: _selectedEmployeeNotifier.value?.ville,
+                          rating: _employeeStatistics[request.employeeId ?? '']?.averageRating,
+                          photoUrl: _selectedEmployeeNotifier.value?.image,
+                        ),
+                      );
+                    }
+                  }
+                });
+                
+                // Initialiser le stream temps réel pour les employés acceptés
+                if (flowState == RequestFlowState.pending) {
+                  _currentRequestForAnimation = activeRequest;
+                  _initRealtimeEmployeesStream(activeRequest.id);
                 }
-                // Mettre à jour le RequestFlowController si l'état change
-                if (request.statut.toLowerCase() == 'accepted' && flowState == RequestFlowState.pending) {
-                  _requestFlowController.markAccepted(
-                    AcceptedEmployeeSummary(
-                      id: request.employeeId ?? '',
-                      name: _selectedEmployeeNotifier.value?.nomComplet,
-                      service: _selectedEmployeeNotifier.value?.competence,
-                      city: _selectedEmployeeNotifier.value?.ville,
-                      rating: _employeeStatistics[request.employeeId ?? '']?.averageRating,
-                      photoUrl: _selectedEmployeeNotifier.value?.image,
-                    ),
-                  );
+                
+                // Charger l'employé sélectionné si nécessaire
+                if (flowState == RequestFlowState.accepted && activeRequest.employeeId != null && _selectedEmployeeNotifier.value == null) {
+                  _loadSelectedEmployee(activeRequest.employeeId!);
+                }
+              } else {
+                // Arrêter les streams si pas de demande active (sans fermer les controllers)
+                _employeesStreamSubscription?.cancel();
+                _connectionStatusSubscription?.cancel();
+                _realtimeService?.stop();
+                if (mounted) {
+                  _acceptedEmployeesNotifier.value = [];
+                  _currentRequestForAnimation = null;
                 }
               }
             });
-            
-            // Initialiser le stream temps réel pour les employés acceptés
-            if (flowState == RequestFlowState.pending) {
-              _currentRequestForAnimation = activeRequest;
-              _initRealtimeEmployeesStream(activeRequest.id);
-            }
-            
-            // Charger l'employé sélectionné si nécessaire
-            if (flowState == RequestFlowState.accepted && activeRequest.employeeId != null && _selectedEmployeeNotifier.value == null) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  _loadSelectedEmployee(activeRequest.employeeId!);
-                }
-              });
-            }
-          } else {
-            // Arrêter les streams si pas de demande active (sans fermer les controllers)
-            _employeesStreamSubscription?.cancel();
-            _connectionStatusSubscription?.cancel();
-            _realtimeService?.stop();
-            if (mounted) {
-              _acceptedEmployeesNotifier.value = [];
-              _currentRequestForAnimation = null;
-            }
           }
 
           // Affichage conditionnel unifié sur la même page
