@@ -55,15 +55,25 @@ class CategoriesScreen extends StatelessWidget {
     final CategorieController _categorieController = Get.put(CategorieController());
 
     return Scaffold(
+      backgroundColor: AppColors.night,
       appBar: AppBar(
-        title: Text('categories'.tr),
+        title: Text(
+          'categories'.tr,
+          style: AppTextStyles.h3.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: AppColors.nightSurface,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actionsIconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: SafeArea(
-        child: Obx(
-          () {
-            if (_categorieController.isLoading.value) {
-              return const LoadingWidget();
-            }
+      body: Obx(
+        () {
+          if (_categorieController.isLoading.value) {
+            return const LoadingWidget();
+          }
 
             if (_categorieController.categories.isEmpty) {
               return EmptyState(
@@ -73,43 +83,97 @@ class CategoriesScreen extends StatelessWidget {
               );
             }
 
-            final bottomPadding = MediaQuery.of(context).padding.bottom;
-            return ListView.builder(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomPadding),
+          return GridView.builder(
+            padding: const EdgeInsets.all(20),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 1.1,
+            ),
             itemCount: _categorieController.categories.length,
             itemBuilder: (context, index) {
               final categorie = _categorieController.categories[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: AppColors.primaryLight,
-                    child: Text(
-                      categorie.nom[0].toUpperCase(),
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
+              return Container(
+                decoration: BoxDecoration(
+                  color: AppColors.nightSurface,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Colors.white10,
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.4),
+                      blurRadius: 20,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(24),
+                    onTap: () {
+                      _checkAndNavigate(categorie.id);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  AppColors.primary,
+                                  AppColors.primaryDark,
+                                ],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withOpacity(0.4),
+                                  blurRadius: 16,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Text(
+                                categorie.nom[0].toUpperCase(),
+                                style: AppTextStyles.h2.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            categorie.nom,
+                            style: AppTextStyles.h4.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  title: Text(
-                    categorie.nom,
-                    style: AppTextStyles.h4,
-                  ),
-                  trailing: const Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: AppColors.primary,
-                  ),
-                  onTap: () {
-                    _checkAndNavigate(categorie.id);
-                  },
                 ),
               );
             },
           );
-          },
-        ),
+        },
       ),
     );
   }

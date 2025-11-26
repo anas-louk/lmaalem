@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../core/constants/app_colors.dart';
+
+/// Carte moderne inspirée d'InDrive avec thème sombre
 class InDriveCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -7,6 +10,7 @@ class InDriveCard extends StatelessWidget {
   final Color? backgroundColor;
   final double borderRadius;
   final double elevation;
+  final bool showShadow;
 
   const InDriveCard({
     super.key,
@@ -17,29 +21,39 @@ class InDriveCard extends StatelessWidget {
     this.backgroundColor,
     this.borderRadius = 24,
     this.elevation = 0,
+    this.showShadow = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    final Color bg = backgroundColor ?? Theme.of(context).cardColor;
+    final Color bg = backgroundColor ?? AppColors.nightSurface;
 
     return Container(
       margin: margin,
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(borderRadius),
-        boxShadow: elevation == 0
-            ? null
-            : [
+        border: Border.all(
+          color: Colors.white10,
+          width: 1,
+        ),
+        boxShadow: showShadow
+            ? [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
+                  color: Colors.black.withOpacity(0.4),
                   blurRadius: 20,
+                  spreadRadius: 0,
                   offset: const Offset(0, 8),
                 ),
-              ],
-        border: Border.all(
-          color: Theme.of(context).dividerColor.withOpacity(0.5),
-        ),
+                if (elevation > 0)
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.1),
+                    blurRadius: 10,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 4),
+                  ),
+              ]
+            : null,
       ),
       child: Material(
         color: Colors.transparent,
@@ -47,6 +61,8 @@ class InDriveCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(borderRadius),
           onTap: onTap,
+          splashColor: AppColors.primary.withOpacity(0.1),
+          highlightColor: AppColors.primary.withOpacity(0.05),
           child: Padding(
             padding: padding,
             child: child,
