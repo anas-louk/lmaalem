@@ -353,6 +353,26 @@ class AppTranslations extends Translations {
       // Notifications
       'notifications_channel_description': 'Notifications pour les nouvelles demandes de service',
       'general_notifications_channel_description': 'Notifications générales de l\'application',
+      
+      // Cancellation Reports
+      'cancel_request_report_title': 'Rapport d\'annulation',
+      'cancel_request_report_message': 'Veuillez expliquer pourquoi vous annulez cette demande assignée à {employee}.',
+      'cancel_request_reason_hint': 'Expliquez la raison de l\'annulation...',
+      'reason_required': 'La raison est requise',
+      'reason_min_length': 'La raison doit contenir au moins 10 caractères',
+      'confirm_cancellation': 'Confirmer l\'annulation',
+      'request_cancelled_by_client': 'Demande annulée par le client',
+      'employee_cancellation_report_message': 'Le client {client} a annulé cette demande. Veuillez remplir un rapport d\'annulation.',
+      'client_cancellation_reason': 'Raison du client',
+      'employee_cancellation_reason_hint': 'Expliquez votre point de vue sur cette annulation...',
+      'submit_report': 'Soumettre le rapport',
+      'request_cancelled_notification_title': 'Demande annulée',
+      'request_cancelled_notification_body': 'Le client a annulé la demande. Raison: {reason}',
+      'report_submitted_successfully': 'Rapport soumis avec succès',
+      'error_submitting_report': 'Erreur lors de la soumission du rapport',
+      'employee_scan_qr_code': 'L\'employé doit scanner le code QR pour confirmer',
+      'cancelled_requests': 'Demandes annulées',
+      'request_date': 'Date de la demande',
     },
     'ar_SA': {
       // Common
@@ -704,6 +724,26 @@ class AppTranslations extends Translations {
       // Notifications
       'notifications_channel_description': 'إشعارات لطلبات الخدمة الجديدة',
       'general_notifications_channel_description': 'إشعارات عامة للتطبيق',
+      
+      // Cancellation Reports
+      'cancel_request_report_title': 'تقرير الإلغاء',
+      'cancel_request_report_message': 'يرجى توضيح سبب إلغاء هذا الطلب المخصص لـ {employee}.',
+      'cancel_request_reason_hint': 'اشرح سبب الإلغاء...',
+      'reason_required': 'السبب مطلوب',
+      'reason_min_length': 'يجب أن يحتوي السبب على 10 أحرف على الأقل',
+      'confirm_cancellation': 'تأكيد الإلغاء',
+      'request_cancelled_by_client': 'تم إلغاء الطلب من قبل العميل',
+      'employee_cancellation_report_message': 'ألغى العميل {client} هذا الطلب. يرجى ملء تقرير الإلغاء.',
+      'client_cancellation_reason': 'سبب العميل',
+      'employee_cancellation_reason_hint': 'اشرح وجهة نظرك حول هذا الإلغاء...',
+      'submit_report': 'إرسال التقرير',
+      'request_cancelled_notification_title': 'تم إلغاء الطلب',
+      'request_cancelled_notification_body': 'ألغى العميل الطلب. السبب: {reason}',
+      'report_submitted_successfully': 'تم إرسال التقرير بنجاح',
+      'error_submitting_report': 'خطأ في إرسال التقرير',
+      'employee_scan_qr_code': 'يجب على الموظف مسح رمز QR للتأكيد',
+      'cancelled_requests': 'الطلبات الملغاة',
+      'request_date': 'تاريخ الطلب',
     },
   };
 }

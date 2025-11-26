@@ -71,6 +71,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  Future<void> _loadCancelledRequestsForEmployee(String userId) async {
+    try {
+      final employee = await _employeeController.getEmployeeByUserId(userId);
+      if (employee != null) {
+        // Load cancelled requests for this employee
+        final cancelledRequests = await _requestController.getCancelledRequestsByEmployeeId(employee.id);
+        _requestController.requests.assignAll(cancelledRequests);
+        _requestsLoaded = true;
+      }
+    } catch (e) {
+      // Handle error
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -92,10 +106,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
           });
         }
 
-        // For employees, show missions history
+        // For employees, show missions and cancelled requests history
         if (user.type.toLowerCase() == 'employee') {
+          // Load cancelled requests for employee
+          if (!_requestsLoaded || _loadedUserId != user.id) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                _loadCancelledRequestsForEmployee(user.id);
+              }
+            });
+          }
+
           if (_missionController.isLoading.value &&
-              _missionController.missions.isEmpty) {
+              _missionController.missions.isEmpty &&
+              _requestController.isLoading.value &&
+              _requestController.requests.isEmpty) {
             return const LoadingWidget();
           }
 
@@ -107,7 +132,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
               })
               .toList();
 
-          if (archivedMissions.isEmpty) {
+          // Get cancelled requests for this employee
+          final cancelledRequests = _requestController.requests
+              .where((req) => req.statut.toLowerCase() == 'cancelled')
+              .toList();
+
+          if (archivedMissions.isEmpty && cancelledRequests.isEmpty) {
             return EmptyState(
               icon: Icons.history,
               title: 'no_history'.tr,
@@ -118,72 +148,144 @@ class _HistoryScreenState extends State<HistoryScreen> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
             children: [
-              InDriveSectionTitle(
-                title: 'my_missions'.tr,
-                subtitle: 'Toutes les missions terminées ou annulées.',
-              ),
-              const SizedBox(height: 16),
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: archivedMissions.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final mission = archivedMissions[index];
-                  final statusColor = _getMissionStatusColor(mission.statutMission);
-                  return InDriveCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '${'mission'.tr} #${mission.id.substring(0, 8)}',
-                                style: AppTextStyles.h4.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+              if (archivedMissions.isNotEmpty) ...[
+                InDriveSectionTitle(
+                  title: 'my_missions'.tr,
+                  subtitle: 'Toutes les missions terminées ou annulées.',
+                ),
+                const SizedBox(height: 16),
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: archivedMissions.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final mission = archivedMissions[index];
+                    final statusColor = _getMissionStatusColor(mission.statutMission);
+                    return InDriveCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '${'mission'.tr} #${mission.id.substring(0, 8)}',
+                                  style: AppTextStyles.h4.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: statusColor.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Text(
-                                _getMissionStatusText(mission.statutMission),
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color: statusColor,
-                                  fontWeight: FontWeight.w600,
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Text(
+                                  _getMissionStatusText(mission.statutMission),
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: statusColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${'mission_price'.tr}: ${mission.prixMission.toStringAsFixed(2)} DH',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: Colors.white70,
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${'mission_price'.tr}: ${mission.prixMission.toStringAsFixed(2)} DH',
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: Colors.white70,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${'mission_date'.tr}: ${_formatDate(mission.dateStart)}',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: Colors.white54,
+                          const SizedBox(height: 4),
+                          Text(
+                            '${'mission_date'.tr}: ${_formatDate(mission.dateStart)}',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: Colors.white54,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
+              if (cancelledRequests.isNotEmpty) ...[
+                if (archivedMissions.isNotEmpty) const SizedBox(height: 32),
+                InDriveSectionTitle(
+                  title: 'cancelled_requests'.tr,
+                  subtitle: 'Demandes annulées par les clients.',
+                ),
+                const SizedBox(height: 16),
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: cancelledRequests.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final request = cancelledRequests[index];
+                    return InDriveCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '${'request'.tr} #${request.id.substring(0, 8)}',
+                                  style: AppTextStyles.h4.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.error.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Text(
+                                  'status_cancelled'.tr,
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.error,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            request.description,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: Colors.white70,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${'request_date'.tr}: ${_formatDate(request.createdAt)}',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: Colors.white54,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
             ],
           );
         }

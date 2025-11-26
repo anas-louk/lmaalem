@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/mission_controller.dart';
@@ -36,9 +35,20 @@ import '../../components/draggable_request_form.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../core/enums/request_flow_state.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
+import '../../components/cancellation_report_dialog.dart';
+import '../../data/repositories/cancellation_report_repository.dart';
+import '../../data/models/cancellation_report_model.dart';
+import '../../data/repositories/employee_repository.dart';
+import '../../data/repositories/mission_repository.dart';
+import '../../core/services/local_notification_service.dart';
+import '../../core/services/qr_code_service.dart';
+import '../../core/utils/logger.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'chat_screen.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Dashboard Client
 class ClientDashboardScreen extends StatelessWidget {
@@ -82,6 +92,11 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
   }
   
   final ClientRepository _clientRepository = ClientRepository();
+  final CancellationReportRepository _cancellationReportRepository = CancellationReportRepository();
+  final EmployeeRepository _employeeRepository = EmployeeRepository();
+  final MissionRepository _missionRepository = MissionRepository();
+  final LocalNotificationService _notificationService = LocalNotificationService();
+  final QRCodeService _qrCodeService = QRCodeService();
   String? _loadedUserId;
 
   // Formulaire de demande - Utiliser ValueNotifier pour éviter les setState()
@@ -1345,62 +1360,195 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
 
   /// Actions disponibles quand la demande est acceptée
   Widget _buildAcceptedRequestActions(RequestModel request) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-                                InDriveButton(
-                                  label: 'open_chat'.tr,
-                                  onPressed: () => _openChat(request),
-                                  variant: InDriveButtonVariant.primary,
-                                ),
-        const SizedBox(height: 12),
-        InDriveButton(
-          label: 'cancel_request'.tr,
-          onPressed: _requestController.isLoading.value
-              ? null
-              : () => _showCancelRequestDialog(context, request),
-          variant: InDriveButtonVariant.ghost,
-        ),
-      ],
+    return FutureBuilder<MissionModel?>(
+      future: _missionRepository.getMissionByRequestId(request.id),
+      builder: (context, snapshot) {
+        final mission = snapshot.data;
+        final canFinish = mission != null && mission.statutMission.toLowerCase() != 'completed';
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (canFinish)
+              Obx(
+                () {
+                  // mission is guaranteed to be non-null when canFinish is true
+                  final nonNullMission = mission;
+                  return InDriveButton(
+                    label: 'finish_request'.tr,
+                    onPressed: _missionController.isLoading.value
+                        ? null
+                        : () => _finishRequest(request, nonNullMission),
+                    variant: InDriveButtonVariant.primary,
+                  );
+                },
+              ),
+            if (canFinish) const SizedBox(height: 12),
+            InDriveButton(
+              label: 'open_chat'.tr,
+              onPressed: () => _openChat(request),
+              variant: canFinish ? InDriveButtonVariant.ghost : InDriveButtonVariant.primary,
+            ),
+            const SizedBox(height: 12),
+            InDriveButton(
+              label: 'cancel_request'.tr,
+              onPressed: _requestController.isLoading.value
+                  ? null
+                  : () => _showCancelRequestDialog(context, request),
+              variant: InDriveButtonVariant.ghost,
+            ),
+          ],
+        );
+      },
     );
   }
 
   void _showCancelRequestDialog(BuildContext context, RequestModel request) {
-    Get.dialog(
-      Obx(
-        () => InDriveDialogTemplate(
-          title: 'cancel_request_dialog_title'.tr,
-          message: 'cancel_request_dialog_content'.tr,
-          primaryLabel: _requestController.isLoading.value ? 'loading'.tr : 'yes_cancel'.tr,
-          danger: true,
-          onPrimary: _requestController.isLoading.value
-              ? () {}
-              : () async {
-                  final success = await _requestController.cancelRequest(request.id);
-                  if (success) {
-                    try {
-                      await _requestFlowController.markCanceled();
-                    } catch (e) {
-                      // Ignorer les erreurs si le RequestFlowController n'a pas de demande active
+    // Si la demande est assignée à un employé, afficher le formulaire de rapport
+    if (request.employeeId != null && request.statut.toLowerCase() == 'accepted') {
+      _showCancellationReportForm(context, request);
+    } else {
+      // Sinon, afficher le dialogue de confirmation simple
+      Get.dialog(
+        Obx(
+          () => InDriveDialogTemplate(
+            title: 'cancel_request_dialog_title'.tr,
+            message: 'cancel_request_dialog_content'.tr,
+            primaryLabel: _requestController.isLoading.value ? 'loading'.tr : 'yes_cancel'.tr,
+            danger: true,
+            onPrimary: _requestController.isLoading.value
+                ? () {}
+                : () async {
+                    final reason = await _requestController.cancelRequest(request.id);
+                    if (reason != null) {
+                      try {
+                        await _requestFlowController.markCanceled();
+                      } catch (e) {
+                        // Ignorer les erreurs si le RequestFlowController n'a pas de demande active
+                      }
+                      // Réinitialiser l'état local
+                      if (mounted) {
+                        _selectedEmployeeNotifier.value = null;
+                        _acceptedEmployeesNotifier.value = [];
+                        _employeeStatistics.clear();
+                        _currentRequestForAnimation = null;
+                      }
                     }
-                    // Réinitialiser l'état local
-                    if (mounted) {
-                      _selectedEmployeeNotifier.value = null;
-                      _acceptedEmployeesNotifier.value = [];
-                      _employeeStatistics.clear();
-                      _currentRequestForAnimation = null;
-                    }
-                  }
-                  Get.back();
-                },
-          secondaryLabel: 'no'.tr,
-          onSecondary: _requestController.isLoading.value
-              ? null
-              : () => Get.back(),
+                    Get.back();
+                  },
+            secondaryLabel: 'no'.tr,
+            onSecondary: _requestController.isLoading.value
+                ? null
+                : () => Get.back(),
+          ),
         ),
+        barrierDismissible: false,
+      );
+    }
+  }
+
+  /// Afficher le formulaire de rapport d'annulation
+  void _showCancellationReportForm(BuildContext context, RequestModel request) async {
+    // Charger le nom de l'employé
+    String? employeeName;
+    try {
+      final employee = await _employeeRepository.getEmployeeById(request.employeeId!);
+      employeeName = employee?.nomComplet;
+    } catch (e) {
+      debugPrint('Erreur lors du chargement de l\'employé: $e');
+    }
+
+    Get.dialog(
+      CancellationReportDialog(
+        requestId: request.id,
+        employeeName: employeeName,
+        onConfirm: (reason) async {
+          Get.back(); // Fermer le dialogue de rapport
+          
+          // Annuler la demande avec la raison
+          final result = await _requestController.cancelRequest(request.id, cancellationReason: reason);
+          
+          if (result != null) {
+            // Créer le rapport d'annulation
+            await _createCancellationReport(request, reason);
+            
+            // Notifier l'employé
+            await _notifyEmployeeAboutCancellation(request, reason, employeeName);
+            
+            try {
+              await _requestFlowController.markCanceled();
+            } catch (e) {
+              // Ignorer les erreurs si le RequestFlowController n'a pas de demande active
+            }
+            
+            // Réinitialiser l'état local
+            if (mounted) {
+              _selectedEmployeeNotifier.value = null;
+              _acceptedEmployeesNotifier.value = [];
+              _employeeStatistics.clear();
+              _currentRequestForAnimation = null;
+            }
+          }
+        },
       ),
       barrierDismissible: false,
     );
+  }
+
+  /// Créer le rapport d'annulation
+  Future<void> _createCancellationReport(RequestModel request, String reason) async {
+    try {
+      final reportId = FirebaseFirestore.instance.collection('cancellation_reports').doc().id;
+      final now = DateTime.now();
+      
+      final report = CancellationReportModel(
+        id: reportId,
+        requestId: request.id,
+        clientId: request.clientId,
+        employeeId: request.employeeId,
+        clientReason: reason,
+        employeeNotificationReason: reason, // Même raison pour l'employé
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await _cancellationReportRepository.createReport(report);
+      debugPrint('[ClientDashboard] Rapport d\'annulation créé: $reportId');
+    } catch (e) {
+      debugPrint('[ClientDashboard] Erreur lors de la création du rapport: $e');
+      // Ne pas bloquer l'annulation si le rapport échoue
+    }
+  }
+
+  /// Notifier l'employé de l'annulation
+  Future<void> _notifyEmployeeAboutCancellation(
+    RequestModel request,
+    String reason,
+    String? employeeName,
+  ) async {
+    try {
+      if (request.employeeId == null) return;
+
+      // Récupérer l'employé pour obtenir son userId
+      final employee = await _employeeRepository.getEmployeeById(request.employeeId!);
+      if (employee?.userId == null) return;
+
+      // Envoyer une notification locale à l'employé
+      await _notificationService.showNotification(
+        id: 'cancellation_${request.id}'.hashCode,
+        title: 'request_cancelled_notification_title'.tr,
+        body: 'request_cancelled_notification_body'.tr.replaceAll('{reason}', reason),
+        payload: request.id,
+        channelId: 'general_channel',
+        importance: Importance.high,
+        priority: Priority.high,
+      );
+
+      debugPrint('[ClientDashboard] Notification envoyée à l\'employé ${employee?.userId}');
+    } catch (e) {
+      debugPrint('[ClientDashboard] Erreur lors de l\'envoi de la notification: $e');
+      // Ne pas bloquer l'annulation si la notification échoue
+    }
   }
 
   Future<void> _openChat(RequestModel request) async {
@@ -1435,6 +1583,278 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
           clientName: _authController.currentUser.value?.nomComplet,
         ),
       );
+    }
+  }
+
+  /// Terminer une demande
+  Future<void> _finishRequest(RequestModel request, MissionModel mission) async {
+    // Show dialog for price feedback
+    final result = await _showFinishDialog(mission);
+    if (result == null) return;
+    
+    final price = result['price'] as double;
+    final rating = result['rating'] as double?;
+    final comment = result['comment'] as String?;
+    
+    try {
+      // Generate QR code token
+      final token = await _qrCodeService.createFinishToken(
+        requestId: request.id,
+        clientId: request.clientId,
+        employeeId: request.employeeId!,
+        price: price,
+        rating: rating,
+        comment: comment,
+      );
+      
+      // Show QR code dialog
+      await _showQRCodeDialog(token, request.id);
+    } catch (e, stackTrace) {
+      Logger.logError('ClientDashboardScreen._finishRequest', e, stackTrace);
+      SnackbarHelper.showError('${'error_finishing'.tr}: $e');
+    }
+  }
+
+  /// Afficher le dialogue de fin de demande
+  Future<Map<String, dynamic>?> _showFinishDialog(MissionModel mission) async {
+    final priceController = TextEditingController(text: mission.prixMission.toStringAsFixed(2));
+    final commentController = TextEditingController();
+    final selectedRating = ValueNotifier<double?>(null);
+    
+    return await Get.dialog<Map<String, dynamic>>(
+      Dialog(
+        backgroundColor: AppColors.nightSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: StatefulBuilder(
+          builder: (context, setDialogState) {
+            Widget buildRatingStars() {
+              return ValueListenableBuilder<double?>(
+                valueListenable: selectedRating,
+                builder: (context, rating, _) {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      final starRating = (index + 1).toDouble();
+                      final isSelected = rating != null && starRating <= rating;
+                      return IconButton(
+                        icon: Icon(
+                          isSelected ? Icons.star : Icons.star_border,
+                          color: isSelected ? AppColors.warning : AppColors.grey,
+                        ),
+                        onPressed: () {
+                          selectedRating.value = selectedRating.value == starRating ? null : starRating;
+                        },
+                      );
+                    }),
+                  );
+                },
+              );
+            }
+            
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'finish_dialog_title'.tr,
+                    style: AppTextStyles.h3.copyWith(color: Colors.white),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Price input
+                  TextField(
+                    controller: priceController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: '${'price'.tr} (€)',
+                      labelStyle: const TextStyle(color: Colors.white70),
+                      prefixIcon: const Icon(Icons.attach_money, color: Colors.white70),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Colors.white24),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Colors.white24),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: AppColors.primary),
+                      ),
+                      fillColor: AppColors.nightSecondary,
+                      filled: true,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Rating
+                  Text(
+                    '${'rating'.tr} (${'optional'.tr})',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: Colors.white70,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  buildRatingStars(),
+                  const SizedBox(height: 16),
+                  
+                  // Comment
+                  TextField(
+                    controller: commentController,
+                    maxLines: 3,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'comment_hint'.tr,
+                      hintText: 'comment_hint'.tr,
+                      labelStyle: const TextStyle(color: Colors.white70),
+                      hintStyle: const TextStyle(color: Colors.white54),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Colors.white24),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Colors.white24),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: AppColors.primary),
+                      ),
+                      fillColor: AppColors.nightSecondary,
+                      filled: true,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InDriveButton(
+                          label: 'cancel'.tr,
+                          onPressed: () => Get.back(),
+                          variant: InDriveButtonVariant.ghost,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: InDriveButton(
+                          label: 'finish'.tr,
+                          onPressed: () {
+                            final price = double.tryParse(priceController.text);
+                            if (price == null || price < 0) {
+                              SnackbarHelper.showError('enter_valid_price'.tr);
+                              return;
+                            }
+                            Get.back(result: {
+                              'price': price,
+                              'rating': selectedRating.value,
+                              'comment': commentController.text.trim().isEmpty 
+                                  ? null 
+                                  : commentController.text.trim(),
+                            });
+                          },
+                          variant: InDriveButtonVariant.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  /// Afficher le dialogue QR code
+  Future<void> _showQRCodeDialog(String token, String requestId) async {
+    final completer = Completer<void>();
+    StreamSubscription<DocumentSnapshot>? subscription;
+    bool dialogClosed = false;
+
+    // Listen to token changes
+    subscription = FirebaseFirestore.instance
+        .collection('request_finish_tokens')
+        .doc(token)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        final data = snapshot.data();
+        if (data != null && data['used'] == true && !dialogClosed) {
+          dialogClosed = true;
+          subscription?.cancel();
+          Get.back(); // Close the dialog
+          completer.complete();
+          // The stream will update automatically, but we can mark as completed
+          _requestFlowController.markCompleted();
+          SnackbarHelper.showSuccess('request_completed_success'.tr);
+        }
+      }
+    });
+
+    await Get.dialog(
+      Dialog(
+        backgroundColor: AppColors.nightSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'scan_qr_code'.tr,
+                style: AppTextStyles.h3.copyWith(color: Colors.white),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: QrImageView(
+                  data: token,
+                  version: QrVersions.auto,
+                  size: 200.0,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'employee_scan_qr_code'.tr,
+                style: AppTextStyles.bodyMedium.copyWith(color: Colors.white70),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              InDriveButton(
+                label: 'close'.tr,
+                onPressed: () {
+                  if (!dialogClosed) {
+                    dialogClosed = true;
+                    subscription?.cancel();
+                    Get.back();
+                    completer.complete();
+                  }
+                },
+                variant: InDriveButtonVariant.ghost,
+              ),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: false,
+    );
+
+    if (!dialogClosed) {
+      subscription.cancel();
     }
   }
 

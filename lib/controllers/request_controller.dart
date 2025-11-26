@@ -7,10 +7,15 @@ import '../../data/repositories/request_repository.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../data/repositories/chat_repository.dart';
 import '../../data/repositories/mission_repository.dart';
+import '../../data/repositories/cancellation_report_repository.dart';
+import '../../data/repositories/user_repository.dart';
+import '../../data/models/cancellation_report_model.dart';
 import '../../core/utils/logger.dart';
 import '../../core/services/local_notification_service.dart';
 import '../../core/services/qr_code_service.dart';
 import '../../core/helpers/snackbar_helper.dart';
+import '../../components/employee_cancellation_report_form_dialog.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'auth_controller.dart';
 
 /// Controller pour gérer les demandes (GetX)
@@ -18,6 +23,7 @@ class RequestController extends GetxController {
   final RequestRepository _requestRepository = RequestRepository();
   final ChatRepository _chatRepository = ChatRepository();
   final MissionRepository _missionRepository = MissionRepository();
+  final CancellationReportRepository _cancellationReportRepository = CancellationReportRepository();
   final QRCodeService _qrCodeService = QRCodeService();
 
   // Observable states
@@ -29,6 +35,7 @@ class RequestController extends GetxController {
   
   // Stream subscription management
   StreamSubscription<List<RequestModel>>? _requestsStreamSubscription;
+  StreamSubscription<List<RequestModel>>? _cancelledRequestsStreamSubscription;
   String? _currentCategorieId;
   String? _currentClientId;
   
@@ -38,11 +45,17 @@ class RequestController extends GetxController {
   // Notification service
   final LocalNotificationService _notificationService = LocalNotificationService();
   
-  // Track previous request IDs to detect new ones
-  final Set<String> _previousRequestIds = <String>{};
-  
-  // Track notified employees per request to avoid duplicate notifications for clients
-  final Map<String, Set<String>> _notifiedEmployeesPerRequest = <String, Set<String>>{};
+    // Track previous request IDs to detect new ones
+    final Set<String> _previousRequestIds = <String>{};
+    
+    // Track notified employees per request to avoid duplicate notifications for clients
+    final Map<String, Set<String>> _notifiedEmployeesPerRequest = <String, Set<String>>{};
+    
+    // Track previous request statuses to detect cancellations
+    final Map<String, String> _previousRequestStatuses = <String, String>{};
+    
+    // Track open cancellation report dialogs to avoid duplicates
+    final Set<String> _openCancellationDialogs = <String>{};
   
   // Notification count for employees (pending requests excluding own requests and already dealt with)
   int get notificationCount {
@@ -88,6 +101,7 @@ class RequestController extends GetxController {
   @override
   void onClose() {
     _requestsStreamSubscription?.cancel();
+    _cancelledRequestsStreamSubscription?.cancel();
     super.onClose();
   }
 
@@ -157,6 +171,16 @@ class RequestController extends GetxController {
     }
   }
 
+  /// Charger les demandes annulées pour un employé
+  Future<List<RequestModel>> getCancelledRequestsByEmployeeId(String employeeId) async {
+    try {
+      return await _requestRepository.getCancelledRequestsByEmployeeId(employeeId);
+    } catch (e, stackTrace) {
+      Logger.logError('RequestController.getCancelledRequestsByEmployeeId', e, stackTrace);
+      return [];
+    }
+  }
+
   /// Stream des demandes d'un client (temps réel)
   Future<void> streamRequestsByClient(String clientId) async {
     // Cancel existing subscription if switching to a different client
@@ -174,15 +198,19 @@ class RequestController extends GetxController {
     hasReceivedFirstData.value = false;
     isLoading.value = true;
 
-    // Load initial data first
+      // Load initial data first
     try {
       debugPrint('[RequestController] Loading initial data for client: $clientId');
       final initialData = await _requestRepository.getRequestsByClientId(clientId);
-      requests.assignAll(initialData);
+      // Filtrer les demandes annulées pour ne pas les afficher au client
+      final filteredInitialData = initialData.where((request) => 
+        request.statut.toLowerCase() != 'cancelled'
+      ).toList();
+      requests.assignAll(filteredInitialData);
       hasReceivedFirstData.value = true;
       isLoading.value = false;
       update();
-      debugPrint('[RequestController] Initial data loaded: ${initialData.length} requests');
+      debugPrint('[RequestController] Initial data loaded: ${filteredInitialData.length} requests (${initialData.length - filteredInitialData.length} cancelled filtered)');
     } catch (e) {
       debugPrint('[RequestController] Error loading initial data: $e');
       Logger.logError('RequestController.streamRequestsByClient', e, StackTrace.current);
@@ -192,13 +220,18 @@ class RequestController extends GetxController {
       (requestList) {
         hasReceivedFirstData.value = true;
         
-        // Detect and notify about new employee acceptances for clients
-        _detectAndNotifyEmployeeAcceptances(requestList, clientId);
+        // Filtrer les demandes annulées pour ne pas les afficher au client
+        final filteredRequests = requestList.where((request) => 
+          request.statut.toLowerCase() != 'cancelled'
+        ).toList();
         
-        requests.assignAll(requestList);
+        // Detect and notify about new employee acceptances for clients
+        _detectAndNotifyEmployeeAcceptances(filteredRequests, clientId);
+        
+        requests.assignAll(filteredRequests);
         update();
         isLoading.value = false;
-        debugPrint('[RequestController] ✅ Stream update: ${requestList.length} requests for client $clientId');
+        debugPrint('[RequestController] ✅ Stream update: ${filteredRequests.length} requests for client $clientId (${requestList.length - filteredRequests.length} cancelled filtered)');
       },
       onError: (error) {
         errorMessage.value = error.toString();
@@ -233,6 +266,8 @@ class RequestController extends GetxController {
     // Cache employee document ID if provided
     if (employeeDocumentId != null) {
       _currentEmployeeDocumentId = employeeDocumentId;
+      // Start listening to cancelled requests for this employee
+      _startListeningToCancelledRequests(employeeDocumentId);
     }
     
     // Reset first data flag when starting new stream
@@ -266,8 +301,16 @@ class RequestController extends GetxController {
         // Detect new requests and show notifications
         _detectAndNotifyNewRequests(requestList);
         
+        // Detect cancelled requests and show report to employee
+        _detectAndNotifyCancellations(requestList);
+        
         // Update using assignAll - this should trigger GetX reactivity
         requests.assignAll(requestList);
+        
+        // Update previous statuses
+        for (final request in requestList) {
+          _previousRequestStatuses[request.id] = request.statut;
+        }
         
         // Force update to ensure all listeners are notified
         update();
@@ -294,15 +337,113 @@ class RequestController extends GetxController {
     
     debugPrint('[RequestController] Stream subscription created, isPaused: ${_requestsStreamSubscription?.isPaused}');
   }
+
+  /// Démarrer l'écoute des demandes annulées pour un employé
+  void _startListeningToCancelledRequests(String employeeId) async {
+    // Cancel existing subscription if any
+    _cancelledRequestsStreamSubscription?.cancel();
+    
+    debugPrint('[RequestController] Starting stream for cancelled requests for employee: $employeeId');
+    
+    // Load existing cancelled requests first
+    try {
+      final existingCancelledRequests = await _requestRepository.getCancelledRequestsByEmployeeId(employeeId);
+      debugPrint('[RequestController] Found ${existingCancelledRequests.length} existing cancelled requests');
+      
+      // Process existing cancelled requests
+      for (final request in existingCancelledRequests) {
+        _previousRequestStatuses[request.id] = request.statut;
+        _checkAndShowCancellationReport(request);
+      }
+    } catch (e) {
+      debugPrint('[RequestController] Error loading existing cancelled requests: $e');
+    }
+    
+    // Now start the stream for real-time updates
+    _cancelledRequestsStreamSubscription = _requestRepository.streamCancelledRequestsByEmployeeId(employeeId).listen(
+      (cancelledRequests) {
+        debugPrint('[RequestController] ⚡ Cancelled requests stream received ${cancelledRequests.length} requests');
+        
+        // Process each cancelled request
+        for (final request in cancelledRequests) {
+          // Check if this is a new cancellation
+          final previousStatus = _previousRequestStatuses[request.id];
+          if (previousStatus != null && previousStatus.toLowerCase() == 'cancelled') {
+            continue; // Already processed
+          }
+          
+          // Update previous status
+          _previousRequestStatuses[request.id] = request.statut;
+          
+          // Check if employee has already filled the report
+          _checkAndShowCancellationReport(request);
+        }
+      },
+      onError: (error) {
+        Logger.logError('RequestController._startListeningToCancelledRequests', error, StackTrace.current);
+        debugPrint('[RequestController] ❌ Cancelled requests stream error: $error');
+      },
+      cancelOnError: false,
+    );
+  }
+
+  /// Vérifier et afficher le formulaire de rapport d'annulation
+  Future<void> _checkAndShowCancellationReport(RequestModel request) async {
+    try {
+      // Check if dialog is already open for this request
+      if (_openCancellationDialogs.contains(request.id)) {
+        debugPrint('[RequestController] Dialog already open for request ${request.id}');
+        return;
+      }
+
+      // Check if employee has already filled the report
+      final existingReport = await _cancellationReportRepository.getReportByRequestId(request.id);
+      if (existingReport != null && existingReport.employeeNotificationReason != null && existingReport.employeeNotificationReason!.isNotEmpty) {
+        debugPrint('[RequestController] Employee already filled report for request ${request.id}');
+        return; // Employee already filled the report
+      }
+
+      // Get client name
+      String? clientName;
+      try {
+        final userRepository = UserRepository();
+        final clientUser = await userRepository.getUserById(request.clientId);
+        clientName = clientUser?.nomComplet;
+      } catch (e) {
+        debugPrint('Erreur lors du chargement du client: $e');
+      }
+
+      // Get client reason from report
+      String? clientReason;
+      if (existingReport != null) {
+        clientReason = existingReport.clientReason;
+      }
+
+      // Mark dialog as open
+      _openCancellationDialogs.add(request.id);
+
+      // Show the form
+      debugPrint('[RequestController] Showing cancellation report form for request ${request.id}');
+      _showCancellationReportFormToEmployee(request, clientReason, clientName);
+    } catch (e) {
+      debugPrint('[RequestController] Error checking cancellation report: $e');
+      Logger.logError('RequestController._checkAndShowCancellationReport', e, StackTrace.current);
+    }
+  }
   
   /// Arrêter le stream actif
   void stopStreaming() {
     _requestsStreamSubscription?.cancel();
     _requestsStreamSubscription = null;
+    _cancelledRequestsStreamSubscription?.cancel();
+    _cancelledRequestsStreamSubscription = null;
     _currentCategorieId = null;
     _currentClientId = null;
+    _currentEmployeeDocumentId = null;
     _previousRequestIds.clear();
     _notifiedEmployeesPerRequest.clear(); // Clear notification tracking
+    _previousRequestStatuses.clear();
+    _openCancellationDialogs.clear(); // Clear open dialogs tracking
     hasReceivedFirstData.value = false;
   }
 
@@ -358,6 +499,148 @@ class RequestController extends GetxController {
     } catch (e) {
       // Silently handle errors to avoid breaking the stream
       Logger.logError('RequestController._detectAndNotifyNewRequests', e, StackTrace.current);
+    }
+  }
+
+  /// Détecter les annulations de demandes et afficher le formulaire de rapport à l'employé
+  void _detectAndNotifyCancellations(List<RequestModel> requestList) async {
+    try {
+      final authController = Get.find<AuthController>();
+      final user = authController.currentUser.value;
+      if (user == null) return;
+
+      // Vérifier si l'utilisateur est un employé
+      if (user.type.toLowerCase() != 'employee') return;
+
+      // Récupérer l'ID du document employé
+      if (_currentEmployeeDocumentId == null) {
+        try {
+          final employeeRepository = EmployeeRepository();
+          final employee = await employeeRepository.getEmployeeByUserId(user.id);
+          if (employee != null) {
+            _currentEmployeeDocumentId = employee.id;
+          } else {
+            return; // Pas d'employé trouvé
+          }
+        } catch (e) {
+          debugPrint('Erreur lors de la récupération de l\'employé: $e');
+          return;
+        }
+      }
+
+      for (final request in requestList) {
+        // Vérifier si la demande a été annulée et était assignée à cet employé
+        if (request.statut.toLowerCase() == 'cancelled' &&
+            request.employeeId != null &&
+            request.employeeId == _currentEmployeeDocumentId) {
+          
+          // Vérifier si c'est une nouvelle annulation (statut précédent n'était pas 'cancelled')
+          final previousStatus = _previousRequestStatuses[request.id];
+          if (previousStatus != null && previousStatus.toLowerCase() == 'cancelled') {
+            continue; // Déjà notifié
+          }
+
+          // Vérifier si l'employé a déjà rempli son rapport
+          try {
+            final existingReport = await _cancellationReportRepository.getReportByRequestId(request.id);
+            if (existingReport != null && existingReport.employeeNotificationReason != null && existingReport.employeeNotificationReason!.isNotEmpty) {
+              continue; // L'employé a déjà rempli son rapport
+            }
+          } catch (e) {
+            debugPrint('Erreur lors de la vérification du rapport existant: $e');
+          }
+
+          // Récupérer le rapport d'annulation du client
+          try {
+            final report = await _cancellationReportRepository.getReportByRequestId(request.id);
+            
+            // Récupérer le nom du client
+            String? clientName;
+            try {
+              final userRepository = UserRepository();
+              final clientUser = await userRepository.getUserById(request.clientId);
+              clientName = clientUser?.nomComplet;
+            } catch (e) {
+              debugPrint('Erreur lors du chargement du client: $e');
+            }
+
+            // Afficher le formulaire de rapport pour l'employé
+            _showCancellationReportFormToEmployee(request, report?.clientReason, clientName);
+          } catch (e) {
+            debugPrint('Erreur lors de la récupération du rapport: $e');
+            // Afficher quand même le formulaire sans raison du client
+            _showCancellationReportFormToEmployee(request, null, null);
+          }
+        }
+      }
+    } catch (e) {
+      // Silently handle errors to avoid breaking the stream
+      Logger.logError('RequestController._detectAndNotifyCancellations', e, StackTrace.current);
+    }
+  }
+
+  /// Afficher le formulaire de rapport d'annulation à l'employé
+  void _showCancellationReportFormToEmployee(
+    RequestModel request,
+    String? clientReason,
+    String? clientName,
+  ) {
+    try {
+      Get.dialog(
+        EmployeeCancellationReportFormDialog(
+          requestId: request.id,
+          clientName: clientName,
+          clientReason: clientReason,
+          onConfirm: (employeeReason) async {
+            // Mettre à jour le rapport avec la raison de l'employé
+            try {
+              final existingReport = await _cancellationReportRepository.getReportByRequestId(request.id);
+              if (existingReport != null) {
+                final updatedReport = existingReport.copyWith(
+                  employeeNotificationReason: employeeReason,
+                  updatedAt: DateTime.now(),
+                );
+                await _cancellationReportRepository.updateReport(updatedReport);
+                debugPrint('[RequestController] Rapport employé mis à jour pour la demande ${request.id}');
+              } else {
+                // Créer un nouveau rapport si aucun n'existe
+                final reportId = FirebaseFirestore.instance.collection('cancellation_reports').doc().id;
+                final now = DateTime.now();
+                final newReport = CancellationReportModel(
+                  id: reportId,
+                  requestId: request.id,
+                  clientId: request.clientId,
+                  employeeId: request.employeeId,
+                  clientReason: clientReason,
+                  employeeNotificationReason: employeeReason,
+                  createdAt: now,
+                  updatedAt: now,
+                );
+                await _cancellationReportRepository.createReport(newReport);
+                debugPrint('[RequestController] Nouveau rapport créé pour la demande ${request.id}');
+              }
+              
+              // Remove from open dialogs set
+              _openCancellationDialogs.remove(request.id);
+              
+              // Show success message
+              SnackbarHelper.showSuccess('report_submitted_successfully'.tr);
+            } catch (e) {
+              debugPrint('Erreur lors de la mise à jour du rapport: $e');
+              SnackbarHelper.showError('error_submitting_report'.tr);
+              rethrow; // Re-throw to let the dialog handle it
+            }
+          },
+        ),
+        barrierDismissible: false,
+      ).then((_) {
+        // Remove from open dialogs when dialog is closed (even if cancelled)
+        _openCancellationDialogs.remove(request.id);
+      });
+    } catch (e) {
+      // Remove from open dialogs on error
+      _openCancellationDialogs.remove(request.id);
+      debugPrint('Erreur lors de l\'affichage du formulaire de rapport: $e');
     }
   }
 
@@ -820,7 +1103,8 @@ class RequestController extends GetxController {
   }
 
   /// Annuler une demande
-  Future<bool> cancelRequest(String requestId) async {
+  /// Retourne la raison d'annulation si fournie, null sinon
+  Future<String?> cancelRequest(String requestId, {String? cancellationReason}) async {
     try {
       isLoading.value = true;
       errorMessage.value = '';
@@ -834,6 +1118,20 @@ class RequestController extends GetxController {
       if (request.statut.toLowerCase() != 'pending' && 
           request.statut.toLowerCase() != 'accepted') {
         throw 'Cette demande ne peut pas être annulée';
+      }
+
+      // Si la demande est assignée à un employé, supprimer la mission associée
+      if (request.employeeId != null) {
+        try {
+          final mission = await _missionRepository.getMissionByRequestId(requestId);
+          if (mission != null) {
+            await _missionRepository.deleteMission(mission.id);
+            Logger.logInfo('RequestController.cancelRequest', 'Mission ${mission.id} supprimée pour la demande ${requestId}');
+          }
+        } catch (missionError, missionStack) {
+          Logger.logError('RequestController.cancelRequest.Mission', missionError, missionStack);
+          // Continuer même si la suppression de la mission échoue
+        }
       }
 
       // Mettre à jour le statut à "Cancelled"
@@ -858,12 +1156,12 @@ class RequestController extends GetxController {
       }
 
       SnackbarHelper.showSuccess('request_cancelled'.tr);
-      return true;
+      return cancellationReason;
     } catch (e, stackTrace) {
       errorMessage.value = e.toString();
       Logger.logError('RequestController.cancelRequest', e, stackTrace);
       SnackbarHelper.showError(errorMessage.value);
-      return false;
+      return null;
     } finally {
       isLoading.value = false;
     }

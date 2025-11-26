@@ -176,6 +176,24 @@ class RequestRepository {
     }
   }
 
+  /// Récupérer les demandes annulées pour un employé
+  Future<List<RequestModel>> getCancelledRequestsByEmployeeId(String employeeId) async {
+    try {
+      final data = await _firestoreService.readAll(
+        collection: _collection,
+        queryBuilder: (q) => q
+            .where('employeeId', isEqualTo: employeeId)
+            .where('statut', isEqualTo: 'Cancelled'),
+      );
+
+      final requests = data.map((map) => RequestModel.fromMap(map)).toList();
+      requests.sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Descending
+      return requests;
+    } catch (e) {
+      throw 'Erreur lors de la récupération des demandes annulées: $e';
+    }
+  }
+
   /// Stream de toutes les demandes d'un client
   Stream<List<RequestModel>> streamRequestsByClientId(String clientId) {
     return _firestoreService
@@ -200,6 +218,24 @@ class RequestRepository {
           collection: _collection,
           queryBuilder: (q) => q.where('categorieId', isEqualTo: categorieId)
               .where('statut', isEqualTo: 'Pending'),
+        )
+        .map((snapshot) {
+          final requests = snapshot.docs
+              .map((doc) => RequestModel.fromDocument(doc))
+              .toList();
+          requests.sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Descending
+          return requests;
+        });
+  }
+
+  /// Stream des demandes annulées pour un employé
+  Stream<List<RequestModel>> streamCancelledRequestsByEmployeeId(String employeeId) {
+    return _firestoreService
+        .streamCollection(
+          collection: _collection,
+          queryBuilder: (q) => q
+              .where('employeeId', isEqualTo: employeeId)
+              .where('statut', isEqualTo: 'Cancelled'),
         )
         .map((snapshot) {
           final requests = snapshot.docs
