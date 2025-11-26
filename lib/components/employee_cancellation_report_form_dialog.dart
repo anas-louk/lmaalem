@@ -62,10 +62,11 @@ class _EmployeeCancellationReportFormDialogState extends State<EmployeeCancellat
           padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 // Icône
                 Center(
                   child: Container(
@@ -196,7 +197,8 @@ class _EmployeeCancellationReportFormDialogState extends State<EmployeeCancellat
                     ),
                   ],
                 ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
