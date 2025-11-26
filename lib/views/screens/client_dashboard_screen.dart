@@ -664,7 +664,11 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
   /// Vue unifiée avec affichage conditionnel selon l'état
   Widget _buildUnifiedView(user, RequestFlowState flowState, RequestModel? activeRequest) {
     // Ajouter un padding en bas si le formulaire est visible pour éviter qu'il cache le contenu
-    final bottomPadding = flowState == RequestFlowState.idle ? 400.0 : 32.0;
+    // Prendre en compte les safe areas (boutons de navigation système)
+    final mediaQuery = MediaQuery.of(context);
+    final systemBottomPadding = mediaQuery.padding.bottom;
+    final baseBottomPadding = flowState == RequestFlowState.idle ? 400.0 : 32.0;
+    final bottomPadding = baseBottomPadding + systemBottomPadding;
     
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(20, 20, 20, bottomPadding),

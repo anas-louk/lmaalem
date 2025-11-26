@@ -8,6 +8,7 @@ import '../../components/loading_widget.dart';
 import '../../components/indrive_app_bar.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
+import '../../core/services/chat_notification_service.dart';
 
 class ChatScreenArguments {
   final String requestId;
@@ -62,6 +63,9 @@ class _ChatScreenState extends State<ChatScreen> {
     final clientName = args.clientName ?? 'Client';
     final employeeName = args.employeeName ?? 'Employé';
 
+    // Notifier le service que l'utilisateur est sur l'écran de chat
+    ChatNotificationService().setCurrentChatRequestId(args.requestId);
+
     _chatController.initChat(
       requestId: args.requestId,
       requestTitle: args.requestTitle,
@@ -89,6 +93,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    // Notifier le service que l'utilisateur a quitté l'écran de chat
+    ChatNotificationService().setCurrentChatRequestId(null);
+    
     _messagesWorker?.dispose();
     _scrollController.dispose();
     _textController.dispose();

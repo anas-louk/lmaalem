@@ -130,11 +130,22 @@ class LocalNotificationService {
       enableVibration: true,
     );
 
+    // Chat messages channel
+    const AndroidNotificationChannel chatMessagesChannel = AndroidNotificationChannel(
+      'chat_messages_channel',
+      'Messages de chat',
+      description: 'Notifications pour les nouveaux messages de chat',
+      importance: Importance.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
     await androidImplementation.createNotificationChannel(highImportanceChannel);
     await androidImplementation.createNotificationChannel(generalChannel);
     await androidImplementation.createNotificationChannel(employeeAcceptedChannel);
     await androidImplementation.createNotificationChannel(newRequestsChannel);
     await androidImplementation.createNotificationChannel(incomingCallsChannel);
+    await androidImplementation.createNotificationChannel(chatMessagesChannel);
     debugPrint('[LocalNotification] ✅ Notification channels created successfully');
   }
 

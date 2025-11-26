@@ -38,6 +38,10 @@ class DraggableRequestForm extends StatefulWidget {
 class _DraggableRequestFormState extends State<DraggableRequestForm> {
   @override
   Widget build(BuildContext context) {
+    // Obtenir les safe areas pour les boutons de navigation système
+    final mediaQuery = MediaQuery.of(context);
+    final systemBottomPadding = mediaQuery.padding.bottom;
+    
     return DraggableScrollableSheet(
       initialChildSize: 0.4,
       minChildSize: 0.3,
@@ -115,7 +119,7 @@ class _DraggableRequestFormState extends State<DraggableRequestForm> {
                   Expanded(
                     child: SingleChildScrollView(
                       controller: scrollController,
-                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                      padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + systemBottomPadding),
                       child: Form(
                         key: widget.formKey,
                         child: Column(

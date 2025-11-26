@@ -11,6 +11,7 @@ import 'core/translations/app_translations.dart';
 import 'core/services/local_notification_service.dart';
 import 'core/services/background_notification_service.dart';
 import 'core/services/push_notifications.dart';
+import 'core/services/chat_notification_service.dart';
 import 'core/helpers/snackbar_helper.dart';
 
 void main() async {
@@ -51,6 +52,9 @@ void main() async {
   } catch (e) {
     debugPrint('Erreur lors de l\'initialisation de WorkManager: $e');
   }
+
+  // Initialiser le service de notifications de chat (doit être après GetX)
+  // On l'initialisera après que GetX soit prêt dans initialBinding
 
   runApp(const MyApp());
 }
@@ -155,11 +159,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             ever(authController.currentUser, (user) {
               if (user != null) {
                 callController.listenForIncomingCalls();
+                // Initialiser le service de notifications de chat
+                ChatNotificationService().initialize();
               }
             });
             // Also check if user is already logged in
             if (authController.currentUser.value != null) {
               callController.listenForIncomingCalls();
+              // Initialiser le service de notifications de chat
+              ChatNotificationService().initialize();
             }
           }),
         );
