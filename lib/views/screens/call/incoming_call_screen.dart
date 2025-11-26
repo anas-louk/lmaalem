@@ -12,6 +12,8 @@
 /// This screen is automatically shown when CallController.listenForIncomingCalls()
 /// detects a new ringing call in Firestore.
 
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../controllers/call_controller.dart';
@@ -51,11 +53,45 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
   String? _callerAvatar;
   bool _isLoading = true;
   bool _isProcessing = false;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _callStatusSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadCallerInfo();
+    _listenToCallStatus();
+  }
+
+  /// Écouter les changements de statut de l'appel dans Firestore
+  void _listenToCallStatus() {
+    final callDoc = FirebaseFirestore.instance.collection('calls').doc(widget.args.callId);
+    _callStatusSubscription = callDoc.snapshots().listen((doc) {
+      if (!doc.exists) {
+        // L'appel a été supprimé, fermer l'écran
+        if (mounted) {
+          Get.back();
+        }
+        return;
+      }
+
+      final data = doc.data();
+      final status = data?['status'] as String?;
+      
+      // Si l'appel est terminé (ended) ou accepté (et qu'on n'est pas en train de traiter), fermer l'écran
+      if (status == 'ended') {
+        print('[IncomingCallScreen] Call ended, closing screen');
+        if (mounted && !_isProcessing) {
+          Get.back();
+        }
+      } else if (status == 'accepted' && !_isProcessing) {
+        // L'appel a été accepté (peut-être par une autre action), fermer cet écran
+        // Le CallController naviguera vers CallScreen
+        print('[IncomingCallScreen] Call accepted, closing incoming screen');
+        if (mounted) {
+          Get.back();
+        }
+      }
+    });
   }
 
   Future<void> _loadCallerInfo() async {
@@ -117,8 +153,22 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
 
   void _handleDecline() {
     if (_isProcessing) return;
+    setState(() {
+      _isProcessing = true;
+    });
     _callController.endCall(widget.args.callId);
-    Get.back();
+    // La navigation sera gérée par le listener de statut ou on ferme manuellement
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        Get.back();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _callStatusSubscription?.cancel();
+    super.dispose();
   }
 
   @override

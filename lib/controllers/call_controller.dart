@@ -262,36 +262,43 @@ class CallController extends GetxController {
       print('[CallController] Error canceling notification: $e');
     }
     
-    if (_currentCallId != callId) {
-      print('[CallController] Call ID mismatch: current=$_currentCallId, requested=$callId');
-      return;
-    }
-
+    // Always update Firestore status, even if _currentCallId is not set
+    // This is important for cases where user declines before accepting
     try {
-      // Update Firestore status
+      // Update Firestore status first
       await _firestore.collection('calls').doc(callId).update({
         'status': 'ended',
         'lastUpdatedAt': FieldValue.serverTimestamp(),
       });
-
-      // Cleanup signaling subcollections (candidates)
-      await _cleanupCallSignaling(callId);
-
-      // Dispose peer connection and streams
-      await _disposeCurrentCall();
-      
-      // Reset audio control state
-      isMuted.value = false;
-      isSpeakerOn.value = false;
-      
-      print('[CallController] Call $callId ended.');
-      
-      // Navigation back will be handled by the screen
+      print('[CallController] Call $callId status updated to ended in Firestore');
     } catch (e) {
-      print('[CallController] Error ending call: $e');
-      // Still try to cleanup even if Firestore update fails
-      await _disposeCurrentCall();
+      print('[CallController] Error updating call status in Firestore: $e');
     }
+
+    // Only cleanup if this is the current call
+    if (_currentCallId == callId) {
+      try {
+        // Cleanup signaling subcollections (candidates)
+        await _cleanupCallSignaling(callId);
+
+        // Dispose peer connection and streams
+        await _disposeCurrentCall();
+        
+        // Reset audio control state
+        isMuted.value = false;
+        isSpeakerOn.value = false;
+        
+        print('[CallController] Call $callId ended and cleaned up.');
+      } catch (e) {
+        print('[CallController] Error cleaning up call: $e');
+        // Still try to cleanup even if Firestore update fails
+        await _disposeCurrentCall();
+      }
+    } else {
+      print('[CallController] Call $callId ended (not current call, only status updated)');
+    }
+    
+    // Navigation back will be handled by the screen
   }
 
   /// Cleanup signaling subcollections (ICE candidates)

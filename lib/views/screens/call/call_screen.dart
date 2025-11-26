@@ -18,6 +18,7 @@
 /// - Connection state displayed based on CallController.currentStatus
 
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -122,6 +123,39 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   void _setupCallListeners() {
+    // Écouter directement les changements dans Firestore pour détecter quand l'autre côté termine l'appel
+    final callDoc = FirebaseFirestore.instance.collection('calls').doc(widget.args.callId);
+    callDoc.snapshots().listen((doc) {
+      if (!doc.exists) {
+        // L'appel a été supprimé, fermer l'écran
+        if (mounted) {
+          _callTimer.stop();
+          _stopTimerUpdates();
+          Get.back();
+        }
+        return;
+      }
+
+      final data = doc.data();
+      final status = data?['status'] as String?;
+      
+      if (status == 'ended') {
+        print('[CallScreen] Call ended in Firestore, closing screen');
+        if (mounted) {
+          _callTimer.stop();
+          _stopTimerUpdates();
+          // Mettre à jour le statut local
+          _callController.currentStatus.value = CallStatus.ended;
+          // Fermer l'écran
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Get.back();
+            }
+          });
+        }
+      }
+    });
+
     // Start timer when call is accepted
     ever(_callController.currentStatus, (status) {
       if (status == CallStatus.accepted && !_callTimer.isRunning) {
@@ -133,7 +167,9 @@ class _CallScreenState extends State<CallScreen> {
         // Automatically close screen when call ends
         if (mounted) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            Get.back();
+            if (mounted) {
+              Get.back();
+            }
           });
         }
       }
