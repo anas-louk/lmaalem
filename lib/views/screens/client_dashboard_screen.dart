@@ -27,87 +27,26 @@ import '../../data/repositories/user_repository.dart';
 import '../../components/loading_widget.dart';
 import '../../components/empty_state.dart';
 import '../../components/indrive_app_bar.dart';
-import '../../components/indrive_card.dart';
 import '../../components/indrive_button.dart';
-import '../../components/custom_text_field.dart';
 import '../../components/indrive_dialog_template.dart';
 import '../../components/app_sidebar.dart';
 import '../../components/language_switcher.dart';
+import '../../components/user_location_map.dart';
+import '../../components/draggable_request_form.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../core/enums/request_flow_state.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
-import 'history_screen.dart';
 import 'chat_screen.dart';
-import 'categories_screen.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 
-/// Dashboard Client with Bottom Navigation
-class ClientDashboardScreen extends StatefulWidget {
+/// Dashboard Client
+class ClientDashboardScreen extends StatelessWidget {
   const ClientDashboardScreen({super.key});
 
   @override
-  State<ClientDashboardScreen> createState() => _ClientDashboardScreenState();
-}
-
-class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
-  int _currentIndex = 1; // Default to Home (middle)
-
-  final List<Widget> _screens = [
-    const HistoryScreen(),
-    const _ClientHomeScreen(),
-    const CategoriesScreen(),
-  ];
-
-  RequestFlowController get _requestFlowController {
-    try {
-      return Get.find<RequestFlowController>();
-    } catch (_) {
-      return Get.put(RequestFlowController());
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Obx(
-      () {
-        final flowState = _requestFlowController.currentState.value;
-        final hasActiveRequest = flowState == RequestFlowState.pending || 
-                                 flowState == RequestFlowState.accepted;
-        
-        return Scaffold(
-          body: IndexedStack(
-            index: _currentIndex,
-            children: _screens,
-          ),
-          // Cacher la bottom navigation bar si une demande est en cours
-          bottomNavigationBar: hasActiveRequest
-              ? null
-              : BottomNavigationBar(
-                  currentIndex: _currentIndex,
-                  onTap: (index) {
-                    setState(() {
-                      _currentIndex = index;
-                    });
-                  },
-                  items: [
-                    BottomNavigationBarItem(
-                      icon: const Icon(Icons.history),
-                      label: 'history'.tr,
-                    ),
-                    BottomNavigationBarItem(
-                      icon: const Icon(Icons.home),
-                      label: 'home'.tr,
-                    ),
-                    BottomNavigationBarItem(
-                      icon: const Icon(Icons.category),
-                      label: 'categories'.tr,
-                    ),
-                  ],
-                ),
-        );
-      },
-    );
+    return const _ClientHomeScreen();
   }
 }
 
@@ -552,7 +491,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
         statutMission: 'Pending',
         employeeId: employeeId,
         clientId: client.id,
-        requestId: request.id,
+          requestId: request.id,
         createdAt: now,
         updatedAt: now,
       );
@@ -615,6 +554,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
           SizedBox(width: 8),
         ],
       ),
+      backgroundColor: AppColors.night,
       body: Obx(
         () {
           final user = _authController.currentUser.value;
@@ -692,8 +632,30 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
             });
           }
 
-          // Affichage conditionnel unifié sur la même page
-          return _buildUnifiedView(user, flowState, activeRequest);
+          // Si pas de demande active, afficher le formulaire glissant
+          if (flowState == RequestFlowState.idle) {
+            return Stack(
+              children: [
+                // Contenu principal
+                _buildUnifiedView(user, flowState, activeRequest),
+                // Formulaire glissant en bas - doit être directement dans Stack, pas Positioned
+                DraggableRequestForm(
+                  formKey: _formKey,
+                  descriptionController: _descriptionController,
+                  selectedCategorieIdNotifier: _selectedCategorieIdNotifier,
+                  selectedImagesNotifier: _selectedImagesNotifier,
+                  onPickImages: _pickImages,
+                  onSubmit: _submitRequest,
+                  isSubmittingNotifier: _isSubmittingNotifier,
+                  categories: _categorieController.categories,
+                  isLoadingCategories: _categorieController.isLoading.value,
+                ),
+              ],
+            );
+          } else {
+            // Si demande active, afficher seulement le contenu principal
+            return _buildUnifiedView(user, flowState, activeRequest);
+          }
         },
       ),
     );
@@ -701,11 +663,14 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
 
   /// Vue unifiée avec affichage conditionnel selon l'état
   Widget _buildUnifiedView(user, RequestFlowState flowState, RequestModel? activeRequest) {
+    // Ajouter un padding en bas si le formulaire est visible pour éviter qu'il cache le contenu
+    final bottomPadding = flowState == RequestFlowState.idle ? 400.0 : 32.0;
+    
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+      padding: EdgeInsets.fromLTRB(20, 20, 20, bottomPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+                    children: [
           // Section A : Header client OU Liste employés avec transition fluide
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 400),
@@ -742,42 +707,27 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
           
           const SizedBox(height: 24),
 
-          // Section B : Formulaire OU Infos demande avec transition fluide
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 400),
-            transitionBuilder: (Widget child, Animation<double> animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0.0, 0.1),
-                    end: Offset.zero,
-                  ).animate(CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOut,
-                  )),
-                  child: child,
-                ),
-              );
-            },
-            child: flowState == RequestFlowState.idle
-                ? Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildCategorySelector(),
-                        const SizedBox(height: 24),
-                        _buildDescriptionForm(),
-                        const SizedBox(height: 24),
-                        _buildSubmitButton(),
-                      ],
-                    ),
-                  )
-                : activeRequest != null
-                    ? _buildRequestDetailsCard(activeRequest, flowState)
-                    : const SizedBox.shrink(),
-          ),
+          // Section B : Infos demande (si active) OU rien (le formulaire est dans le bottom sheet)
+          if (flowState != RequestFlowState.idle && activeRequest != null)
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 400),
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0.0, 0.1),
+                      end: Offset.zero,
+                    ).animate(CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOut,
+                    )),
+                    child: child,
+                  ),
+                );
+              },
+              child: _buildRequestDetailsCard(activeRequest, flowState),
+            ),
           
           const SizedBox(height: 24),
 
@@ -791,284 +741,235 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
     );
   }
 
-  /// Header avec infos client + localisation
+  /// Header avec infos client + localisation - Design moderne amélioré
   Widget _buildUserHeader(user) {
-    return InDriveCard(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              // Photo de profil
-              CircleAvatar(
-                radius: 32,
-                backgroundColor: AppColors.primary.withOpacity(0.15),
-                child: Text(
-                  user.nomComplet.substring(0, 1).toUpperCase(),
-                  style: AppTextStyles.h3.copyWith(color: AppColors.primary),
-                ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Infos client avec design moderne et gradient (thème sombre)
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            color: AppColors.nightSurface,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.4),
+                blurRadius: 30,
+                spreadRadius: 0,
+                offset: const Offset(0, 20),
               ),
-              const SizedBox(width: 16),
-              // Infos utilisateur
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Text(
-                      user.nomComplet,
-                      style: AppTextStyles.h3,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      user.localisation.isNotEmpty ? user.localisation : 'Localisation non définie',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    // Photo de profil avec gradient et ombre
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primaryDark,
+                          ],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.3),
+                            blurRadius: 12,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(3),
+                      child: CircleAvatar(
+                        radius: 32,
+                        backgroundColor: AppColors.white,
+                        child: Text(
+                          user.nomComplet.substring(0, 1).toUpperCase(),
+                          style: AppTextStyles.h3.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                    // Infos utilisateur
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                            user.nomComplet,
+                            style: AppTextStyles.h3.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.public,
+                                size: 14,
+                                color: Colors.white70,
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  user.localisation.isNotEmpty ? user.localisation : 'Localisation non définie',
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                    color: Colors.white70,
+                                    fontSize: 13,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Localisation
-          Row(
-            children: [
-              Icon(
-                Icons.location_on,
-                size: 20,
-                color: AppColors.primary,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ValueListenableBuilder<String?>(
-                valueListenable: _currentAddressNotifier,
-                builder: (context, address, _) {
-                  return Text(
-                    address ?? 'Localisation non disponible',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                const SizedBox(height: 20),
+                // Adresse actuelle avec design amélioré (thème sombre)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.nightSecondary,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white10,
+                      width: 1,
                     ),
-                  );
-                },
-              ),
-              ),
-              ValueListenableBuilder<bool>(
-                valueListenable: _isLoadingLocationNotifier,
-                builder: (context, isLoading, _) {
-                  if (isLoading) {
-                    return const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    );
-                  }
-                  return IconButton(
-                    icon: const Icon(Icons.refresh, size: 20),
-                    onPressed: _getCurrentLocation,
-                    tooltip: 'refresh_location'.tr,
-                  );
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Sélecteur de catégories avec icônes circulaires
-  Widget _buildCategorySelector() {
-    return Obx(
-      () {
-        if (_categorieController.isLoading.value) {
-          return const LoadingWidget();
-        }
-
-        if (_categorieController.categories.isEmpty) {
-          return EmptyState(
-            icon: Icons.category_outlined,
-            title: 'no_categories'.tr,
-            message: 'no_categories_message'.tr,
-          );
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'select_category'.tr,
-              style: AppTextStyles.h4,
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: _categorieController.categories.map((categorie) {
-                return ValueListenableBuilder<String?>(
-                  valueListenable: _selectedCategorieIdNotifier,
-                  builder: (context, selectedId, _) {
-                    final isSelected = selectedId == categorie.id;
-                    return GestureDetector(
-                      onTap: () {
-                        if (mounted) {
-                          _selectedCategorieIdNotifier.value = categorie.id;
-                        }
-                      },
-                      child: Container(
-                        width: 80,
-                        child: Column(
-                          children: [
-                            // Icône circulaire
-                            Container(
-                              width: 64,
-                              height: 64,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isSelected
-                                    ? AppColors.secondary.withOpacity(0.15)
-                                    : AppColors.greyLight,
-                                border: Border.all(
-                                  color: isSelected
-                                      ? AppColors.secondary
-                                      : Colors.transparent,
-                                  width: 3,
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  categorie.nom.substring(0, 1).toUpperCase(),
-                                  style: AppTextStyles.h3.copyWith(
-                                    color: isSelected
-                                        ? AppColors.secondary
-                                        : AppColors.textSecondary,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            // Nom de la catégorie
-                            Text(
-                              categorie.nom,
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: isSelected
-                                    ? AppColors.secondary
-                                    : AppColors.textSecondary,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.location_on_rounded,
+                          size: 20,
+                          color: AppColors.white,
                         ),
                       ),
-                    );
-                  },
-                );
-              }).toList(),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  /// Formulaire de description
-  Widget _buildDescriptionForm() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'request_description_label'.tr,
-          style: AppTextStyles.h4,
-        ),
-        const SizedBox(height: 12),
-        InDriveCard(
-          padding: EdgeInsets.zero,
-          child: CustomTextField(
-            controller: _descriptionController,
-            hint: 'request_description_hint'.tr,
-            maxLines: 5,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'description_required'.tr;
-              }
-              return null;
-            },
-          ),
-        ),
-        ValueListenableBuilder<List<File>>(
-          valueListenable: _selectedImagesNotifier,
-          builder: (context, images, _) {
-            if (images.isEmpty) return const SizedBox.shrink();
-            return Column(
-              children: [
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 100,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: images.length,
-                    itemBuilder: (context, index) {
-                      return Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        child: Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.file(
-                                images[index],
-                                width: 100,
-                                height: 100,
-                                fit: BoxFit.cover,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ValueListenableBuilder<String?>(
+                          valueListenable: _currentAddressNotifier,
+                          builder: (context, address, _) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                            Text(
+                                  'Votre position',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: Colors.white54,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  address ?? 'Localisation non disponible',
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _isLoadingLocationNotifier,
+                        builder: (context, isLoading, _) {
+                          if (isLoading) {
+                            return const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                               ),
-                            ),
-                            Positioned(
-                              top: 4,
-                              right: 4,
-                              child: GestureDetector(
-                                onTap: () {
-                                  if (mounted) {
-                                    final newImages = List<File>.from(images);
-                                    newImages.removeAt(index);
-                                    _selectedImagesNotifier.value = newImages;
-                                  }
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.error,
-                                    shape: BoxShape.circle,
+                            );
+                          }
+                          return Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: _getCurrentLocation,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: AppColors.primary.withOpacity(0.3),
+                                    width: 1,
                                   ),
-                                  child: const Icon(
-                                    Icons.close,
-                                    size: 16,
-                                    color: AppColors.white,
-                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.refresh_rounded,
+                                  size: 18,
+                                  color: AppColors.primaryLight,
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      );
-                    },
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ],
-            );
-          },
+            ),
+          ),
         ),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: _pickImages,
-          icon: const Icon(Icons.add_photo_alternate),
-          label: Text('add_images'.tr),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+        const SizedBox(height: 20),
+        // Carte de localisation en temps réel - Position sous les infos client (thème sombre)
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.4),
+                blurRadius: 30,
+                spreadRadius: 0,
+                offset: const Offset(0, 20),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: UserLocationMap(
+              height: 280,
+              borderRadius: 24,
+              onLocationChanged: (latLng) {
+                // Mettre à jour les coordonnées sans rebuild complet
+                if (mounted) {
+                  _latitudeNotifier.value = latLng.latitude;
+                  _longitudeNotifier.value = latLng.longitude;
+                  
+                  // Mettre à jour l'adresse en arrière-plan
+                  _updateAddressFromCoordinates(latLng.latitude, latLng.longitude);
+                }
+              },
             ),
           ),
         ),
@@ -1076,19 +977,24 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
     );
   }
 
-  /// Bouton de soumission
-  Widget _buildSubmitButton() {
-    return ValueListenableBuilder<bool>(
-      valueListenable: _isSubmittingNotifier,
-      builder: (context, isSubmitting, _) {
-        return InDriveButton(
-          label: isSubmitting ? 'submitting'.tr : 'confirm_request'.tr,
-          onPressed: isSubmitting ? null : _submitRequest,
-          variant: InDriveButtonVariant.primary,
-        );
-      },
-    );
+  /// Mettre à jour l'adresse à partir des coordonnées (en arrière-plan)
+  Future<void> _updateAddressFromCoordinates(double latitude, double longitude) async {
+    try {
+      final address = await _locationService.getAddressFromCoordinates(
+        latitude: latitude,
+        longitude: longitude,
+      );
+      if (mounted) {
+        _currentAddressNotifier.value = address;
+      }
+    } catch (e) {
+      // Ignorer silencieusement les erreurs de géocodification
+      debugPrint('Erreur lors de la mise à jour de l\'adresse: $e');
+    }
   }
+
+  // Les méthodes _buildCategorySelector, _buildDescriptionForm, et _buildSubmitButton
+  // ont été déplacées dans le widget DraggableRequestForm et ne sont plus utilisées ici
 
   /// Liste des employés acceptés (remplace le header client) avec animations temps réel
   Widget _buildAcceptedEmployeesList(RequestModel request) {
@@ -1104,13 +1010,15 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                 children: [
                   Text(
                     'accepted_employees'.tr,
-                    style: AppTextStyles.h3,
+                    style: AppTextStyles.h3.copyWith(
+                      color: Colors.white,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'select_employee_message'.tr,
                     style: AppTextStyles.bodyMedium.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      color: Colors.white70,
                     ),
                   ),
                 ],
@@ -1144,7 +1052,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
               valueListenable: _acceptedEmployeesNotifier,
               builder: (context, employees, _) {
                 if (employees.isEmpty) {
-                  return EmptyState(
+                      return EmptyState(
                     icon: Icons.person_outline,
                     title: 'no_employee_accepted'.tr,
                     message: 'waiting_employees'.tr,
@@ -1157,12 +1065,12 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                 }
                 
                 // Utiliser ListView.builder avec transitions pour les animations
-                return ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
                   itemCount: employees.length,
                   separatorBuilder: (context, index) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
+                      itemBuilder: (context, index) {
                     final employee = employees[index];
                     final stats = _employeeStatistics[employee.id] ?? EmployeeStatistics.empty();
                     return AnimatedSwitcher(
@@ -1202,14 +1110,26 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
   /// Header de l'employé sélectionné (remplace le header client)
   Widget _buildSelectedEmployeeHeader(EmployeeModel employee) {
     final stats = _employeeStatistics[employee.id] ?? EmployeeStatistics.empty();
-    
-    return InDriveCard(
+
+                        return Container(
+      decoration: BoxDecoration(
+        color: AppColors.nightSurface,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 30,
+            spreadRadius: 0,
+            offset: const Offset(0, 20),
+          ),
+        ],
+      ),
       padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
               CircleAvatar(
                 radius: 32,
                 backgroundColor: AppColors.secondary.withOpacity(0.15),
@@ -1230,25 +1150,31 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                   children: [
                     Text(
                       employee.nomComplet,
-                      style: AppTextStyles.h3,
+                      style: AppTextStyles.h3.copyWith(
+                        color: Colors.white,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     if (employee.competence.isNotEmpty)
                       Text(
                         employee.competence,
                         style: AppTextStyles.bodyMedium.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                          color: Colors.white70,
                         ),
                       ),
                   ],
                 ),
               ),
               if (stats.averageRating > 0)
-                Container(
+                                  Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary.withOpacity(0.15),
+                                    decoration: BoxDecoration(
+                    color: AppColors.secondary.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppColors.secondary.withOpacity(0.3),
+                      width: 1,
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1261,7 +1187,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                       const SizedBox(width: 4),
                       Text(
                         stats.averageRating.toStringAsFixed(1),
-                        style: AppTextStyles.bodySmall.copyWith(
+                                      style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.secondary,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1277,13 +1203,13 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
               Icon(
                 Icons.location_on,
                 size: 16,
-                color: AppColors.textSecondary,
+                color: Colors.white70,
               ),
               const SizedBox(width: 4),
               Text(
                 employee.ville,
                 style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
+                  color: Colors.white70,
                 ),
               ),
             ],
@@ -1306,7 +1232,19 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
       categoryName = 'Catégorie inconnue';
     }
 
-    return InDriveCard(
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.nightSurface,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 30,
+            spreadRadius: 0,
+            offset: const Offset(0, 20),
+          ),
+        ],
+      ),
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1316,13 +1254,13 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.15),
+                  color: AppColors.primary.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   categoryName,
                   style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.primary,
+                    color: AppColors.primaryLight,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1332,8 +1270,8 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: flowState == RequestFlowState.pending
-                      ? AppColors.warning.withOpacity(0.15)
-                      : AppColors.success.withOpacity(0.15),
+                      ? AppColors.warning.withOpacity(0.2)
+                      : AppColors.success.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -1353,12 +1291,16 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
           const SizedBox(height: 16),
           Text(
             'your_request_in_progress'.tr,
-            style: AppTextStyles.h4,
+            style: AppTextStyles.h4.copyWith(
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
             request.description,
-            style: AppTextStyles.bodyMedium,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: Colors.white70,
+            ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -1366,14 +1308,14 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
               Icon(
                 Icons.location_on,
                 size: 16,
-                color: AppColors.textSecondary,
+                color: Colors.white70,
               ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   request.address,
                   style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
+                    color: Colors.white70,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -1389,11 +1331,11 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
   /// Bouton pour annuler la demande
   Widget _buildCancelRequestButton(RequestModel request) {
     return InDriveButton(
-      label: 'cancel_request'.tr,
-      onPressed: _requestController.isLoading.value
-          ? null
-          : () => _showCancelRequestDialog(context, request),
-      variant: InDriveButtonVariant.ghost,
+                                  label: 'cancel_request'.tr,
+                                  onPressed: _requestController.isLoading.value
+                                      ? null
+                                      : () => _showCancelRequestDialog(context, request),
+                                  variant: InDriveButtonVariant.ghost,
     );
   }
 
@@ -1402,11 +1344,11 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        InDriveButton(
-          label: 'open_chat'.tr,
-          onPressed: () => _openChat(request),
-          variant: InDriveButtonVariant.primary,
-        ),
+                                InDriveButton(
+                                  label: 'open_chat'.tr,
+                                  onPressed: () => _openChat(request),
+                                  variant: InDriveButtonVariant.primary,
+                                ),
         const SizedBox(height: 12),
         InDriveButton(
           label: 'cancel_request'.tr,
@@ -1426,6 +1368,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
           title: 'cancel_request_dialog_title'.tr,
           message: 'cancel_request_dialog_content'.tr,
           primaryLabel: _requestController.isLoading.value ? 'loading'.tr : 'yes_cancel'.tr,
+          danger: true,
           onPrimary: _requestController.isLoading.value
               ? () {}
               : () async {
@@ -1450,7 +1393,6 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
           onSecondary: _requestController.isLoading.value
               ? null
               : () => Get.back(),
-          danger: true,
         ),
       ),
       barrierDismissible: false,
@@ -1496,7 +1438,19 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
   Widget _buildEmployeeCard(EmployeeModel employee, EmployeeStatistics stats, RequestModel request) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      child: InDriveCard(
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.nightSurface,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.4),
+              blurRadius: 30,
+              spreadRadius: 0,
+              offset: const Offset(0, 20),
+            ),
+          ],
+        ),
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1506,14 +1460,14 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                 // Photo de profil
                 CircleAvatar(
                   radius: 32,
-                  backgroundColor: AppColors.primary.withOpacity(0.15),
+                  backgroundColor: AppColors.primary.withOpacity(0.2),
                   backgroundImage: employee.image != null
                       ? NetworkImage(employee.image!)
                       : null,
                   child: employee.image == null
                       ? Text(
                           employee.nomComplet.substring(0, 1).toUpperCase(),
-                          style: AppTextStyles.h3.copyWith(color: AppColors.primary),
+                          style: AppTextStyles.h3.copyWith(color: AppColors.primaryLight),
                         )
                       : null,
                 ),
@@ -1525,14 +1479,16 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                     children: [
                       Text(
                         employee.nomComplet,
-                        style: AppTextStyles.h4,
+                        style: AppTextStyles.h4.copyWith(
+                          color: Colors.white,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       if (employee.competence.isNotEmpty)
                         Text(
                           employee.competence,
                           style: AppTextStyles.bodySmall.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                            color: Colors.white70,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -1543,13 +1499,13 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                           Icon(
                             Icons.location_on,
                             size: 14,
-                            color: AppColors.textSecondary,
+                            color: Colors.white70,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             employee.ville,
                             style: AppTextStyles.bodySmall.copyWith(
-                              color: AppColors.textSecondary,
+                              color: Colors.white70,
                             ),
                           ),
                         ],
@@ -1557,28 +1513,45 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                     ],
                   ),
                 ),
-                // Note
+                // Note avec design amélioré
                 if (stats.averageRating > 0)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
-                      color: AppColors.secondary.withOpacity(0.15),
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.secondary.withOpacity(0.2),
+                          AppColors.secondary.withOpacity(0.1),
+                        ],
+                      ),
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppColors.secondary.withOpacity(0.3),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.secondary.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(
-                          Icons.star,
-                          size: 16,
+                          Icons.star_rounded,
+                          size: 18,
                           color: AppColors.secondary,
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 6),
                         Text(
                           stats.averageRating.toStringAsFixed(1),
                           style: AppTextStyles.bodySmall.copyWith(
                             color: AppColors.secondary,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
                           ),
                         ),
                       ],

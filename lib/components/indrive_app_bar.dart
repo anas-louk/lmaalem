@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_text_styles.dart';
+import '../core/constants/app_colors.dart';
 
-/// AppBar réutilisable inspiré d'InDrive avec coins arrondis
+/// AppBar réutilisable inspiré d'InDrive avec design moderne et thème sombre
 class InDriveAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final Widget? leading;
@@ -22,7 +23,7 @@ class InDriveAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color bg = backgroundColor ?? Theme.of(context).scaffoldBackgroundColor;
+    final Color bg = backgroundColor ?? AppColors.nightSurface;
     return Container(
       decoration: BoxDecoration(
         color: bg,
@@ -31,23 +32,86 @@ class InDriveAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 20,
+            spreadRadius: 0,
             offset: const Offset(0, 8),
           ),
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.1),
+            blurRadius: 10,
+            spreadRadius: 0,
+            offset: const Offset(0, 4),
+          ),
         ],
+        border: Border(
+          bottom: BorderSide(
+            color: AppColors.primary.withOpacity(0.2),
+            width: 1,
+          ),
+        ),
       ),
       child: AppBar(
         backgroundColor: Colors.transparent,
-        elevation: elevation,
+        elevation: 0,
         centerTitle: centerTitle,
-        leading: leading,
-        actions: actions,
-        title: Text(
-          title,
-          style: AppTextStyles.h3.copyWith(
-            color: Theme.of(context).colorScheme.onSurface,
+        leading: leading != null
+            ? Container(
+                margin: const EdgeInsets.only(left: 8, top: 8, bottom: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.primary.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: leading,
+              )
+            : null,
+        leadingWidth: leading != null ? 64 : null,
+        actions: actions?.map((action) {
+          return Container(
+            margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.primary.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: action,
+          );
+        }).toList(),
+        title: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primary.withOpacity(0.2),
+                AppColors.primary.withOpacity(0.1),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.primary.withOpacity(0.3),
+              width: 1,
+            ),
           ),
+          child: Text(
+            title,
+            style: AppTextStyles.h3.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.5,
+            ),
+          ),
+        ),
+        iconTheme: const IconThemeData(
+          color: Colors.white,
         ),
       ),
     );

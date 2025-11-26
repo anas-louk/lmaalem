@@ -111,17 +111,20 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.night,
       appBar: AppBar(
         title: Text(
           'notifications'.tr,
           style: AppTextStyles.h3.copyWith(
+            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
         elevation: 0,
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: AppColors.nightSurface,
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actionsIconTheme: const IconThemeData(color: Colors.white),
         centerTitle: false,
       ),
       body: Obx(
@@ -263,13 +266,18 @@ class _NotificationScreenState extends State<NotificationScreen> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
+          color: AppColors.nightSurface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: Colors.white10,
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: Colors.black.withOpacity(0.4),
+              blurRadius: 20,
+              spreadRadius: 0,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
@@ -322,7 +330,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                             Text(
                               'new_request'.tr,
                               style: AppTextStyles.h4.copyWith(
-                                color: AppColors.primary,
+                                color: AppColors.primaryLight,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -332,13 +340,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                 Icon(
                                   Icons.tag,
                                   size: 14,
-                                  color: AppColors.textSecondary,
+                                  color: Colors.white70,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
                                   '${'request'.tr} #${request.id.substring(0, 8)}',
                                   style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.textSecondary,
+                                    color: Colors.white70,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -466,13 +474,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       Icon(
                         Icons.access_time_rounded,
                         size: 14,
-                        color: AppColors.textTertiary,
+                              color: Colors.white54,
                       ),
                       const SizedBox(width: 6),
                       Text(
                         '${'created_on'.tr} ${_formatDate(request.createdAt)}',
                         style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textTertiary,
+                              color: Colors.white54,
                           fontSize: 11,
                         ),
                       ),
@@ -564,7 +572,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                       Text(
                                         'waiting_for_client_message'.tr,
                                         style: AppTextStyles.bodySmall.copyWith(
-                                          color: AppColors.textSecondary,
+                                          color: Colors.white70,
                                           fontSize: 11,
                                         ),
                                       ),

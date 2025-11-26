@@ -41,9 +41,12 @@ class InDriveButton extends StatelessWidget {
         foreground = scheme.onSurface;
         break;
       case InDriveButtonVariant.ghost:
-        background = Colors.transparent;
-        foreground = scheme.onSurface;
-        border = BorderSide(color: scheme.outline);
+        background = AppColors.error.withOpacity(0.15);
+        foreground = AppColors.error;
+        border = BorderSide(
+          color: AppColors.error.withOpacity(0.4),
+          width: 1.5,
+        );
         break;
     }
 

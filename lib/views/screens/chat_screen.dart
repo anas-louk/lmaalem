@@ -5,6 +5,7 @@ import '../../controllers/auth_controller.dart';
 import '../../widgets/call_button.dart';
 import '../../data/models/chat_message_model.dart';
 import '../../components/loading_widget.dart';
+import '../../components/indrive_app_bar.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 
@@ -102,25 +103,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final isClient = user?.id == args.clientId;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Obx(
-          () => Text(
-            _chatController.thread.value?.requestTitle ?? widget.args.requestTitle,
-          ),
-        ),
-        actions: [
-          // Audio Call Button
-          CallButton(
-            calleeId: _getRemoteUserId(),
-            video: false,
-          ),
-          // Video Call Button
-          CallButton(
-            calleeId: _getRemoteUserId(),
-            video: true,
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.night,
+      appBar: _buildAppBar(),
       body: Obx(() {
         if (_chatController.isLoading.value) {
           return const LoadingWidget();
@@ -137,14 +121,34 @@ class _ChatScreenState extends State<ChatScreen> {
             if (!thread.isActive)
               Container(
                 width: double.infinity,
+                margin: const EdgeInsets.all(16),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                color: AppColors.warning.withOpacity(0.15),
-                child: Text(
-                  'chat_disabled_request_finished'.tr,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.warning,
-                    fontWeight: FontWeight.w600,
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppColors.warning.withOpacity(0.3),
+                    width: 1,
                   ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline_rounded,
+                      color: AppColors.warning,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'chat_disabled_request_finished'.tr,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.warning,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             Expanded(
@@ -152,7 +156,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ? _buildEmptyState()
                   : ListView.builder(
                       controller: _scrollController,
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                       itemCount: messages.length,
                       itemBuilder: (context, index) {
                         final message = messages[index];
@@ -162,25 +166,49 @@ class _ChatScreenState extends State<ChatScreen> {
                               ? Alignment.centerRight
                               : Alignment.centerLeft,
                           child: Container(
-                            margin: const EdgeInsets.only(bottom: 12),
+                            margin: EdgeInsets.only(
+                              bottom: 12,
+                              left: isMine ? 40 : 0,
+                              right: isMine ? 0 : 40,
+                            ),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
-                              vertical: 10,
+                              vertical: 12,
                             ),
                             constraints: BoxConstraints(
                               maxWidth: MediaQuery.of(context).size.width * 0.7,
                             ),
                             decoration: BoxDecoration(
-                              color:
-                                  isMine ? AppColors.primary : AppColors.surface,
-                              borderRadius: BorderRadius.circular(18).copyWith(
-                                bottomRight: Radius.circular(isMine ? 0 : 18),
-                                bottomLeft: Radius.circular(isMine ? 18 : 0),
+                              gradient: isMine
+                                  ? LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        AppColors.primary,
+                                        AppColors.primaryDark,
+                                      ],
+                                    )
+                                  : null,
+                              color: isMine ? null : AppColors.nightSurface,
+                              borderRadius: BorderRadius.circular(20).copyWith(
+                                bottomRight: Radius.circular(isMine ? 4 : 20),
+                                bottomLeft: Radius.circular(isMine ? 20 : 4),
+                                topLeft: const Radius.circular(20),
+                                topRight: const Radius.circular(20),
                               ),
+                              border: isMine
+                                  ? null
+                                  : Border.all(
+                                      color: Colors.white10,
+                                      width: 1,
+                                    ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.04),
-                                  blurRadius: 8,
+                                  color: isMine
+                                      ? AppColors.primary.withOpacity(0.3)
+                                      : Colors.black.withOpacity(0.3),
+                                  blurRadius: 12,
+                                  spreadRadius: 0,
                                   offset: const Offset(0, 4),
                                 ),
                               ],
@@ -189,31 +217,74 @@ class _ChatScreenState extends State<ChatScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 if (!isMine)
-                                  Text(
-                                    isClient ? thread.employeeName : thread.clientName,
-                                    style: AppTextStyles.bodySmall.copyWith(
-                                      color: isMine
-                                          ? AppColors.white.withOpacity(0.9)
-                                          : AppColors.textSecondary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 24,
+                                        height: 24,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              AppColors.secondary,
+                                              AppColors.secondaryDark,
+                                            ],
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            (isClient ? thread.employeeName : thread.clientName)
+                                                .isNotEmpty
+                                                ? (isClient ? thread.employeeName : thread.clientName)[0].toUpperCase()
+                                                : 'U',
+                                            style: AppTextStyles.bodySmall.copyWith(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        isClient ? thread.employeeName : thread.clientName,
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: Colors.white70,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                if (!isMine) const SizedBox(height: 4),
+                                if (!isMine) const SizedBox(height: 8),
                                 Text(
                                   message.content,
                                   style: AppTextStyles.bodyMedium.copyWith(
-                                    color: isMine ? AppColors.white : AppColors.textPrimary,
+                                    color: isMine ? Colors.white : Colors.white,
+                                    height: 1.4,
                                   ),
                                 ),
                                 const SizedBox(height: 6),
-                                Text(
-                                  _formatTime(message.createdAt),
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    fontSize: 11,
-                                    color: isMine
-                                        ? AppColors.white.withOpacity(0.7)
-                                        : AppColors.textSecondary,
-                                  ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      _formatTime(message.createdAt),
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        fontSize: 10,
+                                        color: isMine
+                                            ? Colors.white70
+                                            : Colors.white54,
+                                      ),
+                                    ),
+                                    if (isMine) ...[
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        Icons.done_all_rounded,
+                                        size: 14,
+                                        color: Colors.white70,
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ],
                             ),
@@ -232,53 +303,119 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildComposer(bool isActive) {
     return SafeArea(
       top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _textController,
-                enabled: isActive,
-                minLines: 1,
-                maxLines: 4,
-                decoration: InputDecoration(
-                  hintText: 'type_message_hint'.tr,
-                  filled: true,
-                  fillColor: AppColors.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
-              ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.nightSurface,
+          border: Border(
+            top: BorderSide(
+              color: Colors.white10,
+              width: 1,
             ),
-            const SizedBox(width: 12),
-            SizedBox(
-              height: 48,
-              width: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  shape: const CircleBorder(),
-                ),
-                onPressed: (!isActive || _chatController.isSending.value)
-                    ? null
-                    : _handleSendMessage,
-                child: _chatController.isSending.value
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.send_rounded),
-              ),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 20,
+              spreadRadius: 0,
+              offset: const Offset(0, -4),
             ),
           ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.nightSecondary,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: Colors.white10,
+                      width: 1,
+                    ),
+                  ),
+                  child: TextField(
+                    controller: _textController,
+                    enabled: isActive,
+                    minLines: 1,
+                    maxLines: 4,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: Colors.white,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'type_message_hint'.tr,
+                      hintStyle: AppTextStyles.bodyMedium.copyWith(
+                        color: Colors.white54,
+                      ),
+                      filled: false,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: (!isActive || _chatController.isSending.value)
+                        ? [
+                            AppColors.grey,
+                            AppColors.greyDark,
+                          ]
+                        : [
+                            AppColors.primary,
+                            AppColors.primaryDark,
+                          ],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: (!isActive || _chatController.isSending.value)
+                      ? null
+                      : [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.4),
+                            blurRadius: 12,
+                            spreadRadius: 0,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: (!isActive || _chatController.isSending.value)
+                        ? null
+                        : _handleSendMessage,
+                    borderRadius: BorderRadius.circular(24),
+                    child: Center(
+                      child: _chatController.isSending.value
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Icon(
+                              Icons.send_rounded,
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -291,13 +428,38 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.chat_bubble_outline, size: 64, color: AppColors.primary),
-            const SizedBox(height: 16),
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.primary.withOpacity(0.2),
+                  width: 2,
+                ),
+              ),
+              child: Icon(
+                Icons.chat_bubble_outline_rounded,
+                size: 48,
+                color: AppColors.primaryLight,
+              ),
+            ),
+            const SizedBox(height: 24),
             Text(
               'chat_empty_state'.tr,
               textAlign: TextAlign.center,
-              style: AppTextStyles.bodyLarge.copyWith(
-                color: AppColors.textSecondary,
+              style: AppTextStyles.h4.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Commencez la conversation',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: Colors.white70,
               ),
             ),
           ],
@@ -313,13 +475,38 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.lock_outline, size: 64, color: AppColors.textSecondary),
-            const SizedBox(height: 16),
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: AppColors.error.withOpacity(0.1),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.error.withOpacity(0.2),
+                  width: 2,
+                ),
+              ),
+              child: Icon(
+                Icons.lock_outline_rounded,
+                size: 48,
+                color: AppColors.error,
+              ),
+            ),
+            const SizedBox(height: 24),
             Text(
               'chat_not_available'.tr,
               textAlign: TextAlign.center,
-              style: AppTextStyles.bodyLarge.copyWith(
-                color: AppColors.textSecondary,
+              style: AppTextStyles.h4.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Le chat n\'est pas disponible pour cette demande',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: Colors.white70,
               ),
             ),
           ],
@@ -349,6 +536,72 @@ class _ChatScreenState extends State<ChatScreen> {
     return user.id == args.clientId 
         ? (args.employeeUserId ?? args.employeeId)
         : args.clientId;
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return _ReactiveAppBar(
+      chatController: _chatController,
+      defaultTitle: widget.args.requestTitle,
+      getRemoteUserId: _getRemoteUserId,
+    );
+  }
+}
+
+class _ReactiveAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final ChatController chatController;
+  final String defaultTitle;
+  final String Function() getRemoteUserId;
+
+  const _ReactiveAppBar({
+    required this.chatController,
+    required this.defaultTitle,
+    required this.getRemoteUserId,
+  });
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(
+      () => InDriveAppBar(
+        title: chatController.thread.value?.requestTitle ?? defaultTitle,
+        actions: [
+          // Audio Call Button
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.primary.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: CallButton(
+              calleeId: getRemoteUserId(),
+              video: false,
+            ),
+          ),
+          // Video Call Button
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.primary.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: CallButton(
+              calleeId: getRemoteUserId(),
+              video: true,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

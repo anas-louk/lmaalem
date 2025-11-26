@@ -65,6 +65,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(24),
         ),
         margin: EdgeInsets.zero,
+        shadowColor: Colors.black.withOpacity(isDark ? 0.4 : 0.12),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -96,11 +97,13 @@ class AppTheme {
           foregroundColor: AppColors.white,
           elevation: 0,
           shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
           ),
-          textStyle: AppTextStyles.buttonLarge,
+          textStyle: AppTextStyles.buttonLarge.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(

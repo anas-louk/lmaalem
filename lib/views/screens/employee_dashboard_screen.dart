@@ -13,6 +13,10 @@ import '../../components/loading_widget.dart';
 import '../../components/empty_state.dart';
 import '../../components/app_sidebar.dart';
 import '../../components/language_switcher.dart';
+import '../../components/indrive_app_bar.dart';
+import '../../components/indrive_card.dart';
+import '../../components/indrive_section_title.dart';
+import '../../components/indrive_button.dart';
 import 'notification_screen.dart';
 import 'chat_screen.dart';
 import '../../widgets/call_button.dart';
@@ -190,12 +194,13 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.night,
       drawer: const AppSidebar(),
-      appBar: AppBar(
-        title: const Text('Tableau de bord Employé'),
+      appBar: InDriveAppBar(
+        title: 'employee_dashboard'.tr,
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.menu),
+            icon: const Icon(Icons.menu_rounded),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
@@ -244,25 +249,48 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
               return Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications_outlined),
-                    onPressed: () {
-                      Get.to(() => const NotificationScreen());
-                    },
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.primary.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.notifications_outlined),
+                      color: Colors.white,
+                      onPressed: () {
+                        Get.to(() => const NotificationScreen());
+                      },
+                    ),
                   ),
                   if (notificationCount > 0)
                     Positioned(
-                      right: 8,
-                      top: 8,
+                      right: 4,
+                      top: 4,
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: AppColors.error,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.error,
+                              AppColors.error.withOpacity(0.8),
+                            ],
+                          ),
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.error.withOpacity(0.5),
+                              blurRadius: 8,
+                              spreadRadius: 1,
+                            ),
+                          ],
                         ),
                         constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
+                          minWidth: 18,
+                          minHeight: 18,
                         ),
                         child: Text(
                           notificationCount > 99 ? '99+' : notificationCount.toString(),
@@ -279,6 +307,7 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
               );
             },
           ),
+          const SizedBox(width: 8),
           const LanguageSwitcher(),
           const SizedBox(width: 8),
         ],
@@ -299,39 +328,82 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
           }
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Welcome Card
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        Text(
-                          '${'hello'.tr}, ${user.nomComplet}',
-                          style: AppTextStyles.h2,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'welcome_employee'.tr,
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: AppColors.textSecondary,
+                // Welcome Card moderne
+                InDriveCard(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  AppColors.primary,
+                                  AppColors.primaryDark,
+                                ],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withOpacity(0.4),
+                                  blurRadius: 16,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Text(
+                                user.nomComplet.isNotEmpty ? user.nomComplet[0].toUpperCase() : 'E',
+                                style: AppTextStyles.h2.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${'hello'.tr}, ${user.nomComplet}',
+                                  style: AppTextStyles.h3.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'welcome_employee'.tr,
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 24),
 
-
-
                 // Missions Section
-                Text(
-                  'my_missions'.tr,
-                  style: AppTextStyles.h3,
+                InDriveSectionTitle(
+                  title: 'my_missions'.tr,
+                  subtitle: 'Vos missions actives',
+                  icon: Icons.work_rounded,
                 ),
                 const SizedBox(height: 16),
 
@@ -368,44 +440,123 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
                         final mission = activeMissions[index];
                         final canChat = mission.requestId != null &&
                             mission.statutMission.toLowerCase() != 'completed';
+                        final statusColor = _getStatusColor(mission.statutMission);
 
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: Column(
-                            children: [
-                              ListTile(
-                                title: Text('${'mission'.tr} #${mission.id.substring(0, 8)}'),
-                                subtitle: Text(
-                                  '${'mission_price'.tr}: ${mission.prixMission.toStringAsFixed(2)} €\n'
-                                  '${'mission_status'.tr}: ${_getStatusText(mission.statutMission)}\n'
-                                  '${'mission_date'.tr}: ${mission.dateStart.toString().substring(0, 10)}',
-                                ),
-                                trailing: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _getStatusColor(mission.statutMission),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    _getStatusText(mission.statutMission),
-                                    style: const TextStyle(
-                                      color: AppColors.white,
-                                      fontSize: 12,
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: InDriveCard(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Header avec ID et statut
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(8),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.primary.withOpacity(0.15),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: Icon(
+                                                  Icons.work_rounded,
+                                                  color: AppColors.primaryLight,
+                                                  size: 20,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Text(
+                                                '${'mission'.tr} #${mission.id.substring(0, 8)}',
+                                                style: AppTextStyles.h4.copyWith(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 12),
+                                          // Prix
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.attach_money_rounded,
+                                                size: 18,
+                                                color: AppColors.success,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                '${mission.prixMission.toStringAsFixed(2)} DH',
+                                                style: AppTextStyles.bodyLarge.copyWith(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          // Date
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.calendar_today_rounded,
+                                                size: 16,
+                                                color: Colors.white54,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                mission.dateStart.toString().substring(0, 10),
+                                                style: AppTextStyles.bodyMedium.copyWith(
+                                                  color: Colors.white70,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
+                                    // Badge de statut
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            statusColor,
+                                            statusColor.withOpacity(0.8),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(20),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: statusColor.withOpacity(0.3),
+                                            blurRadius: 8,
+                                            spreadRadius: 0,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Text(
+                                        _getStatusText(mission.statutMission),
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                onTap: () {
-                                  _missionController.selectMission(mission);
-                                  Get.toNamed(AppRoutes.AppRoutes.missionDetail);
-                                },
-                              ),
-                              if (canChat)
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                                  child: Row(
+                                const SizedBox(height: 20),
+                                // Actions
+                                if (canChat)
+                                  Row(
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
                                       // Call buttons
@@ -440,36 +591,51 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
                                         },
                                       ),
                                       // Chat Button
-                                      TextButton.icon(
-                                        onPressed: () => _openChatFromMission(mission),
-                                        icon: const Icon(Icons.chat_bubble_outline),
-                                        label: Text('open_chat'.tr),
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: AppColors.primary.withOpacity(0.3),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: TextButton.icon(
+                                          onPressed: () => _openChatFromMission(mission),
+                                          icon: Icon(
+                                            Icons.chat_bubble_outline_rounded,
+                                            color: AppColors.primaryLight,
+                                            size: 18,
+                                          ),
+                                          label: Text(
+                                            'open_chat'.tr,
+                                            style: AppTextStyles.bodyMedium.copyWith(
+                                              color: AppColors.primaryLight,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 8,
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
-                                ),
-                              // QR Scanner button for employee (shown if mission is not completed)
-                              if (mission.statutMission.toLowerCase() != 'completed')
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                                  child: SizedBox(
-                                    width: double.infinity,
-                                    height: 50,
-                                    child: ElevatedButton.icon(
-                                      onPressed: _openQRScanner,
-                                      icon: const Icon(Icons.qr_code_scanner),
-                                      label: Text('scan_qr_to_approve'.tr),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.warning,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        elevation: 2,
-                                      ),
-                                    ),
+                                // QR Scanner button for employee (shown if mission is not completed)
+                                if (mission.statutMission.toLowerCase() != 'completed') ...[
+                                  const SizedBox(height: 12),
+                                  InDriveButton(
+                                    label: 'scan_qr_to_approve'.tr,
+                                    onPressed: _openQRScanner,
+                                    variant: InDriveButtonVariant.secondary,
+                                    leadingIcon: Icons.qr_code_scanner_rounded,
                                   ),
-                                ),
-                            ],
+                                ],
+                              ],
+                            ),
                           ),
                         );
                       },
