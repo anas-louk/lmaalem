@@ -75,8 +75,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: InDriveAppBar(title: 'history'.tr),
-      body: Obx(() {
-        final user = _authController.currentUser.value;
+      body: SafeArea(
+        child: Obx(() {
+          final user = _authController.currentUser.value;
         if (user == null) {
           return const LoadingWidget();
         }
@@ -218,8 +219,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
           );
         }
 
+        final bottomPadding = MediaQuery.of(context).padding.bottom;
         return ListView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+          padding: EdgeInsets.fromLTRB(20, 20, 20, 32 + bottomPadding),
           children: [
             InDriveSectionTitle(
               title: 'history'.tr,
@@ -310,7 +312,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ],
         );
-      }),
+        }),
+      ),
     );
   }
 

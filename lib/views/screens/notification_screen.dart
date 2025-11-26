@@ -124,10 +124,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
         foregroundColor: AppColors.textPrimary,
         centerTitle: false,
       ),
-      body: Obx(
-        () {
-          // Access user first to ensure reactivity
-          final user = _authController.currentUser.value;
+      body: SafeArea(
+        child: Obx(
+          () {
+            // Access user first to ensure reactivity
+            final user = _authController.currentUser.value;
 
           if (user == null) {
             return const LoadingWidget();
@@ -189,11 +190,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
           // Debug log to verify updates
           debugPrint('[NotificationScreen] Build: Filtered=${filteredRequestIds.length}, Total=$requestsLength, Loading=$isLoading');
 
+          final bottomPadding = MediaQuery.of(context).padding.bottom;
+          
           if (filteredRequestIds.isEmpty) {
             return RefreshIndicator(
               onRefresh: _refreshRequests,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.only(bottom: bottomPadding),
                 child: SizedBox(
                   height: MediaQuery.of(context).size.height - 200,
                   child: EmptyState(
@@ -210,7 +214,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
             onRefresh: _refreshRequests,
             color: AppColors.primary,
             child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 8 + bottomPadding),
               itemCount: filteredRequestIds.length,
               itemBuilder: (context, index) {
               final requestId = filteredRequestIds[index];
@@ -237,7 +241,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
               },
             ),
           );
-        },
+          },
+        ),
       ),
     );
   }

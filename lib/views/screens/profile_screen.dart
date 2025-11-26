@@ -30,18 +30,20 @@ class ProfileScreen extends StatelessWidget {
           SizedBox(width: 8),
         ],
       ),
-      body: Obx(
-        () {
-          final user = _authController.currentUser.value;
+      body: SafeArea(
+        child: Obx(
+          () {
+            final user = _authController.currentUser.value;
 
-          if (user == null) {
-            return Center(
-              child: Text('user_not_connected'.tr),
-            );
-          }
+            if (user == null) {
+              return Center(
+                child: Text('user_not_connected'.tr),
+              );
+            }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            final bottomPadding = MediaQuery.of(context).padding.bottom;
+            return SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomPadding),
             child: Column(
               children: [
                 // Avatar
@@ -183,7 +185,8 @@ class ProfileScreen extends StatelessWidget {
               ],
             ),
           );
-        },
+          },
+        ),
       ),
     );
   }

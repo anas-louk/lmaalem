@@ -17,7 +17,7 @@ import 'notification_screen.dart';
 import 'chat_screen.dart';
 import '../../widgets/call_button.dart';
 
-/// Dashboard Employee with Bottom Navigation
+/// Dashboard Employee
 class EmployeeDashboardScreen extends StatefulWidget {
   const EmployeeDashboardScreen({super.key});
 
@@ -283,23 +283,25 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: Obx(
-        () {
-          final user = _authController.currentUser.value;
+      body: SafeArea(
+        child: Obx(
+          () {
+            final user = _authController.currentUser.value;
 
-          if (user == null) {
-            return const LoadingWidget();
-          }
+            if (user == null) {
+              return const LoadingWidget();
+            }
 
-          // Reload if user changes
-          if (_loadedUserId != user.id) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _loadMissions();
-            });
-          }
+            // Reload if user changes
+            if (_loadedUserId != user.id) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _loadMissions();
+              });
+            }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            final bottomPadding = MediaQuery.of(context).padding.bottom;
+            return SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomPadding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -479,7 +481,8 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
               ],
             ),
           );
-        },
+          },
+        ),
       ),
     );
   }

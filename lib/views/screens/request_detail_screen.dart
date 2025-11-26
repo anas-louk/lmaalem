@@ -648,28 +648,32 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       appBar: AppBar(
         title: Text('request_details'.tr),
       ),
-      body: _isLoading
-          ? const LoadingWidget()
-          : _request == null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: AppColors.error,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'request_not_found'.tr,
-                        style: AppTextStyles.h3,
-                      ),
-                    ],
-                  ),
-                )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        child: _isLoading
+            ? const LoadingWidget()
+            : _request == null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: AppColors.error,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'request_not_found'.tr,
+                          style: AppTextStyles.h3,
+                        ),
+                      ],
+                    ),
+                  )
+                : Builder(
+                    builder: (context) {
+                      final bottomPadding = MediaQuery.of(context).padding.bottom;
+                      return SingleChildScrollView(
+                        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomPadding),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -1186,7 +1190,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                         ),
                     ],
                   ),
-                ),
+                );
+                    },
+                  ),
+      ),
     );
   }
 

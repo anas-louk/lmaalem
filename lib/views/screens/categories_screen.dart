@@ -58,22 +58,24 @@ class CategoriesScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text('categories'.tr),
       ),
-      body: Obx(
-        () {
-          if (_categorieController.isLoading.value) {
-            return const LoadingWidget();
-          }
+      body: SafeArea(
+        child: Obx(
+          () {
+            if (_categorieController.isLoading.value) {
+              return const LoadingWidget();
+            }
 
-          if (_categorieController.categories.isEmpty) {
-            return EmptyState(
-              icon: Icons.category_outlined,
-              title: 'no_categories'.tr,
-              message: 'no_categories_message'.tr,
-            );
-          }
+            if (_categorieController.categories.isEmpty) {
+              return EmptyState(
+                icon: Icons.category_outlined,
+                title: 'no_categories'.tr,
+                message: 'no_categories_message'.tr,
+              );
+            }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            final bottomPadding = MediaQuery.of(context).padding.bottom;
+            return ListView.builder(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomPadding),
             itemCount: _categorieController.categories.length,
             itemBuilder: (context, index) {
               final categorie = _categorieController.categories[index];
@@ -106,7 +108,8 @@ class CategoriesScreen extends StatelessWidget {
               );
             },
           );
-        },
+          },
+        ),
       ),
     );
   }

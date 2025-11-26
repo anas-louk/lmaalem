@@ -36,13 +36,11 @@ import '../../components/language_switcher.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../core/enums/request_flow_state.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
-import 'history_screen.dart';
 import 'chat_screen.dart';
-import 'categories_screen.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 
-/// Dashboard Client with Bottom Navigation
+/// Dashboard Client
 class ClientDashboardScreen extends StatefulWidget {
   const ClientDashboardScreen({super.key});
 
@@ -51,62 +49,12 @@ class ClientDashboardScreen extends StatefulWidget {
 }
 
 class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
-  int _currentIndex = 1; // Default to Home (middle)
-
-  final List<Widget> _screens = [
-    const HistoryScreen(),
-    const _ClientHomeScreen(),
-    const CategoriesScreen(),
-  ];
-
-  RequestFlowController get _requestFlowController {
-    try {
-      return Get.find<RequestFlowController>();
-    } catch (_) {
-      return Get.put(RequestFlowController());
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () {
-        final flowState = _requestFlowController.currentState.value;
-        final hasActiveRequest = flowState == RequestFlowState.pending || 
-                                 flowState == RequestFlowState.accepted;
-        
-        return Scaffold(
-          body: IndexedStack(
-            index: _currentIndex,
-            children: _screens,
-          ),
-          // Cacher la bottom navigation bar si une demande est en cours
-          bottomNavigationBar: hasActiveRequest
-              ? null
-              : BottomNavigationBar(
-                  currentIndex: _currentIndex,
-                  onTap: (index) {
-                    setState(() {
-                      _currentIndex = index;
-                    });
-                  },
-                  items: [
-                    BottomNavigationBarItem(
-                      icon: const Icon(Icons.history),
-                      label: 'history'.tr,
-                    ),
-                    BottomNavigationBarItem(
-                      icon: const Icon(Icons.home),
-                      label: 'home'.tr,
-                    ),
-                    BottomNavigationBarItem(
-                      icon: const Icon(Icons.category),
-                      label: 'categories'.tr,
-                    ),
-                  ],
-                ),
-        );
-      },
+    return Scaffold(
+      body: SafeArea(
+        child: const _ClientHomeScreen(),
+      ),
     );
   }
 }
@@ -701,8 +649,9 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
 
   /// Vue unifiée avec affichage conditionnel selon l'état
   Widget _buildUnifiedView(user, RequestFlowState flowState, RequestModel? activeRequest) {
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 32 + bottomPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

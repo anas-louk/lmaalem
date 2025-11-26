@@ -117,18 +117,6 @@ class AppTheme {
           borderRadius: BorderRadius.circular(28),
         ),
       ),
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: surface,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: isDark ? Colors.white60 : AppColors.textSecondary,
-        showUnselectedLabels: true,
-        type: BottomNavigationBarType.fixed,
-        elevation: 0,
-        selectedLabelStyle: AppTextStyles.bodySmall.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
-        unselectedLabelStyle: AppTextStyles.bodySmall,
-      ),
       dividerColor: divider,
       textTheme: TextTheme(
         displayLarge: AppTextStyles.h1.copyWith(color: onSurface),

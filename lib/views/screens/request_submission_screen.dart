@@ -250,15 +250,17 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
           ),
         ],
       ),
-      body: Obx(() {
-        if (_requestController.isLoading.value) {
-          return const LoadingWidget();
-        }
+      body: SafeArea(
+        child: Obx(() {
+          if (_requestController.isLoading.value) {
+            return const LoadingWidget();
+          }
 
-        return Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+          final bottomPadding = MediaQuery.of(context).padding.bottom;
+          return Form(
+            key: _formKey,
+            child: ListView(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 32 + bottomPadding),
             children: [
               if (_categorie != null) ...[
                 InDriveCard(
@@ -466,7 +468,8 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
             ],
           ),
         );
-      }),
+        }),
+      ),
     );
   }
 }

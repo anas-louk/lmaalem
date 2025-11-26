@@ -51,5 +51,42 @@ class ResponsiveHelper {
       return 1;
     }
   }
+
+  /// Obtenir les insets de safe area (pour gérer les barres de navigation système)
+  static EdgeInsets getSafeAreaInsets(BuildContext context) {
+    return MediaQuery.of(context).padding;
+  }
+
+  /// Obtenir le padding bottom pour les barres de navigation système
+  static double getBottomPadding(BuildContext context) {
+    return MediaQuery.of(context).padding.bottom;
+  }
+
+  /// Obtenir le padding top pour la barre de statut
+  static double getTopPadding(BuildContext context) {
+    return MediaQuery.of(context).padding.top;
+  }
+
+  /// Vérifier si l'appareil a des boutons de navigation système
+  static bool hasSystemNavigationButtons(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    // Si le padding bottom est significatif (> 0), il y a probablement des boutons système
+    return bottomPadding > 0;
+  }
+
+  /// Obtenir le padding adaptatif pour le contenu (inclut les safe areas)
+  static EdgeInsets getAdaptivePadding(BuildContext context, {
+    EdgeInsets? additionalPadding,
+  }) {
+    final safeAreaInsets = getSafeAreaInsets(context);
+    final contentPadding = screenPadding(context);
+    
+    return EdgeInsets.only(
+      top: safeAreaInsets.top + contentPadding.top,
+      bottom: safeAreaInsets.bottom + contentPadding.bottom,
+      left: contentPadding.left,
+      right: contentPadding.right,
+    ) + (additionalPadding ?? EdgeInsets.zero);
+  }
 }
 

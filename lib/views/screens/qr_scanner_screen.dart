@@ -68,7 +68,8 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
-      body: Stack(
+      body: SafeArea(
+        child: Stack(
         children: [
           MobileScanner(
             controller: _scannerController,
@@ -132,6 +133,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
               ),
             ),
         ],
+        ),
       ),
     );
   }

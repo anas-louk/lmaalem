@@ -29,24 +29,26 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(width: 8),
         ],
       ),
-      body: Obx(
-        () {
-          if (_employeeController.isLoading.value) {
-            return const LoadingWidget();
-          }
+      body: SafeArea(
+        child: Obx(
+          () {
+            if (_employeeController.isLoading.value) {
+              return const LoadingWidget();
+            }
 
-          if (_employeeController.employees.isEmpty) {
-            return EmptyState(
-              icon: Icons.people_outline,
-              title: 'Aucun employé disponible',
-              message: 'Réessayez plus tard ou rafraîchissez la liste.',
-            );
-          }
+            if (_employeeController.employees.isEmpty) {
+              return EmptyState(
+                icon: Icons.people_outline,
+                title: 'Aucun employé disponible',
+                message: 'Réessayez plus tard ou rafraîchissez la liste.',
+              );
+            }
 
-          return RefreshIndicator(
-            onRefresh: _employeeController.loadAvailableEmployees,
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            final bottomPadding = MediaQuery.of(context).padding.bottom;
+            return RefreshIndicator(
+              onRefresh: _employeeController.loadAvailableEmployees,
+              child: ListView.separated(
+                padding: EdgeInsets.fromLTRB(20, 24, 20, 24 + bottomPadding),
               itemCount: _employeeController.employees.length + 1,
               separatorBuilder: (_, __) => const SizedBox(height: 0),
               itemBuilder: (context, index) {
@@ -72,7 +74,8 @@ class HomeScreen extends StatelessWidget {
               },
             ),
           );
-        },
+          },
+        ),
       ),
     );
   }
