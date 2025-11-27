@@ -6,12 +6,15 @@ import '../../data/models/employee_model.dart';
 import '../../data/repositories/request_repository.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../core/utils/logger.dart';
+import '../../core/utils/distance_calculator.dart';
+import '../../core/services/location_service.dart';
 
 /// Service pour les mises à jour en temps réel des demandes et employés acceptés
 class RealtimeRequestService {
   final RequestRepository _requestRepository = RequestRepository();
   final EmployeeRepository _employeeRepository = EmployeeRepository();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final LocationService _locationService = LocationService();
 
   StreamSubscription<RequestModel?>? _requestSubscription;
   StreamSubscription<DocumentSnapshot>? _employeesSubscription;
@@ -93,9 +96,16 @@ class RealtimeRequestService {
             }
           }
 
+          // Trier les employés par distance (les plus proches en premier)
+          final sortedEmployees = await _sortEmployeesByDistance(
+            employees,
+            request.latitude,
+            request.longitude,
+          );
+
           // Vérifier après l'opération asynchrone
           if (!_employeesController.isClosed) {
-            _employeesController.add(employees);
+            _employeesController.add(sortedEmployees);
             _updateConnectionStatus(true);
           }
         } catch (e) {
@@ -178,6 +188,10 @@ class RealtimeRequestService {
           // Vérifier avant l'opération asynchrone
           if (_employeesController.isClosed) return;
           
+          // Récupérer les coordonnées de la demande pour le tri par distance
+          final requestLat = (data['latitude'] as num?)?.toDouble();
+          final requestLon = (data['longitude'] as num?)?.toDouble();
+          
           final employees = <EmployeeModel>[];
           final futures = filteredIds.map((id) => _employeeRepository.getEmployeeById(id));
           final results = await Future.wait(futures);
@@ -188,10 +202,15 @@ class RealtimeRequestService {
             }
           }
 
+          // Trier les employés par distance (les plus proches en premier)
+          final sortedEmployees = requestLat != null && requestLon != null
+              ? await _sortEmployeesByDistance(employees, requestLat, requestLon)
+              : employees;
+          
           // Vérifier après l'opération asynchrone (le controller peut avoir été fermé entre temps)
           if (!_employeesController.isClosed) {
             try {
-              _employeesController.add(employees);
+              _employeesController.add(sortedEmployees);
               _updateConnectionStatus(true);
             } catch (e) {
               // Controller fermé entre temps, ignorer silencieusement
@@ -223,6 +242,64 @@ class RealtimeRequestService {
         }
       },
     );
+  }
+
+  /// Trier les employés par distance par rapport à la localisation du client
+  Future<List<EmployeeModel>> _sortEmployeesByDistance(
+    List<EmployeeModel> employees,
+    double clientLat,
+    double clientLon,
+  ) async {
+    if (employees.isEmpty) return employees;
+
+    // Créer une liste avec les distances calculées
+    final employeesWithDistance = <MapEntry<EmployeeModel, double>>[];
+
+    for (final employee in employees) {
+      try {
+        // Obtenir les coordonnées GPS de l'employé à partir de sa localisation/ville
+        // On utilise la ville comme priorité, sinon la localisation
+        final locationString = employee.ville.isNotEmpty 
+            ? employee.ville 
+            : employee.localisation;
+        
+        if (locationString.isNotEmpty) {
+          // Géocoder la localisation de l'employé
+          final coordinates = await _locationService.getCoordinatesFromAddress(locationString);
+          
+          if (coordinates != null) {
+            final employeeLat = coordinates['latitude'] as double;
+            final employeeLon = coordinates['longitude'] as double;
+            
+            // Calculer la distance
+            final distance = DistanceCalculator.calculateDistance(
+              clientLat,
+              clientLon,
+              employeeLat,
+              employeeLon,
+            );
+            
+            employeesWithDistance.add(MapEntry(employee, distance));
+          } else {
+            // Si le géocodage échoue, mettre une distance très élevée pour les mettre en fin de liste
+            employeesWithDistance.add(MapEntry(employee, double.maxFinite));
+          }
+        } else {
+          // Si pas de localisation, mettre en fin de liste
+          employeesWithDistance.add(MapEntry(employee, double.maxFinite));
+        }
+      } catch (e) {
+        // En cas d'erreur, mettre en fin de liste
+        debugPrint('Erreur lors du calcul de distance pour ${employee.nomComplet}: $e');
+        employeesWithDistance.add(MapEntry(employee, double.maxFinite));
+      }
+    }
+
+    // Trier par distance (croissante)
+    employeesWithDistance.sort((a, b) => a.value.compareTo(b.value));
+
+    // Retourner seulement les employés (sans les distances)
+    return employeesWithDistance.map((entry) => entry.key).toList();
   }
 
   void _updateConnectionStatus(bool connected) {

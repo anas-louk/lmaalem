@@ -23,6 +23,8 @@ import '../../core/helpers/snackbar_helper.dart';
 import '../../widgets/call_button.dart';
 import '../../core/services/qr_code_service.dart';
 import '../../core/services/employee_statistics_service.dart';
+import '../../core/services/location_service.dart';
+import '../../core/utils/distance_calculator.dart';
 import '../../widgets/employee_statistics_widget.dart';
 import '../../data/models/employee_statistics.dart';
 import 'chat_screen.dart';
@@ -178,12 +180,84 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           }
         }
       }
-      setState(() {
-        _acceptedEmployees = employees;
-      });
+      
+      // Trier les employés par distance (les plus proches en premier)
+      if (_request != null && employees.isNotEmpty) {
+        final sortedEmployees = await _sortEmployeesByDistance(
+          employees,
+          _request!.latitude,
+          _request!.longitude,
+        );
+        setState(() {
+          _acceptedEmployees = sortedEmployees;
+        });
+      } else {
+        setState(() {
+          _acceptedEmployees = employees;
+        });
+      }
     } catch (e) {
       // Handle error
+      setState(() {
+        _acceptedEmployees = [];
+      });
     }
+  }
+  
+  /// Trier les employés par distance par rapport à la localisation du client
+  Future<List<EmployeeModel>> _sortEmployeesByDistance(
+    List<EmployeeModel> employees,
+    double clientLat,
+    double clientLon,
+  ) async {
+    if (employees.isEmpty) return employees;
+
+    final locationService = LocationService();
+    final employeesWithDistance = <MapEntry<EmployeeModel, double>>[];
+
+    for (final employee in employees) {
+      try {
+        // Obtenir les coordonnées GPS de l'employé à partir de sa localisation/ville
+        final locationString = employee.ville.isNotEmpty 
+            ? employee.ville 
+            : employee.localisation;
+        
+        if (locationString.isNotEmpty) {
+          // Géocoder la localisation de l'employé
+          final coordinates = await locationService.getCoordinatesFromAddress(locationString);
+          
+          if (coordinates != null) {
+            final employeeLat = coordinates['latitude'] as double;
+            final employeeLon = coordinates['longitude'] as double;
+            
+            // Calculer la distance
+            final distance = DistanceCalculator.calculateDistance(
+              clientLat,
+              clientLon,
+              employeeLat,
+              employeeLon,
+            );
+            
+            employeesWithDistance.add(MapEntry(employee, distance));
+          } else {
+            // Si le géocodage échoue, mettre une distance très élevée pour les mettre en fin de liste
+            employeesWithDistance.add(MapEntry(employee, double.maxFinite));
+          }
+        } else {
+          // Si pas de localisation, mettre en fin de liste
+          employeesWithDistance.add(MapEntry(employee, double.maxFinite));
+        }
+      } catch (e) {
+        // En cas d'erreur, mettre en fin de liste
+        employeesWithDistance.add(MapEntry(employee, double.maxFinite));
+      }
+    }
+
+    // Trier par distance (croissante)
+    employeesWithDistance.sort((a, b) => a.value.compareTo(b.value));
+
+    // Retourner seulement les employés (sans les distances)
+    return employeesWithDistance.map((entry) => entry.key).toList();
   }
 
   Future<void> _acceptEmployee(String employeeId) async {

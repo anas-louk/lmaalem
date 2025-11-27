@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:get/get.dart';
@@ -147,6 +148,35 @@ class LocationService {
       return 'Localisation inconnue';
     } catch (e) {
       throw 'Erreur lors de la récupération de l\'adresse: $e';
+    }
+  }
+
+  /// Obtenir les coordonnées GPS à partir d'une adresse (géocodage)
+  /// 
+  /// [address] Adresse ou nom de ville à géocoder
+  /// 
+  /// Retourne un Map avec 'latitude' et 'longitude', ou null si le géocodage échoue
+  Future<Map<String, double>?> getCoordinatesFromAddress(String address) async {
+    try {
+      if (address.isEmpty) return null;
+      
+      List<Location> locations = await locationFromAddress(address).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => <Location>[],
+      );
+
+      if (locations.isNotEmpty) {
+        final location = locations[0];
+        return {
+          'latitude': location.latitude,
+          'longitude': location.longitude,
+        };
+      }
+      
+      return null;
+    } catch (e) {
+      debugPrint('Erreur lors du géocodage de "$address": $e');
+      return null;
     }
   }
 
