@@ -362,14 +362,31 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
       // Uploader les images si disponibles
       List<String> imageUrls = [];
       if (_selectedImagesNotifier.value.isNotEmpty) {
+        debugPrint('[ClientDashboard] Début du téléchargement de ${_selectedImagesNotifier.value.length} image(s)');
         for (int i = 0; i < _selectedImagesNotifier.value.length; i++) {
-          final imageUrl = await _storageService.uploadRequestImage(
-            requestId: requestId,
-            imageFile: _selectedImagesNotifier.value[i],
-            index: i,
-          );
-          imageUrls.add(imageUrl);
+          try {
+            final imageFile = _selectedImagesNotifier.value[i];
+            if (!await imageFile.exists()) {
+              debugPrint('[ClientDashboard] Erreur: Le fichier image $i n\'existe pas: ${imageFile.path}');
+              SnackbarHelper.showError('error_image_file_not_found'.tr);
+              continue;
+            }
+            
+            debugPrint('[ClientDashboard] Téléchargement de l\'image $i: ${imageFile.path}');
+            final imageUrl = await _storageService.uploadRequestImage(
+              requestId: requestId,
+              imageFile: imageFile,
+              index: i,
+            );
+            imageUrls.add(imageUrl);
+            debugPrint('[ClientDashboard] Image $i téléchargée avec succès: $imageUrl');
+          } catch (e) {
+            debugPrint('[ClientDashboard] Erreur lors du téléchargement de l\'image $i: $e');
+            SnackbarHelper.showError('${'error_uploading_image'.tr} ${i + 1}: $e');
+            // Continuer avec les autres images même si une échoue
+          }
         }
+        debugPrint('[ClientDashboard] Téléchargement terminé: ${imageUrls.length}/${_selectedImagesNotifier.value.length} image(s) téléchargée(s)');
       }
 
       // Créer la demande
@@ -542,9 +559,25 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
       final List<XFile> images = await picker.pickMultiImage();
 
       if (images.isNotEmpty && mounted) {
-        _selectedImagesNotifier.value = images.map((image) => File(image.path)).toList();
+        final fileList = <File>[];
+        for (final image in images) {
+          final file = File(image.path);
+          if (await file.exists()) {
+            fileList.add(file);
+          } else {
+            debugPrint('[ClientDashboard] Avertissement: Le fichier n\'existe pas: ${image.path}');
+          }
+        }
+        
+        if (fileList.isNotEmpty) {
+          _selectedImagesNotifier.value = fileList;
+          debugPrint('[ClientDashboard] ${fileList.length} image(s) sélectionnée(s)');
+        } else {
+          SnackbarHelper.showError('error_no_valid_images'.tr);
+        }
       }
     } catch (e) {
+      debugPrint('[ClientDashboard] Erreur lors de la sélection des images: $e');
       SnackbarHelper.showError('${'error_selecting_images'.tr}: $e');
     }
   }

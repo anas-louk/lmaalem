@@ -82,11 +82,27 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
       final List<XFile> images = await picker.pickMultiImage();
 
       if (images.isNotEmpty) {
-        setState(() {
-          _selectedImages = images.map((image) => File(image.path)).toList();
-        });
+        final fileList = <File>[];
+        for (final image in images) {
+          final file = File(image.path);
+          if (await file.exists()) {
+            fileList.add(file);
+          } else {
+            debugPrint('[RequestSubmission] Avertissement: Le fichier n\'existe pas: ${image.path}');
+          }
+        }
+        
+        if (fileList.isNotEmpty) {
+          setState(() {
+            _selectedImages = fileList;
+          });
+          debugPrint('[RequestSubmission] ${fileList.length} image(s) sélectionnée(s)');
+        } else {
+          SnackbarHelper.showError('error_no_valid_images'.tr);
+        }
       }
     } catch (e) {
+      debugPrint('[RequestSubmission] Erreur lors de la sélection des images: $e');
       SnackbarHelper.showError('${'error_selecting_images'.tr}: $e');
     }
   }
@@ -200,14 +216,31 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
       // Uploader les images si disponibles
       List<String> imageUrls = [];
       if (_selectedImages.isNotEmpty) {
+        debugPrint('[RequestSubmission] Début du téléchargement de ${_selectedImages.length} image(s)');
         for (int i = 0; i < _selectedImages.length; i++) {
-          final imageUrl = await _storageService.uploadRequestImage(
-            requestId: requestId,
-            imageFile: _selectedImages[i],
-            index: i,
-          );
-          imageUrls.add(imageUrl);
+          try {
+            final imageFile = _selectedImages[i];
+            if (!await imageFile.exists()) {
+              debugPrint('[RequestSubmission] Erreur: Le fichier image $i n\'existe pas: ${imageFile.path}');
+              SnackbarHelper.showError('error_image_file_not_found'.tr);
+              continue;
+            }
+            
+            debugPrint('[RequestSubmission] Téléchargement de l\'image $i: ${imageFile.path}');
+            final imageUrl = await _storageService.uploadRequestImage(
+              requestId: requestId,
+              imageFile: imageFile,
+              index: i,
+            );
+            imageUrls.add(imageUrl);
+            debugPrint('[RequestSubmission] Image $i téléchargée avec succès: $imageUrl');
+          } catch (e) {
+            debugPrint('[RequestSubmission] Erreur lors du téléchargement de l\'image $i: $e');
+            SnackbarHelper.showError('${'error_uploading_image'.tr} ${i + 1}: $e');
+            // Continuer avec les autres images même si une échoue
+          }
         }
+        debugPrint('[RequestSubmission] Téléchargement terminé: ${imageUrls.length}/${_selectedImages.length} image(s) téléchargée(s)');
       }
 
       // Créer la demande

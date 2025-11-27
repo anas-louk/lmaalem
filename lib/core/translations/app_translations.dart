@@ -211,6 +211,9 @@ class AppTranslations extends Translations {
       'request_submitted_success': 'Votre demande a été soumise avec succès',
       'error_submitting': 'Erreur lors de la soumission',
       'error_selecting_images': 'Erreur lors de la sélection des images',
+      'error_uploading_image': 'Erreur lors du téléchargement de l\'image',
+      'error_image_file_not_found': 'Le fichier image est introuvable',
+      'error_no_valid_images': 'Aucune image valide n\'a été sélectionnée',
       
       // Request Detail
       'request_id': 'ID de la demande',
@@ -582,6 +585,9 @@ class AppTranslations extends Translations {
       'request_submitted_success': 'تم إرسال طلبك بنجاح',
       'error_submitting': 'خطأ في الإرسال',
       'error_selecting_images': 'خطأ في اختيار الصور',
+      'error_uploading_image': 'خطأ في تحميل الصورة',
+      'error_image_file_not_found': 'ملف الصورة غير موجود',
+      'error_no_valid_images': 'لم يتم اختيار صور صالحة',
       
       // Request Detail
       'request_id': 'معرف الطلب',
