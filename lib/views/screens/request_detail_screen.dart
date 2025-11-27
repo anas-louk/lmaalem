@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'dart:async';
 import '../../controllers/request_controller.dart';
@@ -210,45 +211,55 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     double clientLat,
     double clientLon,
   ) async {
-    if (employees.isEmpty) return employees;
+    if (employees.isEmpty || _request == null) return employees;
 
     final locationService = LocationService();
     final employeesWithDistance = <MapEntry<EmployeeModel, double>>[];
 
     for (final employee in employees) {
       try {
-        // Obtenir les coordonnées GPS de l'employé à partir de sa localisation/ville
-        final locationString = employee.ville.isNotEmpty 
-            ? employee.ville 
-            : employee.localisation;
+        double? employeeLat;
+        double? employeeLon;
         
-        if (locationString.isNotEmpty) {
-          // Géocoder la localisation de l'employé
-          final coordinates = await locationService.getCoordinatesFromAddress(locationString);
-          
-          if (coordinates != null) {
-            final employeeLat = coordinates['latitude'] as double;
-            final employeeLon = coordinates['longitude'] as double;
-            
-            // Calculer la distance
-            final distance = DistanceCalculator.calculateDistance(
-              clientLat,
-              clientLon,
-              employeeLat,
-              employeeLon,
-            );
-            
-            employeesWithDistance.add(MapEntry(employee, distance));
-          } else {
-            // Si le géocodage échoue, mettre une distance très élevée pour les mettre en fin de liste
-            employeesWithDistance.add(MapEntry(employee, double.maxFinite));
-          }
+        // Essayer d'abord d'utiliser les coordonnées GPS stockées dans la demande
+        if (_request!.acceptedEmployeeLocations.containsKey(employee.id)) {
+          final location = _request!.acceptedEmployeeLocations[employee.id]!;
+          employeeLat = location['latitude'];
+          employeeLon = location['longitude'];
+          debugPrint('[RequestDetailScreen] Utilisation des coordonnées GPS stockées pour ${employee.nomComplet}');
         } else {
-          // Si pas de localisation, mettre en fin de liste
+          // Si pas de coordonnées stockées, géocoder la localisation de l'employé
+          final locationString = employee.ville.isNotEmpty 
+              ? employee.ville 
+              : employee.localisation;
+          
+          if (locationString.isNotEmpty) {
+            final coordinates = await locationService.getCoordinatesFromAddress(locationString);
+            if (coordinates != null) {
+              employeeLat = coordinates['latitude'] as double;
+              employeeLon = coordinates['longitude'] as double;
+              debugPrint('[RequestDetailScreen] Géocodage de la localisation pour ${employee.nomComplet}');
+            }
+          }
+        }
+        
+        if (employeeLat != null && employeeLon != null) {
+          // Calculer la distance
+          final distance = DistanceCalculator.calculateDistance(
+            clientLat,
+            clientLon,
+            employeeLat,
+            employeeLon,
+          );
+          
+          employeesWithDistance.add(MapEntry(employee, distance));
+        } else {
+          // Si pas de coordonnées disponibles, mettre en fin de liste
           employeesWithDistance.add(MapEntry(employee, double.maxFinite));
         }
       } catch (e) {
         // En cas d'erreur, mettre en fin de liste
+        debugPrint('Erreur lors du calcul de distance pour ${employee.nomComplet}: $e');
         employeesWithDistance.add(MapEntry(employee, double.maxFinite));
       }
     }

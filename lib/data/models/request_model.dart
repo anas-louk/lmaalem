@@ -15,6 +15,7 @@ class RequestModel {
   final String statut; // Statut: 'Pending', 'Accepted', 'Completed', 'Cancelled'
   final String? employeeId; // ID de l'employé finalement accepté par le client
   final List<String> acceptedEmployeeIds; // IDs des employés qui ont accepté la demande
+  final Map<String, Map<String, double>> acceptedEmployeeLocations; // Localisations GPS des employés acceptés {employeeId: {latitude: x, longitude: y}}
   final List<String> refusedEmployeeIds; // IDs des employés qui ont refusé la demande
   final List<String> clientRefusedEmployeeIds; // IDs des employés refusés par le client
   final DateTime createdAt;
@@ -31,11 +32,13 @@ class RequestModel {
     this.statut = 'Pending',
     this.employeeId,
     List<String>? acceptedEmployeeIds,
+    Map<String, Map<String, double>>? acceptedEmployeeLocations,
     List<String>? refusedEmployeeIds,
     List<String>? clientRefusedEmployeeIds,
     required this.createdAt,
     required this.updatedAt,
   }) : acceptedEmployeeIds = acceptedEmployeeIds ?? [],
+       acceptedEmployeeLocations = acceptedEmployeeLocations ?? {},
        refusedEmployeeIds = refusedEmployeeIds ?? [],
        clientRefusedEmployeeIds = clientRefusedEmployeeIds ?? [];
 
@@ -62,6 +65,7 @@ class RequestModel {
       statut: map['statut'] ?? 'Pending',
       employeeId: map['employeeId'],
       acceptedEmployeeIds: List<String>.from(map['acceptedEmployeeIds'] ?? []),
+      acceptedEmployeeLocations: _parseEmployeeLocations(map['acceptedEmployeeLocations']),
       refusedEmployeeIds: List<String>.from(map['refusedEmployeeIds'] ?? []),
       clientRefusedEmployeeIds: List<String>.from(map['clientRefusedEmployeeIds'] ?? []),
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -91,6 +95,10 @@ class RequestModel {
       'statut': statut,
       'employeeId': employeeId,
       'acceptedEmployeeIds': acceptedEmployeeIds,
+      'acceptedEmployeeLocations': acceptedEmployeeLocations.map((key, value) => MapEntry(key, {
+        'latitude': value['latitude']!,
+        'longitude': value['longitude']!,
+      })),
       'refusedEmployeeIds': refusedEmployeeIds,
       'clientRefusedEmployeeIds': clientRefusedEmployeeIds,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -110,6 +118,7 @@ class RequestModel {
     String? statut,
     String? employeeId,
     List<String>? acceptedEmployeeIds,
+    Map<String, Map<String, double>>? acceptedEmployeeLocations,
     List<String>? refusedEmployeeIds,
     List<String>? clientRefusedEmployeeIds,
     DateTime? createdAt,
@@ -126,11 +135,35 @@ class RequestModel {
       statut: statut ?? this.statut,
       employeeId: employeeId ?? this.employeeId,
       acceptedEmployeeIds: acceptedEmployeeIds ?? this.acceptedEmployeeIds,
+      acceptedEmployeeLocations: acceptedEmployeeLocations ?? this.acceptedEmployeeLocations,
       refusedEmployeeIds: refusedEmployeeIds ?? this.refusedEmployeeIds,
       clientRefusedEmployeeIds: clientRefusedEmployeeIds ?? this.clientRefusedEmployeeIds,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
+  }
+
+  /// Parser les localisations des employés depuis Firestore
+  static Map<String, Map<String, double>> _parseEmployeeLocations(dynamic data) {
+    if (data == null || data is! Map) {
+      return {};
+    }
+    
+    final result = <String, Map<String, double>>{};
+    data.forEach((key, value) {
+      if (value is Map) {
+        final lat = (value['latitude'] as num?)?.toDouble();
+        final lon = (value['longitude'] as num?)?.toDouble();
+        if (lat != null && lon != null) {
+          result[key.toString()] = {
+            'latitude': lat,
+            'longitude': lon,
+          };
+        }
+      }
+    });
+    
+    return result;
   }
 
   @override

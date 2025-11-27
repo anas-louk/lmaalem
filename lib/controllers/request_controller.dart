@@ -13,6 +13,7 @@ import '../../data/models/cancellation_report_model.dart';
 import '../../core/utils/logger.dart';
 import '../../core/services/local_notification_service.dart';
 import '../../core/services/qr_code_service.dart';
+import '../../core/services/location_service.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../components/employee_cancellation_report_form_dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -872,10 +873,32 @@ class RequestController extends GetxController {
         throw 'Vous avez refusé cette demande et ne pouvez plus l\'accepter';
       }
 
-      // Ajouter l'employé à la liste des acceptés (using employee document ID)
+      // Capturer la localisation GPS de l'employé
+      Map<String, double>? employeeLocation;
+      try {
+        final locationService = LocationService();
+        final locationData = await locationService.getCurrentLocationWithAddress();
+        employeeLocation = {
+          'latitude': locationData['latitude'] as double,
+          'longitude': locationData['longitude'] as double,
+        };
+        debugPrint('[RequestController] Localisation GPS de l\'employé capturée: ${employeeLocation['latitude']}, ${employeeLocation['longitude']}');
+      } catch (e) {
+        debugPrint('[RequestController] Erreur lors de la capture de la localisation GPS: $e');
+        // Continuer même si la localisation n'a pas pu être capturée
+        // L'employé sera quand même ajouté mais sans coordonnées GPS
+      }
+
+      // Ajouter l'employé à la liste des acceptés avec sa localisation GPS
       final updatedAcceptedIds = [...request.acceptedEmployeeIds, employeeDocumentId];
+      final updatedLocations = Map<String, Map<String, double>>.from(request.acceptedEmployeeLocations);
+      if (employeeLocation != null) {
+        updatedLocations[employeeDocumentId] = employeeLocation;
+      }
+      
       final updatedRequest = request.copyWith(
         acceptedEmployeeIds: updatedAcceptedIds,
+        acceptedEmployeeLocations: updatedLocations,
         updatedAt: DateTime.now(),
       );
 
@@ -928,6 +951,10 @@ class RequestController extends GetxController {
       // Retirer l'employé de la liste des acceptés s'il y est (using employee document ID)
       final updatedAcceptedIds = request.acceptedEmployeeIds.where((id) => id != employeeDocumentId).toList();
       
+      // Retirer aussi la localisation GPS de l'employé s'il était dans les acceptés
+      final updatedLocations = Map<String, Map<String, double>>.from(request.acceptedEmployeeLocations);
+      updatedLocations.remove(employeeDocumentId);
+      
       // Ajouter l'employé à la liste des refusés s'il n'y est pas déjà
       final updatedRefusedIds = request.refusedEmployeeIds.contains(employeeDocumentId)
           ? request.refusedEmployeeIds
@@ -935,6 +962,7 @@ class RequestController extends GetxController {
       
       final updatedRequest = request.copyWith(
         acceptedEmployeeIds: updatedAcceptedIds,
+        acceptedEmployeeLocations: updatedLocations,
         refusedEmployeeIds: updatedRefusedIds,
         updatedAt: DateTime.now(),
       );
@@ -1062,6 +1090,10 @@ class RequestController extends GetxController {
       // Retirer l'employé de la liste des acceptés
       final updatedAcceptedIds = request.acceptedEmployeeIds.where((id) => id != employeeId).toList();
       
+      // Retirer aussi la localisation GPS de l'employé s'il était dans les acceptés
+      final updatedLocations = Map<String, Map<String, double>>.from(request.acceptedEmployeeLocations);
+      updatedLocations.remove(employeeId);
+      
       // Ajouter l'employé à la liste des refusés par le client s'il n'y est pas déjà
       final updatedClientRefusedIds = request.clientRefusedEmployeeIds.contains(employeeId)
           ? request.clientRefusedEmployeeIds
@@ -1073,6 +1105,7 @@ class RequestController extends GetxController {
       
       final updatedRequest = request.copyWith(
         acceptedEmployeeIds: updatedAcceptedIds,
+        acceptedEmployeeLocations: updatedLocations,
         clientRefusedEmployeeIds: updatedClientRefusedIds,
         updatedAt: DateTime.now(),
       );

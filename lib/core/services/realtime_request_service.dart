@@ -101,6 +101,7 @@ class RealtimeRequestService {
             employees,
             request.latitude,
             request.longitude,
+            request.acceptedEmployeeLocations,
           );
 
           // Vérifier après l'opération asynchrone
@@ -192,6 +193,24 @@ class RealtimeRequestService {
           final requestLat = (data['latitude'] as num?)?.toDouble();
           final requestLon = (data['longitude'] as num?)?.toDouble();
           
+          // Récupérer les localisations GPS des employés acceptés
+          final employeeLocationsData = data['acceptedEmployeeLocations'] as Map<String, dynamic>?;
+          final employeeLocations = <String, Map<String, double>>{};
+          if (employeeLocationsData != null) {
+            employeeLocationsData.forEach((key, value) {
+              if (value is Map) {
+                final lat = (value['latitude'] as num?)?.toDouble();
+                final lon = (value['longitude'] as num?)?.toDouble();
+                if (lat != null && lon != null) {
+                  employeeLocations[key] = {
+                    'latitude': lat,
+                    'longitude': lon,
+                  };
+                }
+              }
+            });
+          }
+          
           final employees = <EmployeeModel>[];
           final futures = filteredIds.map((id) => _employeeRepository.getEmployeeById(id));
           final results = await Future.wait(futures);
@@ -204,7 +223,7 @@ class RealtimeRequestService {
 
           // Trier les employés par distance (les plus proches en premier)
           final sortedEmployees = requestLat != null && requestLon != null
-              ? await _sortEmployeesByDistance(employees, requestLat, requestLon)
+              ? await _sortEmployeesByDistance(employees, requestLat, requestLon, employeeLocations)
               : employees;
           
           // Vérifier après l'opération asynchrone (le controller peut avoir été fermé entre temps)
@@ -249,6 +268,7 @@ class RealtimeRequestService {
     List<EmployeeModel> employees,
     double clientLat,
     double clientLon,
+    Map<String, Map<String, double>>? employeeLocations,
   ) async {
     if (employees.isEmpty) return employees;
 
@@ -257,35 +277,43 @@ class RealtimeRequestService {
 
     for (final employee in employees) {
       try {
-        // Obtenir les coordonnées GPS de l'employé à partir de sa localisation/ville
-        // On utilise la ville comme priorité, sinon la localisation
-        final locationString = employee.ville.isNotEmpty 
-            ? employee.ville 
-            : employee.localisation;
+        double? employeeLat;
+        double? employeeLon;
         
-        if (locationString.isNotEmpty) {
-          // Géocoder la localisation de l'employé
-          final coordinates = await _locationService.getCoordinatesFromAddress(locationString);
-          
-          if (coordinates != null) {
-            final employeeLat = coordinates['latitude'] as double;
-            final employeeLon = coordinates['longitude'] as double;
-            
-            // Calculer la distance
-            final distance = DistanceCalculator.calculateDistance(
-              clientLat,
-              clientLon,
-              employeeLat,
-              employeeLon,
-            );
-            
-            employeesWithDistance.add(MapEntry(employee, distance));
-          } else {
-            // Si le géocodage échoue, mettre une distance très élevée pour les mettre en fin de liste
-            employeesWithDistance.add(MapEntry(employee, double.maxFinite));
-          }
+        // Essayer d'abord d'utiliser les coordonnées GPS stockées dans la demande
+        if (employeeLocations != null && employeeLocations.containsKey(employee.id)) {
+          final location = employeeLocations[employee.id]!;
+          employeeLat = location['latitude'];
+          employeeLon = location['longitude'];
+          debugPrint('[RealtimeRequestService] Utilisation des coordonnées GPS stockées pour ${employee.nomComplet}');
         } else {
-          // Si pas de localisation, mettre en fin de liste
+          // Si pas de coordonnées stockées, géocoder la localisation de l'employé
+          final locationString = employee.ville.isNotEmpty 
+              ? employee.ville 
+              : employee.localisation;
+          
+          if (locationString.isNotEmpty) {
+            final coordinates = await _locationService.getCoordinatesFromAddress(locationString);
+            if (coordinates != null) {
+              employeeLat = coordinates['latitude'] as double;
+              employeeLon = coordinates['longitude'] as double;
+              debugPrint('[RealtimeRequestService] Géocodage de la localisation pour ${employee.nomComplet}');
+            }
+          }
+        }
+        
+        if (employeeLat != null && employeeLon != null) {
+          // Calculer la distance
+          final distance = DistanceCalculator.calculateDistance(
+            clientLat,
+            clientLon,
+            employeeLat,
+            employeeLon,
+          );
+          
+          employeesWithDistance.add(MapEntry(employee, distance));
+        } else {
+          // Si pas de coordonnées disponibles, mettre en fin de liste
           employeesWithDistance.add(MapEntry(employee, double.maxFinite));
         }
       } catch (e) {
