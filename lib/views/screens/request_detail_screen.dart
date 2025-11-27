@@ -740,45 +740,6 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                   ),
                                 ],
                               ),
-                              if (_request!.images.isNotEmpty) ...[
-                                const SizedBox(height: 16),
-                                Text(
-                                  'images_count_detail'.tr.replaceAll('{count}', _request!.images.length.toString()),
-                                  style: AppTextStyles.h4.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                SizedBox(
-                                  height: 200,
-                                  child: ListView.builder(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: _request!.images.length,
-                                    itemBuilder: (context, index) {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(right: 8),
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(8),
-                                          child: Image.network(
-                                            _request!.images[index],
-                                            width: 200,
-                                            height: 200,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) {
-                                              return Container(
-                                                width: 200,
-                                                height: 200,
-                                                color: AppColors.greyLight,
-                                                child: const Icon(Icons.broken_image),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ],
                             ],
                           ),
                         ),

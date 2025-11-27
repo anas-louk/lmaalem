@@ -7,7 +7,6 @@ import 'accepted_employee_summary.dart';
 class RequestModel {
   final String id;
   final String description; // Description de la demande
-  final List<String> images; // URLs des images
   final double latitude; // Latitude de la localisation
   final double longitude; // Longitude de la localisation
   final String address; // Adresse textuelle
@@ -24,7 +23,6 @@ class RequestModel {
   RequestModel({
     required this.id,
     required this.description,
-    List<String>? images,
     required this.latitude,
     required this.longitude,
     required this.address,
@@ -37,8 +35,7 @@ class RequestModel {
     List<String>? clientRefusedEmployeeIds,
     required this.createdAt,
     required this.updatedAt,
-  }) : images = images ?? [],
-       acceptedEmployeeIds = acceptedEmployeeIds ?? [],
+  }) : acceptedEmployeeIds = acceptedEmployeeIds ?? [],
        refusedEmployeeIds = refusedEmployeeIds ?? [],
        clientRefusedEmployeeIds = clientRefusedEmployeeIds ?? [];
 
@@ -57,7 +54,6 @@ class RequestModel {
     return RequestModel(
       id: map['id'] ?? '',
       description: map['description'] ?? '',
-      images: List<String>.from(map['images'] ?? []),
       latitude: (map['latitude'] as num?)?.toDouble() ?? 0.0,
       longitude: (map['longitude'] as num?)?.toDouble() ?? 0.0,
       address: map['address'] ?? '',
@@ -87,7 +83,6 @@ class RequestModel {
     return {
       'id': id,
       'description': description,
-      'images': images,
       'latitude': latitude,
       'longitude': longitude,
       'address': address,
@@ -107,7 +102,6 @@ class RequestModel {
   RequestModel copyWith({
     String? id,
     String? description,
-    List<String>? images,
     double? latitude,
     double? longitude,
     String? address,
@@ -124,7 +118,6 @@ class RequestModel {
     return RequestModel(
       id: id ?? this.id,
       description: description ?? this.description,
-      images: images ?? this.images,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       address: address ?? this.address,

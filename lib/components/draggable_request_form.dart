@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'dart:io';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_text_styles.dart';
 import 'indrive_button.dart';
@@ -11,8 +10,6 @@ class DraggableRequestForm extends StatefulWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController descriptionController;
   final ValueNotifier<String?> selectedCategorieIdNotifier;
-  final ValueNotifier<List<File>> selectedImagesNotifier;
-  final Function() onPickImages;
   final Function() onSubmit;
   final ValueNotifier<bool> isSubmittingNotifier;
   final List<dynamic> categories;
@@ -23,8 +20,6 @@ class DraggableRequestForm extends StatefulWidget {
     required this.formKey,
     required this.descriptionController,
     required this.selectedCategorieIdNotifier,
-    required this.selectedImagesNotifier,
-    required this.onPickImages,
     required this.onSubmit,
     required this.isSubmittingNotifier,
     required this.categories,
@@ -393,96 +388,6 @@ class _DraggableRequestFormState extends State<DraggableRequestForm> {
             }
             return null;
           },
-        ),
-        ValueListenableBuilder<List<File>>(
-          valueListenable: widget.selectedImagesNotifier,
-          builder: (context, images, _) {
-            if (images.isEmpty) return const SizedBox.shrink();
-            return Column(
-              children: [
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 100,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: images.length,
-                    itemBuilder: (context, index) {
-                      return Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        child: Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.file(
-                                images[index],
-                                width: 100,
-                                height: 100,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            Positioned(
-                              top: 4,
-                              right: 4,
-                              child: GestureDetector(
-                                onTap: () {
-                                  final newImages = List<File>.from(images);
-                                  newImages.removeAt(index);
-                                  widget.selectedImagesNotifier.value = newImages;
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.error,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.close,
-                                    size: 16,
-                                    color: AppColors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: AppColors.primary.withOpacity(0.3),
-              width: 1,
-            ),
-          ),
-          child: OutlinedButton.icon(
-            onPressed: widget.onPickImages,
-            icon: Icon(
-              Icons.add_photo_alternate_rounded,
-              color: AppColors.primaryLight,
-            ),
-            label: Text(
-              'add_images'.tr,
-              style: const TextStyle(
-                color: Colors.white,
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              side: BorderSide.none,
-              backgroundColor: AppColors.primary.withOpacity(0.1),
-            ),
-          ),
         ),
       ],
     );

@@ -462,14 +462,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           color: AppColors.error,
                         ),
                       ),
-                      if (request.images.isNotEmpty) ...[
-                        const SizedBox(width: 12),
-                        _buildInfoChip(
-                          icon: Icons.image_rounded,
-                          text: '${request.images.length}',
-                          color: AppColors.info,
-                        ),
-                      ],
                     ],
                   ),
                   const SizedBox(height: 16),

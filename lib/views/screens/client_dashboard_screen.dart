@@ -14,7 +14,6 @@ import '../../data/repositories/client_repository.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/services/location_service.dart';
-import '../../core/services/storage_service.dart';
 import '../../core/services/employee_statistics_service.dart';
 import '../../core/services/realtime_request_service.dart';
 import '../../data/models/employee_statistics.dart';
@@ -46,8 +45,6 @@ import '../../core/utils/logger.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'chat_screen.dart';
-import 'dart:io';
-import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Dashboard Client
@@ -75,7 +72,6 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
   final CategorieController _categorieController = Get.put(CategorieController());
   final EmployeeController _employeeController = Get.put(EmployeeController());
   final LocationService _locationService = LocationService();
-  final StorageService _storageService = StorageService();
   final EmployeeStatisticsService _statisticsService = EmployeeStatisticsService();
   final RequestRepository _requestRepository = RequestRepository();
   RealtimeRequestService? _realtimeService;
@@ -108,7 +104,6 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
   final ValueNotifier<double?> _longitudeNotifier = ValueNotifier<double?>(null);
   final ValueNotifier<bool> _isLoadingLocationNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _isSubmittingNotifier = ValueNotifier<bool>(false);
-  final ValueNotifier<List<File>> _selectedImagesNotifier = ValueNotifier<List<File>>([]);
 
   // Employés acceptés (gérés par stream temps réel)
   final ValueNotifier<List<EmployeeModel>> _acceptedEmployeesNotifier = ValueNotifier<List<EmployeeModel>>([]);
@@ -150,7 +145,6 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
     _longitudeNotifier.dispose();
     _isLoadingLocationNotifier.dispose();
     _isSubmittingNotifier.dispose();
-    _selectedImagesNotifier.dispose();
     _selectedEmployeeNotifier.dispose();
     super.dispose();
   }
@@ -359,41 +353,10 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
     try {
       final requestId = FirebaseFirestore.instance.collection('requests').doc().id;
 
-      // Uploader les images si disponibles
-      List<String> imageUrls = [];
-      if (_selectedImagesNotifier.value.isNotEmpty) {
-        debugPrint('[ClientDashboard] Début du téléchargement de ${_selectedImagesNotifier.value.length} image(s)');
-        for (int i = 0; i < _selectedImagesNotifier.value.length; i++) {
-          try {
-            final imageFile = _selectedImagesNotifier.value[i];
-            if (!await imageFile.exists()) {
-              debugPrint('[ClientDashboard] Erreur: Le fichier image $i n\'existe pas: ${imageFile.path}');
-              SnackbarHelper.showError('error_image_file_not_found'.tr);
-              continue;
-            }
-            
-            debugPrint('[ClientDashboard] Téléchargement de l\'image $i: ${imageFile.path}');
-            final imageUrl = await _storageService.uploadRequestImage(
-              requestId: requestId,
-              imageFile: imageFile,
-              index: i,
-            );
-            imageUrls.add(imageUrl);
-            debugPrint('[ClientDashboard] Image $i téléchargée avec succès: $imageUrl');
-          } catch (e) {
-            debugPrint('[ClientDashboard] Erreur lors du téléchargement de l\'image $i: $e');
-            SnackbarHelper.showError('${'error_uploading_image'.tr} ${i + 1}: $e');
-            // Continuer avec les autres images même si une échoue
-          }
-        }
-        debugPrint('[ClientDashboard] Téléchargement terminé: ${imageUrls.length}/${_selectedImagesNotifier.value.length} image(s) téléchargée(s)');
-      }
-
       // Créer la demande
       final request = RequestModel(
         id: requestId,
         description: _descriptionController.text.trim(),
-        images: imageUrls.isEmpty ? null : imageUrls,
         latitude: _latitudeNotifier.value!,
         longitude: _longitudeNotifier.value!,
         address: _currentAddressNotifier.value!,
@@ -415,7 +378,6 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
           // Réinitialiser le formulaire
           _descriptionController.clear();
           _selectedCategorieIdNotifier.value = null;
-          _selectedImagesNotifier.value = [];
           
         // Le stream temps réel sera initialisé automatiquement dans build()
           
@@ -553,35 +515,6 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
     }
   }
 
-  Future<void> _pickImages() async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final List<XFile> images = await picker.pickMultiImage();
-
-      if (images.isNotEmpty && mounted) {
-        final fileList = <File>[];
-        for (final image in images) {
-          final file = File(image.path);
-          if (await file.exists()) {
-            fileList.add(file);
-          } else {
-            debugPrint('[ClientDashboard] Avertissement: Le fichier n\'existe pas: ${image.path}');
-          }
-        }
-        
-        if (fileList.isNotEmpty) {
-          _selectedImagesNotifier.value = fileList;
-          debugPrint('[ClientDashboard] ${fileList.length} image(s) sélectionnée(s)');
-        } else {
-          SnackbarHelper.showError('error_no_valid_images'.tr);
-        }
-      }
-    } catch (e) {
-      debugPrint('[ClientDashboard] Erreur lors de la sélection des images: $e');
-      SnackbarHelper.showError('${'error_selecting_images'.tr}: $e');
-    }
-  }
-
   String? _lastActiveRequestId;
   RequestFlowState? _lastFlowState;
 
@@ -691,8 +624,6 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                   formKey: _formKey,
                   descriptionController: _descriptionController,
                   selectedCategorieIdNotifier: _selectedCategorieIdNotifier,
-                  selectedImagesNotifier: _selectedImagesNotifier,
-                  onPickImages: _pickImages,
                   onSubmit: _submitRequest,
                   isSubmittingNotifier: _isSubmittingNotifier,
                   categories: _categorieController.categories,

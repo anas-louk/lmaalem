@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import '../../controllers/request_controller.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/categorie_controller.dart';
 import '../../data/models/request_model.dart';
 import '../../data/models/categorie_model.dart';
-import '../../core/services/storage_service.dart';
 import '../../core/services/location_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
@@ -40,10 +37,8 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
   final _requestController = Get.put(RequestController());
   final _authController = Get.find<AuthController>();
   final _categorieController = Get.find<CategorieController>();
-  final _storageService = StorageService();
   final _locationService = LocationService();
 
-  List<File> _selectedImages = [];
   String? _address;
   double? _latitude;
   double? _longitude;
@@ -74,37 +69,6 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
     if (_initialLocationRequested) return;
     _initialLocationRequested = true;
     _getCurrentLocation(showSuccessToast: false);
-  }
-
-  Future<void> _pickImages() async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final List<XFile> images = await picker.pickMultiImage();
-
-      if (images.isNotEmpty) {
-        final fileList = <File>[];
-        for (final image in images) {
-          final file = File(image.path);
-          if (await file.exists()) {
-            fileList.add(file);
-          } else {
-            debugPrint('[RequestSubmission] Avertissement: Le fichier n\'existe pas: ${image.path}');
-          }
-        }
-        
-        if (fileList.isNotEmpty) {
-          setState(() {
-            _selectedImages = fileList;
-          });
-          debugPrint('[RequestSubmission] ${fileList.length} image(s) sélectionnée(s)');
-        } else {
-          SnackbarHelper.showError('error_no_valid_images'.tr);
-        }
-      }
-    } catch (e) {
-      debugPrint('[RequestSubmission] Erreur lors de la sélection des images: $e');
-      SnackbarHelper.showError('${'error_selecting_images'.tr}: $e');
-    }
   }
 
   Future<void> _getCurrentLocation({bool showSuccessToast = true}) async {
@@ -213,41 +177,10 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
       // Créer l'ID de la demande
       final requestId = FirebaseFirestore.instance.collection('requests').doc().id;
 
-      // Uploader les images si disponibles
-      List<String> imageUrls = [];
-      if (_selectedImages.isNotEmpty) {
-        debugPrint('[RequestSubmission] Début du téléchargement de ${_selectedImages.length} image(s)');
-        for (int i = 0; i < _selectedImages.length; i++) {
-          try {
-            final imageFile = _selectedImages[i];
-            if (!await imageFile.exists()) {
-              debugPrint('[RequestSubmission] Erreur: Le fichier image $i n\'existe pas: ${imageFile.path}');
-              SnackbarHelper.showError('error_image_file_not_found'.tr);
-              continue;
-            }
-            
-            debugPrint('[RequestSubmission] Téléchargement de l\'image $i: ${imageFile.path}');
-            final imageUrl = await _storageService.uploadRequestImage(
-              requestId: requestId,
-              imageFile: imageFile,
-              index: i,
-            );
-            imageUrls.add(imageUrl);
-            debugPrint('[RequestSubmission] Image $i téléchargée avec succès: $imageUrl');
-          } catch (e) {
-            debugPrint('[RequestSubmission] Erreur lors du téléchargement de l\'image $i: $e');
-            SnackbarHelper.showError('${'error_uploading_image'.tr} ${i + 1}: $e');
-            // Continuer avec les autres images même si une échoue
-          }
-        }
-        debugPrint('[RequestSubmission] Téléchargement terminé: ${imageUrls.length}/${_selectedImages.length} image(s) téléchargée(s)');
-      }
-
       // Créer la demande
       final request = RequestModel(
         id: requestId,
         description: _descriptionController.text.trim(),
-        images: imageUrls.isEmpty ? null : imageUrls,
         latitude: _latitude!,
         longitude: _longitude!,
         address: _address!,
@@ -352,82 +285,6 @@ class _RequestSubmissionScreenState extends State<RequestSubmissionScreen> {
                   borderColor: Colors.transparent,
                 ),
               ),
-              const SizedBox(height: 24),
-              InDriveSectionTitle(
-                title: 'images_optional'.tr,
-                subtitle: 'add_images'.tr,
-              ),
-              const SizedBox(height: 12),
-              if (_selectedImages.isEmpty)
-                GestureDetector(
-                  onTap: _pickImages,
-                  child: InDriveCard(
-                    padding: const EdgeInsets.symmetric(vertical: 40),
-                    child: Column(
-                      children: [
-                        Icon(Icons.add_photo_alternate_outlined, size: 48, color: AppColors.primary),
-                        const SizedBox(height: 12),
-                        Text(
-                          'add_images'.tr,
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else
-                SizedBox(
-                  height: 150,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _selectedImages.length + 1,
-                    separatorBuilder: (_, __) => const SizedBox(width: 12),
-                    itemBuilder: (context, index) {
-                      if (index == _selectedImages.length) {
-                        return GestureDetector(
-                          onTap: _pickImages,
-                          child: InDriveCard(
-                            padding: const EdgeInsets.all(12),
-                            borderRadius: 20,
-                            child: const Icon(Icons.add, size: 32),
-                          ),
-                        );
-                      }
-                      return Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: Image.file(
-                              _selectedImages[index],
-                              width: 150,
-                              height: 150,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          Positioned(
-                            top: 6,
-                            right: 6,
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() => _selectedImages.removeAt(index));
-                              },
-                              child: Container(
-                                decoration: const BoxDecoration(
-                                  color: AppColors.error,
-                                  shape: BoxShape.circle,
-                                ),
-                                padding: const EdgeInsets.all(4),
-                                child: const Icon(Icons.close, size: 16, color: Colors.white),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
               const SizedBox(height: 24),
               InDriveSectionTitle(
                 title: 'location'.tr,
