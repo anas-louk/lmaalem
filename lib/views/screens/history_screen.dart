@@ -11,6 +11,8 @@ import '../../components/empty_state.dart';
 import '../../components/indrive_app_bar.dart';
 import '../../components/indrive_card.dart';
 import '../../components/indrive_section_title.dart';
+import '../../data/repositories/request_repository.dart';
+import 'package:flutter/foundation.dart';
 
 /// Historique des demandes annulées
 class HistoryScreen extends StatefulWidget {
@@ -37,22 +39,30 @@ class _HistoryScreenState extends State<HistoryScreen> {
     });
   }
 
-  void _loadData() {
+  Future<void> _loadData() async {
     final user = _authController.currentUser.value;
     if (user == null) return;
 
     if (user.type.toLowerCase() == 'employee') {
-      _loadMissions(user.id);
+      await _loadMissions(user.id);
     } else {
-      _loadRequests(user.id);
+      await _loadRequests(user.id);
     }
   }
 
-  void _loadRequests(String userId) {
+  Future<void> _loadRequests(String userId) async {
     if (!_requestsLoaded || _loadedUserId != userId) {
-      _requestController.streamRequestsByClient(userId);
-      _requestsLoaded = true;
-      _loadedUserId = userId;
+      try {
+        // Charger directement toutes les demandes (y compris completed et cancelled) pour l'historique
+        final requestRepository = RequestRepository();
+        final allRequests = await requestRepository.getRequestsByClientId(userId);
+        // Mettre à jour la liste des demandes dans le controller
+        _requestController.requests.assignAll(allRequests);
+        _requestsLoaded = true;
+        _loadedUserId = userId;
+      } catch (e) {
+        debugPrint('Error loading requests for history: $e');
+      }
     }
   }
 
@@ -291,10 +301,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
         }
 
         // For clients, show requests history
-        if (!_requestsLoaded) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_requestsLoaded || _loadedUserId != user.id) {
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
             if (mounted) {
-              _loadRequests(user.id);
+              await _loadRequests(user.id);
             }
           });
         }
