@@ -1038,15 +1038,18 @@ class _EmployeeStatisticsSectionState extends State<_EmployeeStatisticsSection> 
 
   Future<void> _loadStatistics() async {
     try {
+      if (!mounted) return;
       setState(() {
         _isLoading = true;
       });
       final stats = await _statisticsService.getEmployeeStatisticsByStringId(widget.employeeId);
+      if (!mounted) return;
       setState(() {
         _statistics = stats;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
