@@ -409,16 +409,17 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
       final success = await _requestController.createRequest(request);
 
       if (success) {
-        // Démarrer le flux de demande
+        // Réinitialiser le formulaire immédiatement
+        if (mounted) {
+          _descriptionController.clear();
+          _selectedCategorieIdNotifier.value = null;
+        }
+        
+        // Démarrer le flux de demande (cela mettra à jour l'état et cachera le formulaire)
         await _requestFlowController.startPendingFlow(request);
         
         if (mounted) {
-          // Réinitialiser le formulaire
-          _descriptionController.clear();
-          _selectedCategorieIdNotifier.value = null;
-          
-        // Le stream temps réel sera initialisé automatiquement dans build()
-          
+          // Le stream temps réel sera initialisé automatiquement dans build()
           SnackbarHelper.showSuccess('request_submitted_success'.tr);
         }
       }
@@ -607,24 +608,33 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                 // Stream de la demande pour les mises à jour d'état
                 _requestStreamSubscription?.cancel();
                 _requestStreamSubscription = _requestRepository.streamRequest(activeRequest.id).listen((request) {
-                  if (request != null && mounted) {
-                    // Si un employé est sélectionné, le charger
-                    if (request.employeeId != null && _selectedEmployeeNotifier.value == null) {
-                      _loadSelectedEmployee(request.employeeId!);
-                    }
-                    // Mettre à jour le RequestFlowController si l'état change
-                    if (request.statut.toLowerCase() == 'accepted' && flowState == RequestFlowState.pending) {
-                      _requestFlowController.markAccepted(
-                        AcceptedEmployeeSummary(
-                          id: request.employeeId ?? '',
-                          name: _selectedEmployeeNotifier.value?.nomComplet,
-                          service: _selectedEmployeeNotifier.value?.competence,
-                          city: _selectedEmployeeNotifier.value?.ville,
-                          rating: _employeeStatistics[request.employeeId ?? '']?.averageRating,
-                          photoUrl: _selectedEmployeeNotifier.value?.image,
-                        ),
-                      );
-                    }
+                  if (!mounted) return;
+                  
+                  // Si la demande est annulée ou complétée, nettoyer le flux
+                  if (request == null || 
+                      request.statut.toLowerCase() == 'cancelled' || 
+                      request.statut.toLowerCase() == 'completed') {
+                    _requestStreamSubscription?.cancel();
+                    _requestFlowController.markCanceled();
+                    return;
+                  }
+                  
+                  // Si un employé est sélectionné, le charger
+                  if (request.employeeId != null && _selectedEmployeeNotifier.value == null) {
+                    _loadSelectedEmployee(request.employeeId!);
+                  }
+                  // Mettre à jour le RequestFlowController si l'état change
+                  if (request.statut.toLowerCase() == 'accepted' && flowState == RequestFlowState.pending) {
+                    _requestFlowController.markAccepted(
+                      AcceptedEmployeeSummary(
+                        id: request.employeeId ?? '',
+                        name: _selectedEmployeeNotifier.value?.nomComplet,
+                        service: _selectedEmployeeNotifier.value?.competence,
+                        city: _selectedEmployeeNotifier.value?.ville,
+                        rating: _employeeStatistics[request.employeeId ?? '']?.averageRating,
+                        photoUrl: _selectedEmployeeNotifier.value?.image,
+                      ),
+                    );
                   }
                 });
                 
@@ -640,6 +650,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                 }
               } else {
                 // Arrêter les streams si pas de demande active (sans fermer les controllers)
+                _requestStreamSubscription?.cancel();
                 _employeesStreamSubscription?.cancel();
                 _connectionStatusSubscription?.cancel();
                 _realtimeService?.stop();
@@ -1457,6 +1468,8 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                 : () async {
                     final reason = await _requestController.cancelRequest(request.id);
                     if (reason != null) {
+                      // Annuler le stream de la demande
+                      _requestStreamSubscription?.cancel();
                       try {
                         await _requestFlowController.markCanceled();
                       } catch (e) {
@@ -1468,6 +1481,8 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                         _acceptedEmployeesNotifier.value = [];
                         _employeeStatistics.clear();
                         _currentRequestForAnimation = null;
+                        _lastActiveRequestId = null;
+                        _lastFlowState = null;
                       }
                     }
                     Get.back();
@@ -1505,6 +1520,9 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
           final result = await _requestController.cancelRequest(request.id, cancellationReason: reason);
           
           if (result != null) {
+            // Annuler le stream de la demande
+            _requestStreamSubscription?.cancel();
+            
             // Créer le rapport d'annulation
             await _createCancellationReport(request, reason);
             
@@ -1523,6 +1541,8 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
               _acceptedEmployeesNotifier.value = [];
               _employeeStatistics.clear();
               _currentRequestForAnimation = null;
+              _lastActiveRequestId = null;
+              _lastFlowState = null;
             }
           }
         },
