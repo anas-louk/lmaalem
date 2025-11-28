@@ -749,7 +749,7 @@ class ProfileScreen extends StatelessWidget {
                                     if (selectedCategorieId.value == null ||
                                         villeController.text.isEmpty ||
                                         competenceController.text.isEmpty) {
-                                      SnackbarHelper.showError('Veuillez remplir tous les champs obligatoires');
+                                      SnackbarHelper.showError('fill_required_fields'.tr);
                                       return;
                                     }
                                   }

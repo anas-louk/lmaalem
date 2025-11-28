@@ -142,10 +142,10 @@ class LocationService {
           address += place.country!;
         }
 
-        return address.isNotEmpty ? address : 'Localisation inconnue';
+        return address.isNotEmpty ? address : 'unknown_location'.tr;
       }
 
-      return 'Localisation inconnue';
+      return 'unknown_location'.tr;
     } catch (e) {
       throw 'Erreur lors de la récupération de l\'adresse: $e';
     }
@@ -186,7 +186,7 @@ class LocationService {
       final position = await getCurrentPosition();
       
       // Essayer de récupérer l'adresse, mais ne pas bloquer si ça échoue
-      String address = 'Localisation inconnue';
+      String address = 'unknown_location'.tr;
       try {
         address = await getAddressFromCoordinates(
           latitude: position.latitude,

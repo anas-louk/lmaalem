@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:get/get.dart';
 import '../core/services/location_service.dart';
 import '../core/constants/app_colors.dart';
 
@@ -202,7 +203,7 @@ class _UserLocationMapState extends State<UserLocationMap> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        _errorMessage ?? 'Localisation non disponible',
+                        _errorMessage ?? 'location_unavailable'.tr,
                         style: TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 14,
@@ -213,7 +214,7 @@ class _UserLocationMapState extends State<UserLocationMap> {
                       ElevatedButton.icon(
                         onPressed: _initializeLocation,
                         icon: const Icon(Icons.refresh, size: 18),
-                        label: const Text('Réessayer'),
+                        label: Text('retry'.tr),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: AppColors.white,

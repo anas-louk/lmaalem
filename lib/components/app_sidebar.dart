@@ -143,7 +143,7 @@ class AppSidebar extends StatelessWidget {
                       const SizedBox(height: 20),
                       // Nom
                       Text(
-                        user?.nomComplet ?? 'Utilisateur',
+                        user?.nomComplet ?? 'user'.tr,
                         style: AppTextStyles.h3.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -240,7 +240,7 @@ class AppSidebar extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(left: 16, bottom: 12, top: 8),
                     child: Text(
-                      'Navigation',
+                      'navigation'.tr,
                       style: AppTextStyles.bodySmall.copyWith(
                         color: Colors.white54,
                         fontWeight: FontWeight.w600,
@@ -253,7 +253,7 @@ class AppSidebar extends StatelessWidget {
                     context: context,
                     icon: Icons.history_rounded,
                     title: 'history'.tr,
-                    subtitle: 'Voir l\'historique',
+                    subtitle: 'view_history'.tr,
                     onTap: () {
                       Navigator.pop(context);
                       Get.to(() => const HistoryScreen());

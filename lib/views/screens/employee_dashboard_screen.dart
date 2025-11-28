@@ -526,7 +526,7 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
                 // Missions Section
                 InDriveSectionTitle(
                   title: 'my_missions'.tr,
-                  subtitle: 'Vos missions actives',
+                  subtitle: 'active_missions'.tr,
                   icon: Icons.work_rounded,
                 ),
                 const SizedBox(height: 16),

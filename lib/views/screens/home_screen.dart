@@ -56,9 +56,9 @@ class HomeScreen extends StatelessWidget {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 20),
                     child: InDriveSectionTitle(
-                      title: 'Trouve ton expert',
-                      subtitle: 'Professionnels vérifiés près de chez toi',
-                      actionText: 'Filtres',
+                      title: 'find_expert'.tr,
+                      subtitle: 'verified_professionals_nearby'.tr,
+                      actionText: 'filters'.tr,
                       onActionTap: _employeeController.loadAvailableEmployees,
                     ),
                   );

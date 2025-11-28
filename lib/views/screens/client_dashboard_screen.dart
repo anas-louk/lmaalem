@@ -1248,9 +1248,9 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
       final category = _categorieController.categories.firstWhereOrNull(
         (cat) => cat.id == request.categorieId,
       );
-      categoryName = category?.nom ?? 'Catégorie inconnue';
+      categoryName = category?.nom ?? 'unknown_category'.tr;
     } catch (_) {
-      categoryName = 'Catégorie inconnue';
+      categoryName = 'unknown_category'.tr;
     }
 
     return Container(

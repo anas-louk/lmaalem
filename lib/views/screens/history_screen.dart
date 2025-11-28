@@ -161,7 +161,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               if (archivedMissions.isNotEmpty) ...[
                 InDriveSectionTitle(
                   title: 'my_missions'.tr,
-                  subtitle: 'Toutes les missions terminées ou annulées.',
+                  subtitle: 'all_completed_missions'.tr,
                 ),
                 const SizedBox(height: 16),
                 ListView.separated(
@@ -230,7 +230,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 if (archivedMissions.isNotEmpty) const SizedBox(height: 32),
                 InDriveSectionTitle(
                   title: 'cancelled_requests'.tr,
-                  subtitle: 'Demandes annulées par les clients.',
+                  subtitle: 'cancelled_requests_by_clients'.tr,
                 ),
                 const SizedBox(height: 16),
                 ListView.separated(
@@ -335,7 +335,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           children: [
             InDriveSectionTitle(
               title: 'history'.tr,
-              subtitle: 'Toutes les demandes terminées ou annulées.',
+              subtitle: 'all_completed_requests'.tr,
             ),
             const SizedBox(height: 16),
             ListView.separated(
