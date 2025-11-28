@@ -1344,6 +1344,46 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
               ),
             ],
           ),
+          // Bouton "Ouvrir le chat" en bas de la carte (seulement si la demande est acceptée)
+          if (flowState == RequestFlowState.accepted) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.primary.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: TextButton.icon(
+                    onPressed: () => _openChat(request),
+                    icon: Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      color: AppColors.primaryLight,
+                      size: 18,
+                    ),
+                    label: Text(
+                      'open_chat'.tr,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.primaryLight,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -1386,12 +1426,6 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                 },
               ),
             if (canFinish) const SizedBox(height: 12),
-            InDriveButton(
-              label: 'open_chat'.tr,
-              onPressed: () => _openChat(request),
-              variant: canFinish ? InDriveButtonVariant.ghost : InDriveButtonVariant.primary,
-            ),
-            const SizedBox(height: 12),
             InDriveButton(
               label: 'cancel_request'.tr,
               onPressed: _requestController.isLoading.value
