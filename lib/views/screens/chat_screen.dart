@@ -110,7 +110,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final isClient = user?.id == args.clientId;
 
     return Scaffold(
-      backgroundColor: AppColors.night,
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: _buildAppBar(),
       body: Obx(() {
         if (_chatController.isLoading.value) {
@@ -196,7 +196,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                       ],
                                     )
                                   : null,
-                              color: isMine ? null : AppColors.nightSurface,
+                              color: isMine ? null : Theme.of(context).colorScheme.surface,
                               borderRadius: BorderRadius.circular(20).copyWith(
                                 bottomRight: Radius.circular(isMine ? 4 : 20),
                                 bottomLeft: Radius.circular(isMine ? 20 : 4),
@@ -206,7 +206,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               border: isMine
                                   ? null
                                   : Border.all(
-                                      color: Colors.white10,
+                                      color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
                                       width: 1,
                                     ),
                               boxShadow: [
@@ -245,7 +245,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                                 ? (isClient ? thread.employeeName : thread.clientName)[0].toUpperCase()
                                                 : 'U',
                                             style: AppTextStyles.bodySmall.copyWith(
-                                              color: Colors.white,
+                                              color: Theme.of(context).colorScheme.onSurface,
                                               fontWeight: FontWeight.bold,
                                               fontSize: 10,
                                             ),
@@ -256,7 +256,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                       Text(
                                         isClient ? thread.employeeName : thread.clientName,
                                         style: AppTextStyles.bodySmall.copyWith(
-                                          color: Colors.white70,
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -288,7 +288,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                       Icon(
                                         Icons.done_all_rounded,
                                         size: 14,
-                                        color: Colors.white70,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                     ],
                                   ],
@@ -312,10 +312,10 @@ class _ChatScreenState extends State<ChatScreen> {
       top: false,
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.nightSurface,
+          color: Theme.of(context).colorScheme.surface,
           border: Border(
             top: BorderSide(
-              color: Colors.white10,
+              color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
               width: 1,
             ),
           ),
@@ -335,10 +335,10 @@ class _ChatScreenState extends State<ChatScreen> {
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: AppColors.nightSecondary,
+                    color: Theme.of(context).colorScheme.surfaceVariant,
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: Colors.white10,
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
                       width: 1,
                     ),
                   ),
@@ -348,12 +348,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     minLines: 1,
                     maxLines: 4,
                     style: AppTextStyles.bodyMedium.copyWith(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                     decoration: InputDecoration(
                       hintText: 'type_message_hint'.tr,
                       hintStyle: AppTextStyles.bodyMedium.copyWith(
-                        color: Colors.white54,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       filled: false,
                       border: InputBorder.none,
@@ -404,17 +404,17 @@ class _ChatScreenState extends State<ChatScreen> {
                     borderRadius: BorderRadius.circular(24),
                     child: Center(
                       child: _chatController.isSending.value
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.5,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
                               ),
                             )
-                          : const Icon(
+                          : Icon(
                               Icons.send_rounded,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onSurface,
                               size: 22,
                             ),
                     ),
@@ -457,7 +457,7 @@ class _ChatScreenState extends State<ChatScreen> {
               'chat_empty_state'.tr,
               textAlign: TextAlign.center,
               style: AppTextStyles.h4.copyWith(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -466,7 +466,7 @@ class _ChatScreenState extends State<ChatScreen> {
               'Commencez la conversation',
               textAlign: TextAlign.center,
               style: AppTextStyles.bodyMedium.copyWith(
-                color: Colors.white70,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -504,7 +504,7 @@ class _ChatScreenState extends State<ChatScreen> {
               'chat_not_available'.tr,
               textAlign: TextAlign.center,
               style: AppTextStyles.h4.copyWith(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -513,7 +513,7 @@ class _ChatScreenState extends State<ChatScreen> {
               'Le chat n\'est pas disponible pour cette demande',
               textAlign: TextAlign.center,
               style: AppTextStyles.bodyMedium.copyWith(
-                color: Colors.white70,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],

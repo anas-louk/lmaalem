@@ -381,7 +381,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
         message: 'request_in_progress_message'.tr.replaceAll('{status}', statusText),
         duration: const Duration(seconds: 4),
         backgroundColor: AppColors.warning.withOpacity(0.9),
-        colorText: AppColors.white,
+        colorText: Theme.of(context).colorScheme.onPrimary,
       );
       return;
     }
@@ -574,7 +574,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
           SizedBox(width: 8),
         ],
       ),
-      backgroundColor: AppColors.night,
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: Obx(
         () {
           final user = _authController.currentUser.value;
@@ -782,7 +782,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
-            color: AppColors.nightSurface,
+            color: Theme.of(context).colorScheme.surface,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.4),
@@ -822,7 +822,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                       padding: const EdgeInsets.all(3),
                       child: CircleAvatar(
                         radius: 32,
-                        backgroundColor: AppColors.white,
+                        backgroundColor: Theme.of(context).colorScheme.surface,
                         child: Text(
                           user.nomComplet.substring(0, 1).toUpperCase(),
                           style: AppTextStyles.h3.copyWith(
@@ -841,7 +841,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                             Text(
                             user.nomComplet,
                             style: AppTextStyles.h3.copyWith(
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontWeight: FontWeight.bold,
                               letterSpacing: -0.5,
                             ),
@@ -852,14 +852,14 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                               Icon(
                                 Icons.public,
                                 size: 14,
-                                color: Colors.white70,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                               const SizedBox(width: 4),
                               Flexible(
                                 child: Text(
                                   user.localisation.isNotEmpty ? user.localisation : 'Localisation non définie',
                                   style: AppTextStyles.bodyMedium.copyWith(
-                                    color: Colors.white70,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     fontSize: 13,
                                   ),
                                   overflow: TextOverflow.ellipsis,
@@ -877,10 +877,10 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.nightSecondary,
+                    color: Theme.of(context).colorScheme.surfaceVariant,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: Colors.white10,
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
                       width: 1,
                     ),
                   ),
@@ -892,10 +892,10 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                           color: AppColors.primary,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.location_on_rounded,
                           size: 20,
-                          color: AppColors.white,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -909,7 +909,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                             Text(
                                   'Votre position',
                                   style: AppTextStyles.bodySmall.copyWith(
-                                    color: Colors.white54,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     fontSize: 11,
                                   ),
                                 ),
@@ -917,7 +917,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                                 Text(
                                   address ?? 'Localisation non disponible',
                               style: AppTextStyles.bodyMedium.copyWith(
-                                    color: Colors.white,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                     fontWeight: FontWeight.w500,
                                   ),
                                   maxLines: 2,
@@ -1043,14 +1043,14 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                   Text(
                     'accepted_employees'.tr,
                     style: AppTextStyles.h3.copyWith(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'select_employee_message'.tr,
                     style: AppTextStyles.bodyMedium.copyWith(
-                      color: Colors.white70,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -1145,11 +1145,11 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
 
                         return Container(
       decoration: BoxDecoration(
-        color: AppColors.nightSurface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withOpacity(Theme.of(context).colorScheme.brightness == Brightness.dark ? 0.4 : 0.1),
             blurRadius: 30,
             spreadRadius: 0,
             offset: const Offset(0, 20),
@@ -1183,7 +1183,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                     Text(
                       employee.nomComplet,
                       style: AppTextStyles.h3.copyWith(
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -1191,7 +1191,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                       Text(
                         employee.competence,
                         style: AppTextStyles.bodyMedium.copyWith(
-                          color: Colors.white70,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                   ],
@@ -1235,13 +1235,13 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
               Icon(
                 Icons.location_on,
                 size: 16,
-                color: Colors.white70,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 4),
               Text(
                 employee.ville,
                 style: AppTextStyles.bodySmall.copyWith(
-                  color: Colors.white70,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -1266,11 +1266,11 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.nightSurface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withOpacity(Theme.of(context).colorScheme.brightness == Brightness.dark ? 0.4 : 0.1),
             blurRadius: 30,
             spreadRadius: 0,
             offset: const Offset(0, 20),
@@ -1286,13 +1286,13 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.2),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   categoryName,
                   style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.primaryLight,
+                    color: Theme.of(context).colorScheme.primary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1324,14 +1324,14 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
           Text(
             'your_request_in_progress'.tr,
             style: AppTextStyles.h4.copyWith(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 12),
           Text(
             request.description,
             style: AppTextStyles.bodyMedium.copyWith(
-              color: Colors.white70,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 12),
@@ -1340,14 +1340,14 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
               Icon(
                 Icons.location_on,
                 size: 16,
-                color: Colors.white70,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   request.address,
                   style: AppTextStyles.bodySmall.copyWith(
-                    color: Colors.white70,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -1679,7 +1679,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
     
     return await Get.dialog<Map<String, dynamic>>(
       Dialog(
-        backgroundColor: AppColors.nightSurface,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(28),
         ),
@@ -1717,7 +1717,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                 children: [
                   Text(
                     'finish_dialog_title'.tr,
-                    style: AppTextStyles.h3.copyWith(color: Colors.white),
+                    style: AppTextStyles.h3.copyWith(color: Theme.of(context).colorScheme.onSurface),
                   ),
                   const SizedBox(height: 24),
                   
@@ -1725,24 +1725,24 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                   TextField(
                     controller: priceController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                     decoration: InputDecoration(
                       labelText: '${'price'.tr} (€)',
-                      labelStyle: const TextStyle(color: Colors.white70),
-                      prefixIcon: const Icon(Icons.attach_money, color: Colors.white70),
+                      labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      prefixIcon: Icon(Icons.attach_money, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Colors.white24),
+                        borderSide: BorderSide(color: Theme.of(context).colorScheme.outline.withOpacity(0.3)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Colors.white24),
+                        borderSide: BorderSide(color: Theme.of(context).colorScheme.outline.withOpacity(0.3)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                         borderSide: const BorderSide(color: AppColors.primary),
                       ),
-                      fillColor: AppColors.nightSecondary,
+                      fillColor: Theme.of(context).colorScheme.surfaceVariant,
                       filled: true,
                     ),
                   ),
@@ -1752,7 +1752,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                   Text(
                     '${'rating'.tr} (${'optional'.tr})',
                     style: AppTextStyles.bodyMedium.copyWith(
-                      color: Colors.white70,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -1763,25 +1763,25 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                   TextField(
                     controller: commentController,
                     maxLines: 3,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                     decoration: InputDecoration(
                       labelText: 'comment_hint'.tr,
                       hintText: 'comment_hint'.tr,
-                      labelStyle: const TextStyle(color: Colors.white70),
-                      hintStyle: const TextStyle(color: Colors.white54),
+                      labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Colors.white24),
+                        borderSide: BorderSide(color: Theme.of(context).colorScheme.outline.withOpacity(0.3)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Colors.white24),
+                        borderSide: BorderSide(color: Theme.of(context).colorScheme.outline.withOpacity(0.3)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                         borderSide: const BorderSide(color: AppColors.primary),
                       ),
-                      fillColor: AppColors.nightSecondary,
+                      fillColor: Theme.of(context).colorScheme.surfaceVariant,
                       filled: true,
                     ),
                   ),
@@ -1857,7 +1857,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
 
     await Get.dialog(
       Dialog(
-        backgroundColor: AppColors.nightSurface,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(28),
         ),
@@ -1868,13 +1868,13 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
             children: [
               Text(
                 'scan_qr_code'.tr,
-                style: AppTextStyles.h3.copyWith(color: Colors.white),
+                style: AppTextStyles.h3.copyWith(color: Theme.of(context).colorScheme.onSurface),
               ),
               const SizedBox(height: 24),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: QrImageView(
@@ -1886,7 +1886,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
               const SizedBox(height: 24),
               Text(
                 'employee_scan_qr_code'.tr,
-                style: AppTextStyles.bodyMedium.copyWith(color: Colors.white70),
+                style: AppTextStyles.bodyMedium.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
@@ -1916,15 +1916,16 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
 
   /// Carte d'employé moderne
   Widget _buildEmployeeCard(EmployeeModel employee, EmployeeStatistics stats, RequestModel request) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.nightSurface,
+          color: colorScheme.surface,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.4),
+              color: Colors.black.withOpacity(colorScheme.brightness == Brightness.dark ? 0.4 : 0.1),
               blurRadius: 30,
               spreadRadius: 0,
               offset: const Offset(0, 20),
@@ -1960,7 +1961,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                       Text(
                         employee.nomComplet,
                         style: AppTextStyles.h4.copyWith(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -1968,7 +1969,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                         Text(
                           employee.competence,
                           style: AppTextStyles.bodySmall.copyWith(
-                            color: Colors.white70,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -1979,13 +1980,13 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                           Icon(
                             Icons.location_on,
                             size: 14,
-                            color: Colors.white70,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             employee.ville,
                             style: AppTextStyles.bodySmall.copyWith(
-                              color: Colors.white70,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                           if (_employeeDistances.containsKey(employee.id)) ...[

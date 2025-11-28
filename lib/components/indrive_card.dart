@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../core/constants/app_colors.dart';
 
 /// Carte moderne inspirée d'InDrive avec thème sombre
 class InDriveCard extends StatelessWidget {
@@ -26,7 +25,8 @@ class InDriveCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color bg = backgroundColor ?? AppColors.nightSurface;
+    final colorScheme = Theme.of(context).colorScheme;
+    final Color bg = backgroundColor ?? colorScheme.surface;
 
     return Container(
       margin: margin,
@@ -34,20 +34,20 @@ class InDriveCard extends StatelessWidget {
         color: bg,
         borderRadius: BorderRadius.circular(borderRadius),
         border: Border.all(
-          color: Colors.white10,
+          color: colorScheme.outline.withOpacity(0.2),
           width: 1,
         ),
         boxShadow: showShadow
             ? [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.4),
+                  color: Colors.black.withOpacity(colorScheme.brightness == Brightness.dark ? 0.4 : 0.08),
                   blurRadius: 20,
                   spreadRadius: 0,
                   offset: const Offset(0, 8),
                 ),
                 if (elevation > 0)
                   BoxShadow(
-                    color: AppColors.primary.withOpacity(0.1),
+                    color: colorScheme.primary.withOpacity(0.1),
                     blurRadius: 10,
                     spreadRadius: 0,
                     offset: const Offset(0, 4),
@@ -61,8 +61,8 @@ class InDriveCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(borderRadius),
           onTap: onTap,
-          splashColor: AppColors.primary.withOpacity(0.1),
-          highlightColor: AppColors.primary.withOpacity(0.05),
+          splashColor: colorScheme.primary.withOpacity(0.1),
+          highlightColor: colorScheme.primary.withOpacity(0.05),
           child: Padding(
             padding: padding,
             child: child,

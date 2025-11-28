@@ -3,10 +3,12 @@ import 'package:get/get.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'core/firebase/firebase_init.dart';
 import 'routes/app_routes.dart';
-import 'theme/app_theme.dart';
+import 'theme/light_theme.dart';
+import 'theme/dark_theme.dart';
 import 'controllers/auth_controller.dart';
 import 'controllers/call_controller.dart';
 import 'controllers/language_controller.dart';
+import 'controllers/theme_controller.dart';
 import 'core/translations/app_translations.dart';
 import 'core/services/local_notification_service.dart';
 import 'core/services/background_notification_service.dart';
@@ -114,8 +116,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    // Initialiser le contrôleur de langue
+    // Initialiser les contrôleurs
     final languageController = Get.put(LanguageController());
+    final themeController = Get.put(ThemeController());
     
     return Obx(
       () {
@@ -129,9 +132,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           title: 'Lmaalem',
           debugShowCheckedModeBanner: false,
           scaffoldMessengerKey: SnackbarHelper.scaffoldMessengerKey,
-          theme: AppTheme.lightTheme,
-          // darkTheme: AppTheme.darkTheme,
-          // themeMode: ThemeMode.system,
+          theme: LightTheme.theme,
+          darkTheme: DarkTheme.theme,
+          themeMode: themeController.themeMode.value,
           
           // Translations
           translations: AppTranslations(),

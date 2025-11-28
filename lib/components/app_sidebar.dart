@@ -13,9 +13,10 @@ class AppSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AuthController _authController = Get.find<AuthController>();
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Drawer(
-      backgroundColor: AppColors.night,
+      backgroundColor: colorScheme.background,
       width: MediaQuery.of(context).size.width * 0.85,
       child: SafeArea(
         child: Column(
@@ -32,21 +33,21 @@ class AppSidebar extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        AppColors.primary.withOpacity(0.25),
-                        AppColors.primaryDark.withOpacity(0.15),
-                        AppColors.night,
+                        colorScheme.primary.withOpacity(0.25),
+                        colorScheme.primary.withOpacity(0.15),
+                        colorScheme.background,
                       ],
                       stops: const [0.0, 0.5, 1.0],
                     ),
                     border: Border(
                       bottom: BorderSide(
-                        color: Colors.white10,
+                        color: colorScheme.outline.withOpacity(0.2),
                         width: 1,
                       ),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: colorScheme.primary.withOpacity(0.1),
                         blurRadius: 20,
                         spreadRadius: 0,
                         offset: const Offset(0, 4),
@@ -94,9 +95,9 @@ class AppSidebar extends StatelessWidget {
                                 height: 84,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: AppColors.nightSurface,
+                                  color: colorScheme.surface,
                                   border: Border.all(
-                                    color: Colors.white.withOpacity(0.1),
+                                    color: colorScheme.outline.withOpacity(0.2),
                                     width: 2,
                                   ),
                                 ),
@@ -106,7 +107,7 @@ class AppSidebar extends StatelessWidget {
                                         ? user!.nomComplet[0].toUpperCase()
                                         : 'U',
                                     style: AppTextStyles.h1.copyWith(
-                                      color: AppColors.primaryLight,
+                                      color: colorScheme.primary,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -123,9 +124,9 @@ class AppSidebar extends StatelessWidget {
                               height: 24,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: AppColors.success,
+                                color: colorScheme.primary,
                                 border: Border.all(
-                                  color: AppColors.night,
+                                  color: colorScheme.background,
                                   width: 3,
                                 ),
                                 boxShadow: [
@@ -145,7 +146,7 @@ class AppSidebar extends StatelessWidget {
                       Text(
                         user?.nomComplet ?? 'user'.tr,
                         style: AppTextStyles.h3.copyWith(
-                          color: Colors.white,
+                          color: colorScheme.onSurface,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.5,
                         ),
@@ -212,13 +213,13 @@ class AppSidebar extends StatelessWidget {
                               Icon(
                                 Icons.phone_rounded,
                                 size: 14,
-                                color: Colors.white54,
+                                color: colorScheme.onSurfaceVariant,
                               ),
                               const SizedBox(width: 6),
                               Text(
                                 user.tel,
                                 style: AppTextStyles.bodySmall.copyWith(
-                                  color: Colors.white54,
+                                  color: colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -242,7 +243,7 @@ class AppSidebar extends StatelessWidget {
                     child: Text(
                       'navigation'.tr,
                       style: AppTextStyles.bodySmall.copyWith(
-                        color: Colors.white54,
+                        color: colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1.2,
                       ),
@@ -382,13 +383,14 @@ class AppSidebar extends StatelessWidget {
     String? subtitle,
     required VoidCallback onTap,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: AppColors.nightSurface,
+        color: colorScheme.surfaceVariant,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.white10,
+          color: colorScheme.outline.withOpacity(0.2),
           width: 1,
         ),
         boxShadow: [
@@ -446,7 +448,7 @@ class AppSidebar extends StatelessWidget {
                       Text(
                         title,
                         style: AppTextStyles.bodyLarge.copyWith(
-                          color: Colors.white,
+                          color: colorScheme.onSurface,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -455,7 +457,7 @@ class AppSidebar extends StatelessWidget {
                         Text(
                           subtitle,
                           style: AppTextStyles.bodySmall.copyWith(
-                            color: Colors.white54,
+                            color: colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -466,7 +468,7 @@ class AppSidebar extends StatelessWidget {
                 Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 16,
-                  color: Colors.white30,
+                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
                 ),
               ],
             ),

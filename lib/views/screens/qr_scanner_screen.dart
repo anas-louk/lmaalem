@@ -96,7 +96,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                   Text(
                     'scan_qr_instruction'.tr,
                     style: AppTextStyles.bodyMedium.copyWith(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                     textAlign: TextAlign.center,
                   ),

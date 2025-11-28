@@ -55,19 +55,19 @@ class CategoriesScreen extends StatelessWidget {
     final CategorieController _categorieController = Get.put(CategorieController());
 
     return Scaffold(
-      backgroundColor: AppColors.night,
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
         title: Text(
           'categories'.tr,
           style: AppTextStyles.h3.copyWith(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: AppColors.nightSurface,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        actionsIconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
+        actionsIconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
       ),
       body: Obx(
         () {
@@ -96,10 +96,10 @@ class CategoriesScreen extends StatelessWidget {
               final categorie = _categorieController.categories[index];
               return Container(
                 decoration: BoxDecoration(
-                  color: AppColors.nightSurface,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: Colors.white10,
+                    color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
                     width: 1,
                   ),
                   boxShadow: [
@@ -148,7 +148,7 @@ class CategoriesScreen extends StatelessWidget {
                               child: Text(
                                 categorie.nom[0].toUpperCase(),
                                 style: AppTextStyles.h2.copyWith(
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.onSurface,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -158,7 +158,7 @@ class CategoriesScreen extends StatelessWidget {
                           Text(
                             categorie.nom,
                             style: AppTextStyles.h4.copyWith(
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontWeight: FontWeight.bold,
                             ),
                             textAlign: TextAlign.center,

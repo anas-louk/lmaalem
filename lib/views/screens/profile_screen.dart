@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/categorie_controller.dart';
+import '../../controllers/theme_controller.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../components/custom_button.dart';
@@ -27,7 +28,7 @@ class ProfileScreen extends StatelessWidget {
     final AuthController _authController = Get.find<AuthController>();
 
     return Scaffold(
-      backgroundColor: AppColors.night,
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: InDriveAppBar(
         title: 'profile'.tr,
         actions: const [
@@ -45,7 +46,7 @@ class ProfileScreen extends StatelessWidget {
               child: Text(
                 'user_not_connected'.tr,
                 style: AppTextStyles.bodyLarge.copyWith(
-                  color: Colors.white70,
+                  color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
                 ),
               ),
             );
@@ -90,9 +91,9 @@ class ProfileScreen extends StatelessWidget {
                                 height: 94,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: AppColors.nightSurface,
+                                  color: Theme.of(context).colorScheme.surface,
                                   border: Border.all(
-                                    color: Colors.white.withOpacity(0.1),
+                                    color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
                                     width: 2,
                                   ),
                                 ),
@@ -119,9 +120,9 @@ class ProfileScreen extends StatelessWidget {
                                 shape: BoxShape.circle,
                                 color: AppColors.success,
                                 border: Border.all(
-                                  color: AppColors.nightSurface,
-                                  width: 3,
-                                ),
+                                color: Theme.of(context).colorScheme.surface,
+                                width: 3,
+                              ),
                                 boxShadow: [
                                   BoxShadow(
                                     color: AppColors.success.withOpacity(0.5),
@@ -140,7 +141,7 @@ class ProfileScreen extends StatelessWidget {
                       Text(
                         user.nomComplet,
                         style: AppTextStyles.h2.copyWith(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontWeight: FontWeight.bold,
                         ),
                         textAlign: TextAlign.center,
@@ -190,12 +191,14 @@ class ProfileScreen extends StatelessWidget {
 
                       // Informations utilisateur
                       _buildInfoRow(
+                        context: context,
                         icon: Icons.location_on_rounded,
                         label: 'user_location'.tr,
                         value: user.localisation,
                       ),
                       const SizedBox(height: 12),
                       _buildInfoRow(
+                        context: context,
                         icon: Icons.phone_rounded,
                         label: 'phone_number'.tr,
                         value: user.tel,
@@ -285,7 +288,7 @@ class ProfileScreen extends StatelessWidget {
                             Text(
                               'Statistics',
                               style: AppTextStyles.h4.copyWith(
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.onSurface,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -323,13 +326,16 @@ class ProfileScreen extends StatelessWidget {
                           Text(
                             'settings'.tr,
                             style: AppTextStyles.h4.copyWith(
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 16),
+                      // Theme Switcher
+                      _ThemeSwitcherTile(),
+                      const SizedBox(height: 12),
                       // Battery Optimization Setting
                       _BatteryOptimizationTile(),
                     ],
@@ -394,10 +400,10 @@ class ProfileScreen extends StatelessWidget {
           elevation: 0,
           child: Container(
             decoration: BoxDecoration(
-              color: AppColors.nightSurface,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
-                color: AppColors.primary.withOpacity(0.3),
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
                 width: 1,
               ),
               boxShadow: [
@@ -417,7 +423,7 @@ class ProfileScreen extends StatelessWidget {
                   Text(
                     'become_employee_title'.tr,
                     style: AppTextStyles.h3.copyWith(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -595,10 +601,10 @@ class ProfileScreen extends StatelessWidget {
           elevation: 0,
           child: Container(
             decoration: BoxDecoration(
-              color: AppColors.nightSurface,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
-                color: AppColors.primary.withOpacity(0.3),
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
                 width: 1,
               ),
               boxShadow: [
@@ -618,7 +624,7 @@ class ProfileScreen extends StatelessWidget {
                   Text(
                     'update_info_title'.tr,
                     style: AppTextStyles.h3.copyWith(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -812,17 +818,19 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildInfoRow({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required String value,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.nightSecondary,
+        color: colorScheme.surfaceVariant,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.white10,
+          color: colorScheme.outline.withOpacity(0.2),
           width: 1,
         ),
       ),
@@ -831,12 +839,12 @@ class ProfileScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.15),
+              color: colorScheme.primary.withOpacity(0.15),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               icon,
-              color: AppColors.primaryLight,
+              color: colorScheme.primary,
               size: 18,
             ),
           ),
@@ -848,14 +856,14 @@ class ProfileScreen extends StatelessWidget {
                 Text(
                   label,
                   style: AppTextStyles.bodySmall.copyWith(
-                    color: Colors.white54,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
                   style: AppTextStyles.bodyMedium.copyWith(
-                    color: Colors.white,
+                    color: colorScheme.onSurface,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -864,6 +872,213 @@ class ProfileScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Widget pour afficher et gérer le sélecteur de thème
+class _ThemeSwitcherTile extends StatelessWidget {
+  const _ThemeSwitcherTile();
+
+  void _showThemeSelector(BuildContext context, ThemeController themeController) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                'theme_mode'.tr,
+                style: AppTextStyles.h4.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Obx(
+              () => Column(
+                children: [
+                  _ThemeOptionTile(
+                    title: 'light_mode'.tr,
+                    icon: Icons.light_mode_rounded,
+                    themeMode: ThemeMode.light,
+                    isSelected: themeController.themeMode.value == ThemeMode.light,
+                    onTap: () {
+                      themeController.setThemeMode(ThemeMode.light);
+                      Get.back();
+                    },
+                  ),
+                  _ThemeOptionTile(
+                    title: 'dark_mode'.tr,
+                    icon: Icons.dark_mode_rounded,
+                    themeMode: ThemeMode.dark,
+                    isSelected: themeController.themeMode.value == ThemeMode.dark,
+                    onTap: () {
+                      themeController.setThemeMode(ThemeMode.dark);
+                      Get.back();
+                    },
+                  ),
+                  _ThemeOptionTile(
+                    title: 'system_mode'.tr,
+                    icon: Icons.brightness_auto_rounded,
+                    themeMode: ThemeMode.system,
+                    isSelected: themeController.themeMode.value == ThemeMode.system,
+                    onTap: () {
+                      themeController.setThemeMode(ThemeMode.system);
+                      Get.back();
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final themeController = Get.find<ThemeController>();
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceVariant,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colorScheme.outline.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: () => _showThemeSelector(context, themeController),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.palette_rounded,
+                    color: colorScheme.primary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'theme'.tr,
+                        style: AppTextStyles.bodyLarge.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Obx(
+                        () => Text(
+                          themeController.getThemeModeName(themeController.themeMode.value),
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Widget pour une option de thème dans le bottom sheet
+class _ThemeOptionTile extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final ThemeMode themeMode;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ThemeOptionTile({
+    required this.title,
+    required this.icon,
+    required this.themeMode,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? colorScheme.primary.withOpacity(0.15)
+              : colorScheme.surfaceVariant,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(
+          icon,
+          color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+          size: 24,
+        ),
+      ),
+      title: Text(
+        title,
+        style: AppTextStyles.bodyLarge.copyWith(
+          color: colorScheme.onSurface,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      trailing: isSelected
+          ? Icon(
+              Icons.check_circle_rounded,
+              color: colorScheme.primary,
+              size: 24,
+            )
+          : null,
+      onTap: onTap,
     );
   }
 }
@@ -908,8 +1123,8 @@ class _BatteryOptimizationTileState extends State<_BatteryOptimizationTile> {
       SnackbarHelper.showSnackbar(
         title: 'Optimisation désactivée',
         message: 'L\'optimisation de la batterie est déjà désactivée. Les notifications en arrière-plan fonctionnent correctement.',
-        backgroundColor: AppColors.success.withOpacity(0.9),
-        colorText: AppColors.white,
+        backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.9),
+        colorText: Theme.of(context).colorScheme.onPrimary,
         duration: const Duration(seconds: 3),
       );
     } else {
@@ -926,10 +1141,10 @@ class _BatteryOptimizationTileState extends State<_BatteryOptimizationTile> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.nightSecondary,
+        color: Theme.of(context).colorScheme.surfaceVariant,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.white10,
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
           width: 1,
         ),
       ),
@@ -961,33 +1176,33 @@ class _BatteryOptimizationTileState extends State<_BatteryOptimizationTile> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'battery_optimization'.tr,
-                        style: AppTextStyles.bodyLarge.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      if (_isChecking)
                         Text(
-                          'checking'.tr,
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: Colors.white54,
-                          ),
-                        )
-                      else
-                        Text(
-                          _isOptimizationDisabled
-                              ? 'battery_optimization_disabled'.tr
-                              : 'battery_optimization_enabled'.tr,
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: _isOptimizationDisabled
-                                ? AppColors.success
-                                : AppColors.warning,
-                            fontWeight: FontWeight.w600,
+                          'battery_optimization'.tr,
+                          style: AppTextStyles.bodyLarge.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
+                        const SizedBox(height: 4),
+                        if (_isChecking)
+                          Text(
+                            'checking'.tr,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          )
+                        else
+                          Text(
+                            _isOptimizationDisabled
+                                ? 'battery_optimization_disabled'.tr
+                                : 'battery_optimization_enabled'.tr,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: _isOptimizationDisabled
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.error,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                     ],
                   ),
                 ),
@@ -1003,7 +1218,9 @@ class _BatteryOptimizationTileState extends State<_BatteryOptimizationTile> {
                 else
                   Icon(
                     _isOptimizationDisabled ? Icons.check_circle_rounded : Icons.arrow_forward_ios_rounded,
-                    color: _isOptimizationDisabled ? AppColors.success : Colors.white30,
+                    color: _isOptimizationDisabled 
+                        ? Theme.of(context).colorScheme.primary 
+                        : Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5),
                     size: 20,
                   ),
               ],

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_text_styles.dart';
-import '../core/constants/app_colors.dart';
 
 /// AppBar réutilisable inspiré d'InDrive avec design moderne et thème sombre
 class InDriveAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -23,7 +22,8 @@ class InDriveAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color bg = backgroundColor ?? AppColors.nightSurface;
+    final colorScheme = Theme.of(context).colorScheme;
+    final Color bg = backgroundColor ?? colorScheme.surface;
     return Container(
       decoration: BoxDecoration(
         color: bg,
@@ -32,13 +32,13 @@ class InDriveAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withOpacity(colorScheme.brightness == Brightness.dark ? 0.4 : 0.1),
             blurRadius: 20,
             spreadRadius: 0,
             offset: const Offset(0, 8),
           ),
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.1),
+            color: colorScheme.primary.withOpacity(0.1),
             blurRadius: 10,
             spreadRadius: 0,
             offset: const Offset(0, 4),
@@ -46,7 +46,7 @@ class InDriveAppBar extends StatelessWidget implements PreferredSizeWidget {
         ],
         border: Border(
           bottom: BorderSide(
-            color: AppColors.primary.withOpacity(0.2),
+            color: colorScheme.primary.withOpacity(0.2),
             width: 1,
           ),
         ),
@@ -59,10 +59,10 @@ class InDriveAppBar extends StatelessWidget implements PreferredSizeWidget {
             ? Container(
                 margin: const EdgeInsets.only(left: 8, top: 8, bottom: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.15),
+                  color: colorScheme.primary.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColors.primary.withOpacity(0.3),
+                    color: colorScheme.primary.withOpacity(0.3),
                     width: 1,
                   ),
                 ),
@@ -74,10 +74,10 @@ class InDriveAppBar extends StatelessWidget implements PreferredSizeWidget {
           return Container(
             margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.15),
+              color: colorScheme.primary.withOpacity(0.15),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: AppColors.primary.withOpacity(0.3),
+                color: colorScheme.primary.withOpacity(0.3),
                 width: 1,
               ),
             ),
@@ -89,29 +89,29 @@ class InDriveAppBar extends StatelessWidget implements PreferredSizeWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                AppColors.primary.withOpacity(0.2),
-                AppColors.primary.withOpacity(0.1),
+                colorScheme.primary.withOpacity(0.2),
+                colorScheme.primary.withOpacity(0.1),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: AppColors.primary.withOpacity(0.3),
+              color: colorScheme.primary.withOpacity(0.3),
               width: 1,
             ),
           ),
           child: Text(
             title,
             style: AppTextStyles.h3.copyWith(
-              color: Colors.white,
+              color: colorScheme.onSurface,
               fontWeight: FontWeight.bold,
               letterSpacing: -0.5,
             ),
           ),
         ),
-        iconTheme: const IconThemeData(
-          color: Colors.white,
+        iconTheme: IconThemeData(
+          color: colorScheme.onSurface,
         ),
       ),
     );

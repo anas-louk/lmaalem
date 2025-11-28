@@ -11,16 +11,17 @@ class LanguageSwitcher extends StatelessWidget {
   Widget build(BuildContext context) {
     final languageController = Get.find<LanguageController>();
     
+    final colorScheme = Theme.of(context).colorScheme;
     return PopupMenuButton<String>(
-      icon: const Icon(
+      icon: Icon(
         Icons.language_rounded,
-        color: Colors.white,
+        color: colorScheme.onSurface,
       ),
-      color: AppColors.nightSurface,
+      color: colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: AppColors.primary.withOpacity(0.3),
+          color: colorScheme.primary.withOpacity(0.3),
           width: 1,
         ),
       ),
@@ -36,24 +37,24 @@ class LanguageSwitcher extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 4),
               decoration: BoxDecoration(
                 color: languageController.currentLanguage.value == 'fr_FR'
-                    ? AppColors.primary.withOpacity(0.2)
+                    ? colorScheme.primary.withOpacity(0.2)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
                   if (languageController.currentLanguage.value == 'fr_FR')
-                    const Icon(
+                    Icon(
                       Icons.check_circle_rounded,
-                      color: AppColors.primaryLight,
+                      color: colorScheme.primary,
                       size: 20,
                     ),
                   if (languageController.currentLanguage.value != 'fr_FR')
                     const SizedBox(width: 20),
                   const SizedBox(width: 8),
-                  const Text(
+                  Text(
                     'Français',
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(color: colorScheme.onSurface),
                   ),
                 ],
               ),
@@ -67,24 +68,24 @@ class LanguageSwitcher extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 4),
               decoration: BoxDecoration(
                 color: languageController.currentLanguage.value == 'ar_SA'
-                    ? AppColors.primary.withOpacity(0.2)
+                    ? colorScheme.primary.withOpacity(0.2)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
                   if (languageController.currentLanguage.value == 'ar_SA')
-                    const Icon(
+                    Icon(
                       Icons.check_circle_rounded,
-                      color: AppColors.primaryLight,
+                      color: colorScheme.primary,
                       size: 20,
                     ),
                   if (languageController.currentLanguage.value != 'ar_SA')
                     const SizedBox(width: 20),
                   const SizedBox(width: 8),
-                  const Text(
+                  Text(
                     'العربية',
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(color: colorScheme.onSurface),
                   ),
                 ],
               ),

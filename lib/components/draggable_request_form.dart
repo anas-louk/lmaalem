@@ -46,7 +46,7 @@ class _DraggableRequestFormState extends State<DraggableRequestForm> {
       builder: (context, scrollController) {
         return Container(
           decoration: BoxDecoration(
-            color: AppColors.nightSurface,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: const BorderRadius.vertical(
               top: Radius.circular(28),
             ),
@@ -69,7 +69,7 @@ class _DraggableRequestFormState extends State<DraggableRequestForm> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.3),
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -100,7 +100,7 @@ class _DraggableRequestFormState extends State<DraggableRequestForm> {
                               Text(
                                 'new_request'.tr,
                                 style: AppTextStyles.h3.copyWith(
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.onSurface,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -157,10 +157,10 @@ class _DraggableRequestFormState extends State<DraggableRequestForm> {
       return Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: AppColors.nightSecondary,
+          color: Theme.of(context).colorScheme.surfaceVariant,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: Colors.white10,
+            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
             width: 1,
           ),
         ),
@@ -169,13 +169,13 @@ class _DraggableRequestFormState extends State<DraggableRequestForm> {
             Icon(
               Icons.category_outlined,
               size: 48,
-              color: Colors.white70,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 12),
             Text(
               'no_categories'.tr,
               style: AppTextStyles.bodyMedium.copyWith(
-                color: Colors.white70,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -211,7 +211,7 @@ class _DraggableRequestFormState extends State<DraggableRequestForm> {
                   Text(
                     'select_category'.tr,
                     style: AppTextStyles.h4.copyWith(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -268,7 +268,7 @@ class _DraggableRequestFormState extends State<DraggableRequestForm> {
                                       ],
                                     )
                                   : null,
-                              color: isSelected ? null : AppColors.nightSecondary,
+                              color: isSelected ? null : Theme.of(context).colorScheme.surfaceVariant,
                               border: Border.all(
                                 color: isSelected
                                     ? AppColors.primary.withOpacity(0.6)
@@ -362,7 +362,7 @@ class _DraggableRequestFormState extends State<DraggableRequestForm> {
                   Text(
                     'request_description_label'.tr,
                     style: AppTextStyles.h4.copyWith(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -376,9 +376,9 @@ class _DraggableRequestFormState extends State<DraggableRequestForm> {
           controller: widget.descriptionController,
           hint: 'request_description_hint'.tr,
           maxLines: 5,
-          fillColor: AppColors.nightSecondary,
-          textColor: Colors.white,
-          labelColor: Colors.white,
+          fillColor: Theme.of(context).colorScheme.surfaceVariant,
+          textColor: Theme.of(context).colorScheme.onSurface,
+          labelColor: Theme.of(context).colorScheme.onSurface,
           hintColor: Colors.white54,
           iconColor: Colors.white70,
           borderColor: Colors.white10,

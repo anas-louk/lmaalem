@@ -98,7 +98,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.night,
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: InDriveAppBar(title: 'history'.tr),
       body: SafeArea(
         child: Obx(() {
@@ -182,7 +182,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 child: Text(
                                   '${'mission'.tr} #${mission.id.substring(0, 8)}',
                                   style: AppTextStyles.h4.copyWith(
-                                    color: Colors.white,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -210,14 +210,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           Text(
                             '${'mission_price'.tr}: ${mission.prixMission.toStringAsFixed(2)} DH',
                             style: AppTextStyles.bodyMedium.copyWith(
-                              color: Colors.white70,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '${'mission_date'.tr}: ${_formatDate(mission.dateStart)}',
                             style: AppTextStyles.bodySmall.copyWith(
-                              color: Colors.white54,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -250,7 +250,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 child: Text(
                                   '${'request'.tr} #${request.id.substring(0, 8)}',
                                   style: AppTextStyles.h4.copyWith(
-                                    color: Colors.white,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -278,7 +278,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           Text(
                             request.description,
                             style: AppTextStyles.bodyMedium.copyWith(
-                              color: Colors.white70,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -287,7 +287,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           Text(
                             '${'request_date'.tr}: ${_formatDate(request.createdAt)}',
                             style: AppTextStyles.bodySmall.copyWith(
-                              color: Colors.white54,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -353,7 +353,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       Text(
                         '#${request.id.substring(0, 8)}',
                         style: AppTextStyles.h4.copyWith(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -361,7 +361,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       Text(
                         request.description,
                         style: AppTextStyles.bodyMedium.copyWith(
-                          color: Colors.white70,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -376,7 +376,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             child: Text(
                               request.address,
                               style: AppTextStyles.bodySmall.copyWith(
-                                color: Colors.white70,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -388,7 +388,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       Text(
                         '${'mission_date'.tr}: ${_formatDate(request.createdAt)}',
                         style: AppTextStyles.bodySmall.copyWith(
-                          color: Colors.white54,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(height: 10),

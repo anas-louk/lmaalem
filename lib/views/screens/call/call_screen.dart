@@ -283,7 +283,7 @@ class _CallScreenState extends State<CallScreen> {
         return false;
       },
       child: Scaffold(
-        backgroundColor: AppColors.night,
+        backgroundColor: Theme.of(context).colorScheme.background,
         body: SafeArea(
           child: Stack(
             children: [
@@ -303,7 +303,7 @@ class _CallScreenState extends State<CallScreen> {
                     children: [
                       CircleAvatar(
                         radius: 80,
-                        backgroundColor: AppColors.primaryLight.withOpacity(0.2),
+                        backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
                         backgroundImage: _remoteUserAvatar != null
                             ? NetworkImage(_remoteUserAvatar!)
                             : null,

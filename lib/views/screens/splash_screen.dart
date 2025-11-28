@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
-import '../../core/constants/app_colors.dart';
 
 /// Écran de démarrage (Splash Screen)
 class SplashScreen extends StatefulWidget {
@@ -39,16 +38,17 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: AppColors.night,
+      backgroundColor: colorScheme.background,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppColors.night,
-              AppColors.primaryDark.withOpacity(0.3),
+              colorScheme.background,
+              colorScheme.primary.withOpacity(0.3),
             ],
           ),
         ),
@@ -66,22 +66,22 @@ class _SplashScreenState extends State<SplashScreen> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      AppColors.primary,
-                      AppColors.primaryDark,
+                      colorScheme.primary,
+                      colorScheme.primary.withOpacity(0.8),
                     ],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.5),
+                      color: colorScheme.primary.withOpacity(0.5),
                       blurRadius: 30,
                       spreadRadius: 5,
                     ),
                   ],
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.handyman_rounded,
                   size: 60,
-                  color: AppColors.white,
+                  color: colorScheme.onPrimary,
                 ),
               ),
               const SizedBox(height: 32),
@@ -89,17 +89,17 @@ class _SplashScreenState extends State<SplashScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.2),
+                  color: colorScheme.primary.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppColors.primary.withOpacity(0.3),
+                    color: colorScheme.primary.withOpacity(0.3),
                     width: 1,
                   ),
                 ),
                 child: Text(
                   'Lmaalem',
                   style: TextStyle(
-                    color: AppColors.white,
+                    color: colorScheme.onSurface,
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.2,
@@ -111,18 +111,18 @@ class _SplashScreenState extends State<SplashScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.nightSurface,
+                  color: colorScheme.surface,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withOpacity(colorScheme.brightness == Brightness.dark ? 0.3 : 0.1),
                       blurRadius: 20,
                       spreadRadius: 0,
                     ),
                   ],
                 ),
-                child: const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryLight),
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
                   strokeWidth: 3,
                 ),
               ),
@@ -130,7 +130,7 @@ class _SplashScreenState extends State<SplashScreen> {
               Text(
                 'Chargement...',
                 style: TextStyle(
-                  color: Colors.white70,
+                  color: colorScheme.onSurfaceVariant,
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                 ),

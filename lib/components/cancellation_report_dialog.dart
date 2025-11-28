@@ -91,7 +91,7 @@ class _CancellationReportDialogState extends State<CancellationReportDialog> {
                   child: Text(
                     'cancel_request_report_title'.tr,
                     style: AppTextStyles.h3.copyWith(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
@@ -104,7 +104,7 @@ class _CancellationReportDialogState extends State<CancellationReportDialog> {
                     child: Text(
                       'cancel_request_report_message'.tr.replaceAll('{employee}', widget.employeeName!),
                       style: AppTextStyles.bodyMedium.copyWith(
-                        color: Colors.white70,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         height: 1.5,
                       ),
                       textAlign: TextAlign.center,

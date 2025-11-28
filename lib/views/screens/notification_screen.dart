@@ -111,20 +111,20 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.night,
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
         title: Text(
           'notifications'.tr,
           style: AppTextStyles.h3.copyWith(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.bold,
           ),
         ),
         elevation: 0,
-        backgroundColor: AppColors.nightSurface,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         foregroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: Colors.white),
-        actionsIconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
+        actionsIconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
         centerTitle: false,
       ),
       body: SafeArea(
@@ -271,10 +271,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: AppColors.nightSurface,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: Colors.white10,
+            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
             width: 1,
           ),
           boxShadow: [
@@ -345,13 +345,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                 Icon(
                                   Icons.tag,
                                   size: 14,
-                                  color: Colors.white70,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
                                   '${'request'.tr} #${request.id.substring(0, 8)}',
                                   style: AppTextStyles.bodySmall.copyWith(
-                                    color: Colors.white70,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -471,13 +471,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       Icon(
                         Icons.access_time_rounded,
                         size: 14,
-                              color: Colors.white54,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 6),
                       Text(
                         '${'created_on'.tr} ${_formatDate(request.createdAt)}',
                         style: AppTextStyles.bodySmall.copyWith(
-                              color: Colors.white54,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontSize: 11,
                         ),
                       ),
@@ -569,7 +569,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                       Text(
                                         'waiting_for_client_message'.tr,
                                         style: AppTextStyles.bodySmall.copyWith(
-                                          color: Colors.white70,
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                                           fontSize: 11,
                                         ),
                                       ),

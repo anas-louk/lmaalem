@@ -60,7 +60,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.night,
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -91,13 +91,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildBrandBadge() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: 88,
       height: 88,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryDark],
+          colors: [
+            colorScheme.primary,
+            colorScheme.primary.withOpacity(0.8),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -106,7 +110,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: Text(
           'app_name'.tr,
           style: AppTextStyles.h3.copyWith(
-            color: Colors.white,
+            color: colorScheme.onPrimary,
             fontWeight: FontWeight.w700,
           ),
           textAlign: TextAlign.center,
@@ -116,15 +120,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildRegisterCard() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Form(
       key: _formKey,
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.nightSurface,
+          color: colorScheme.surface,
           borderRadius: BorderRadius.circular(32),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.4),
+              color: Colors.black.withOpacity(colorScheme.brightness == Brightness.dark ? 0.4 : 0.1),
               blurRadius: 30,
               offset: const Offset(0, 20),
             ),
@@ -137,7 +142,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             Text(
               'create_account'.tr,
               style: AppTextStyles.h2.copyWith(
-                color: Colors.white,
+                color: colorScheme.onSurface,
                 fontSize: 23,
               ),
             ),
@@ -145,7 +150,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             Text(
               'create_account_subtitle'.tr,
               style: AppTextStyles.bodyMedium.copyWith(
-                color: Colors.white70,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 20),
@@ -155,12 +160,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
               hint: 'name_hint'.tr,
               validator: Validator.name,
               prefixIcon: Icons.person_outline,
-              fillColor: AppColors.nightSecondary,
-              textColor: Colors.white,
-              labelColor: Colors.white,
-              hintColor: Colors.white54,
-              iconColor: Colors.white70,
-              borderColor: Colors.white10,
+              fillColor: colorScheme.surfaceVariant,
+              textColor: colorScheme.onSurface,
+              labelColor: colorScheme.onSurface,
+              hintColor: colorScheme.onSurfaceVariant,
+              iconColor: colorScheme.onSurfaceVariant,
+              borderColor: colorScheme.outline.withOpacity(0.2),
             ),
             const SizedBox(height: 12),
             CustomTextField(
@@ -170,12 +175,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
               keyboardType: TextInputType.emailAddress,
               validator: Validator.email,
               prefixIcon: Icons.email_outlined,
-              fillColor: AppColors.nightSecondary,
-              textColor: Colors.white,
-              labelColor: Colors.white,
-              hintColor: Colors.white54,
-              iconColor: Colors.white70,
-              borderColor: Colors.white10,
+              fillColor: colorScheme.surfaceVariant,
+              textColor: colorScheme.onSurface,
+              labelColor: colorScheme.onSurface,
+              hintColor: colorScheme.onSurfaceVariant,
+              iconColor: colorScheme.onSurfaceVariant,
+              borderColor: colorScheme.outline.withOpacity(0.2),
             ),
             const SizedBox(height: 12),
             CustomTextField(
@@ -189,12 +194,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ? Icons.visibility_off_rounded
                   : Icons.visibility_rounded,
               onSuffixTap: () => setState(() => _showPassword = !_showPassword),
-              fillColor: AppColors.nightSecondary,
-              textColor: Colors.white,
-              labelColor: Colors.white,
-              hintColor: Colors.white54,
-              iconColor: Colors.white70,
-              borderColor: Colors.white10,
+              fillColor: colorScheme.surfaceVariant,
+              textColor: colorScheme.onSurface,
+              labelColor: colorScheme.onSurface,
+              hintColor: colorScheme.onSurfaceVariant,
+              iconColor: colorScheme.onSurfaceVariant,
+              borderColor: colorScheme.outline.withOpacity(0.2),
             ),
             const SizedBox(height: 12),
             CustomTextField(
@@ -210,12 +215,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
               onSuffixTap: () => setState(
                 () => _showConfirmPassword = !_showConfirmPassword,
               ),
-              fillColor: AppColors.nightSecondary,
-              textColor: Colors.white,
-              labelColor: Colors.white,
-              hintColor: Colors.white54,
-              iconColor: Colors.white70,
-              borderColor: Colors.white10,
+              fillColor: colorScheme.surfaceVariant,
+              textColor: colorScheme.onSurface,
+              labelColor: colorScheme.onSurface,
+              hintColor: colorScheme.onSurfaceVariant,
+              iconColor: colorScheme.onSurfaceVariant,
+              borderColor: colorScheme.outline.withOpacity(0.2),
             ),
             const SizedBox(height: 16),
             Obx(
@@ -241,7 +246,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Text(
           'already_have_account'.tr,
           style: AppTextStyles.bodyMedium.copyWith(
-            color: Colors.white70,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
         TextButton(

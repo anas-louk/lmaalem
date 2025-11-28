@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../core/constants/app_colors.dart';
 import '../core/constants/app_text_styles.dart';
 
 /// Widget de chargement moderne avec style InDrive
@@ -13,6 +12,7 @@ class LoadingWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -20,25 +20,25 @@ class LoadingWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.nightSurface,
+              color: colorScheme.surface,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withOpacity(colorScheme.brightness == Brightness.dark ? 0.3 : 0.1),
                   blurRadius: 20,
                   spreadRadius: 0,
                   offset: const Offset(0, 8),
                 ),
                 BoxShadow(
-                  color: AppColors.primary.withOpacity(0.2),
+                  color: colorScheme.primary.withOpacity(0.2),
                   blurRadius: 10,
                   spreadRadius: 0,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryLight),
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
               strokeWidth: 3,
             ),
           ),
@@ -47,7 +47,7 @@ class LoadingWidget extends StatelessWidget {
             Text(
               message!,
               style: AppTextStyles.bodyMedium.copyWith(
-                color: Colors.white70,
+                color: colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),

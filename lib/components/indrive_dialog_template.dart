@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_text_styles.dart';
-import '../core/constants/app_colors.dart';
 import 'indrive_button.dart';
 
 class InDriveDialogTemplate extends StatelessWidget {
@@ -27,9 +26,10 @@ class InDriveDialogTemplate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final IconData displayIcon = icon ?? 
         (danger ? Icons.warning_rounded : Icons.info_rounded);
-    final Color iconColor = danger ? AppColors.error : AppColors.primary;
+    final Color iconColor = danger ? colorScheme.error : colorScheme.primary;
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -37,23 +37,23 @@ class InDriveDialogTemplate extends StatelessWidget {
       elevation: 0,
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.nightSurface,
+          color: colorScheme.surface,
           borderRadius: BorderRadius.circular(28),
           border: Border.all(
             color: danger 
-                ? AppColors.error.withOpacity(0.3)
-                : AppColors.primary.withOpacity(0.3),
+                ? colorScheme.error.withOpacity(0.3)
+                : colorScheme.primary.withOpacity(0.3),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withOpacity(colorScheme.brightness == Brightness.dark ? 0.5 : 0.15),
               blurRadius: 30,
               spreadRadius: 0,
               offset: const Offset(0, 20),
             ),
             BoxShadow(
-              color: (danger ? AppColors.error : AppColors.primary).withOpacity(0.2),
+              color: (danger ? colorScheme.error : colorScheme.primary).withOpacity(0.2),
               blurRadius: 20,
               spreadRadius: 0,
               offset: const Offset(0, 10),
@@ -92,7 +92,7 @@ class InDriveDialogTemplate extends StatelessWidget {
                 child: Text(
                   title,
                   style: AppTextStyles.h3.copyWith(
-                    color: Colors.white,
+                    color: colorScheme.onSurface,
                     fontWeight: FontWeight.bold,
                   ),
                   textAlign: TextAlign.center,
@@ -104,7 +104,7 @@ class InDriveDialogTemplate extends StatelessWidget {
                 child: Text(
                   message,
                   style: AppTextStyles.bodyMedium.copyWith(
-                    color: Colors.white70,
+                    color: colorScheme.onSurfaceVariant,
                     height: 1.5,
                   ),
                   textAlign: TextAlign.center,

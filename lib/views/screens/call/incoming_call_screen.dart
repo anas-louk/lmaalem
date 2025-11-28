@@ -180,7 +180,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
         return false;
       },
       child: Scaffold(
-        backgroundColor: AppColors.night,
+        backgroundColor: Theme.of(context).colorScheme.background,
         body: SafeArea(
           child: Column(
             children: [
@@ -188,7 +188,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
               // Caller Avatar
               CircleAvatar(
                 radius: 80,
-                backgroundColor: AppColors.primaryLight.withOpacity(0.2),
+                backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
                 backgroundImage: _callerAvatar != null
                     ? NetworkImage(_callerAvatar!)
                     : null,

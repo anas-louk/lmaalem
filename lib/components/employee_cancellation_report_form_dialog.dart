@@ -93,7 +93,7 @@ class _EmployeeCancellationReportFormDialogState extends State<EmployeeCancellat
                   child: Text(
                     'request_cancelled_by_client'.tr,
                     style: AppTextStyles.h3.copyWith(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
@@ -106,7 +106,7 @@ class _EmployeeCancellationReportFormDialogState extends State<EmployeeCancellat
                     child: Text(
                       'employee_cancellation_report_message'.tr.replaceAll('{client}', widget.clientName!),
                       style: AppTextStyles.bodyMedium.copyWith(
-                        color: Colors.white70,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         height: 1.5,
                       ),
                       textAlign: TextAlign.center,
@@ -118,10 +118,10 @@ class _EmployeeCancellationReportFormDialogState extends State<EmployeeCancellat
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.nightSecondary,
+                      color: Theme.of(context).colorScheme.surfaceVariant,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Colors.white10,
+                        color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
                         width: 1,
                       ),
                     ),
@@ -149,7 +149,7 @@ class _EmployeeCancellationReportFormDialogState extends State<EmployeeCancellat
                         Text(
                           widget.clientReason!,
                           style: AppTextStyles.bodyMedium.copyWith(
-                            color: Colors.white,
+                            color: Theme.of(context).colorScheme.onSurface,
                             height: 1.5,
                           ),
                         ),

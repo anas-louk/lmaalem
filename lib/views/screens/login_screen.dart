@@ -57,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.night,
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -88,15 +88,19 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildBrandBadge() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Align(
       alignment: Alignment.center,
       child: Container(
         width: 88,
         height: 88,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: LinearGradient(
-            colors: [AppColors.primary, AppColors.primaryDark],
+            colors: [
+              colorScheme.primary,
+              colorScheme.primary.withOpacity(0.8),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -105,7 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Text(
             'app_name'.tr,
             style: AppTextStyles.h3.copyWith(
-              color: Colors.white,
+              color: colorScheme.onPrimary,
               fontWeight: FontWeight.w700,
             ),
             textAlign: TextAlign.center,
@@ -116,15 +120,16 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildLoginCard(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Form(
       key: _formKey,
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.nightSurface,
+          color: colorScheme.surface,
           borderRadius: BorderRadius.circular(32),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.4),
+              color: Colors.black.withOpacity(colorScheme.brightness == Brightness.dark ? 0.4 : 0.1),
               blurRadius: 30,
               offset: const Offset(0, 20),
             ),
@@ -137,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Text(
               'welcome_back'.tr,
               style: AppTextStyles.h2.copyWith(
-                color: Colors.white,
+                color: colorScheme.onSurface,
                 fontSize: 23,
               ),
             ),
@@ -145,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Text(
               'connect_to_account'.tr,
               style: AppTextStyles.bodyMedium.copyWith(
-                color: Colors.white70,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 16),
@@ -160,12 +165,12 @@ class _LoginScreenState extends State<LoginScreen> {
               keyboardType: TextInputType.emailAddress,
               validator: Validator.email,
               prefixIcon: Icons.email_outlined,
-              fillColor: AppColors.nightSecondary,
-              textColor: Colors.white,
-              labelColor: Colors.white,
-              hintColor: Colors.white54,
-              iconColor: Colors.white70,
-              borderColor: Colors.white10,
+              fillColor: colorScheme.surfaceVariant,
+              textColor: colorScheme.onSurface,
+              labelColor: colorScheme.onSurface,
+              hintColor: colorScheme.onSurfaceVariant,
+              iconColor: colorScheme.onSurfaceVariant,
+              borderColor: colorScheme.outline.withOpacity(0.2),
             ),
             const SizedBox(height: 12),
             CustomTextField(
@@ -179,10 +184,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ? Icons.visibility_off_rounded
                   : Icons.visibility_rounded,
               onSuffixTap: () => setState(() => _showPassword = !_showPassword),
-              fillColor: AppColors.nightSecondary,
-              textColor: Colors.white,
-              labelColor: Colors.white,
-              hintColor: Colors.white54,
+              fillColor: colorScheme.surfaceVariant,
+              textColor: colorScheme.onSurface,
+              labelColor: colorScheme.onSurface,
+              hintColor: colorScheme.onSurfaceVariant,
               iconColor: Colors.white70,
               borderColor: Colors.white10,
             ),
@@ -194,7 +199,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Text(
                   'forgot_password_question'.tr,
                   style: AppTextStyles.bodyMedium.copyWith(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -243,7 +248,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Expanded(
           child: Container(
             height: 1,
-            color: Colors.white12,
+            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
           ),
         ),
         Padding(
@@ -251,14 +256,14 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Text(
             'or'.tr,
             style: AppTextStyles.bodySmall.copyWith(
-              color: Colors.white54,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ),
         Expanded(
           child: Container(
             height: 1,
-            color: Colors.white12,
+            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
           ),
         ),
       ],
@@ -272,7 +277,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Text(
           'no_account'.tr,
           style: AppTextStyles.bodyMedium.copyWith(
-            color: Colors.white70,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
         TextButton(
@@ -313,20 +318,20 @@ class _SocialButton extends StatelessWidget {
         child: Container(
           height: 50,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: Theme.of(context).colorScheme.surfaceVariant,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white12),
+            border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.2)),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 18),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: Colors.white, size: 22),
+              Icon(icon, color: Theme.of(context).colorScheme.onSurface, size: 22),
               const SizedBox(width: 12),
               Text(
                 label,
                 style: AppTextStyles.bodyLarge.copyWith(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontWeight: FontWeight.w600,
                 ),
               ),

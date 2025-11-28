@@ -317,7 +317,7 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.night,
+      backgroundColor: Theme.of(context).colorScheme.background,
       drawer: const AppSidebar(),
       appBar: InDriveAppBar(
         title: 'employee_dashboard'.tr,
@@ -383,7 +383,7 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
                     ),
                     child: IconButton(
                       icon: const Icon(Icons.notifications_outlined),
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onSurface,
                       onPressed: () {
                         Get.to(() => const NotificationScreen());
                       },
@@ -488,7 +488,7 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
                               child: Text(
                                 user.nomComplet.isNotEmpty ? user.nomComplet[0].toUpperCase() : 'E',
                                 style: AppTextStyles.h2.copyWith(
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.onSurface,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -502,7 +502,7 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
                                 Text(
                                   '${'hello'.tr}, ${user.nomComplet}',
                                   style: AppTextStyles.h3.copyWith(
-                                    color: Colors.white,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -510,7 +510,7 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
                                 Text(
                                   'welcome_employee'.tr,
                                   style: AppTextStyles.bodyMedium.copyWith(
-                                    color: Colors.white70,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],
@@ -599,7 +599,7 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
                                                 child: Text(
                                                   '${'mission'.tr} #${mission.id.substring(0, 8)}',
                                                   style: AppTextStyles.h4.copyWith(
-                                                    color: Colors.white,
+                                                    color: Theme.of(context).colorScheme.onSurface,
                                                     fontWeight: FontWeight.bold,
                                                   ),
                                                 ),
@@ -619,7 +619,7 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
                                               Text(
                                                 '${mission.prixMission.toStringAsFixed(2)} DH',
                                                 style: AppTextStyles.bodyLarge.copyWith(
-                                                  color: Colors.white,
+                                                  color: Theme.of(context).colorScheme.onSurface,
                                                   fontWeight: FontWeight.bold,
                                                 ),
                                               ),
@@ -632,13 +632,13 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
                                               Icon(
                                                 Icons.calendar_today_rounded,
                                                 size: 16,
-                                                color: Colors.white54,
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                               ),
                                               const SizedBox(width: 6),
                                               Text(
                                                 mission.dateStart.toString().substring(0, 10),
                                                 style: AppTextStyles.bodyMedium.copyWith(
-                                                  color: Colors.white70,
+                                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                                 ),
                                               ),
                                             ],
@@ -672,7 +672,7 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
                                       child: Text(
                                         _getStatusText(mission.statutMission),
                                         style: AppTextStyles.bodySmall.copyWith(
-                                          color: Colors.white,
+                                          color: Theme.of(context).colorScheme.onSurface,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),

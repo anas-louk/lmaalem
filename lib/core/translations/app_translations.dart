@@ -69,6 +69,11 @@ class AppTranslations extends Translations {
       'battery_optimization_enabled': 'Activée - Les notifications peuvent ne pas fonctionner',
       'checking': 'Vérification...',
       'hello': 'Bonjour',
+      'theme': 'Thème',
+      'theme_mode': 'Mode de thème',
+      'light_mode': 'Mode clair',
+      'dark_mode': 'Mode sombre',
+      'system_mode': 'Mode système',
       
       // Statistics
       'statistics': 'Statistiques',
@@ -455,6 +460,11 @@ class AppTranslations extends Translations {
       'battery_optimization_disabled': 'معطل - الإشعارات في الخلفية مفعلة',
       'battery_optimization_enabled': 'مفعل - قد لا تعمل الإشعارات',
       'checking': 'جارٍ التحقق...',
+      'theme': 'المظهر',
+      'theme_mode': 'وضع المظهر',
+      'light_mode': 'الوضع الفاتح',
+      'dark_mode': 'الوضع الداكن',
+      'system_mode': 'وضع النظام',
       
       // Statistics
       'statistics': 'الإحصائيات',

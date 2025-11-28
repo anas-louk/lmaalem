@@ -502,9 +502,9 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.grey, width: 1),
+                  border: Border.all(color: Theme.of(context).colorScheme.outline, width: 1),
                 ),
                 child: QrImageView(
                   data: token,
@@ -1138,9 +1138,9 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                               elevation: 2,
                                               padding: EdgeInsets.zero,
                                             ),
-                                            child: const Icon(
+                                            child: Icon(
                                               Icons.qr_code_scanner,
-                                              color: Colors.white,
+                                              color: Theme.of(context).colorScheme.onPrimary,
                                             ),
                                           ),
                                         ),
@@ -1250,9 +1250,9 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                               elevation: 2,
                                               padding: EdgeInsets.zero,
                                             ),
-                                            child: const Icon(
+                                            child: Icon(
                                               Icons.qr_code_scanner,
-                                              color: Colors.white,
+                                              color: Theme.of(context).colorScheme.onPrimary,
                                             ),
                                           ),
                                         ),
