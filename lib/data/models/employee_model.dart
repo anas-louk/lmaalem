@@ -11,6 +11,8 @@ class EmployeeModel extends UserModel {
   final String? bio;
   final String? gallery;
   final String userId; // Reference to User collection (document ID)
+  final double? latitude; // Latitude GPS de l'employé
+  final double? longitude; // Longitude GPS de l'employé
 
   EmployeeModel({
     required super.id,
@@ -27,6 +29,8 @@ class EmployeeModel extends UserModel {
     this.bio,
     this.gallery,
     required this.userId,
+    this.latitude,
+    this.longitude,
   }) : super(type: 'Employee');
 
   /// Créer un EmployeeModel depuis un Map (Firestore)
@@ -68,6 +72,8 @@ class EmployeeModel extends UserModel {
       bio: map['bio'],
       gallery: map['gallery'],
       userId: userId,
+      latitude: (map['latitude'] as num?)?.toDouble(),
+      longitude: (map['longitude'] as num?)?.toDouble(),
     );
   }
 
@@ -105,6 +111,8 @@ class EmployeeModel extends UserModel {
       bio: bio,
       gallery: gallery,
       userId: user.id,
+      latitude: null,
+      longitude: null,
     );
   }
 
@@ -122,6 +130,8 @@ class EmployeeModel extends UserModel {
       'bio': bio,
       'gallery': gallery,
       'userId': userId, // Store as string ID, not DocumentReference
+      'latitude': latitude,
+      'longitude': longitude,
     };
   }
   
@@ -137,6 +147,8 @@ class EmployeeModel extends UserModel {
       'bio': bio,
       'gallery': gallery,
       'userId': userId,
+      'latitude': latitude,
+      'longitude': longitude,
     };
   }
 
@@ -158,6 +170,8 @@ class EmployeeModel extends UserModel {
     String? bio,
     String? gallery,
     String? userId,
+    double? latitude,
+    double? longitude,
   }) {
     return EmployeeModel(
       id: id ?? this.id,
@@ -174,6 +188,8 @@ class EmployeeModel extends UserModel {
       bio: bio ?? this.bio,
       gallery: gallery ?? this.gallery,
       userId: userId ?? this.userId,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
     );
   }
 

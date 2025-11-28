@@ -16,6 +16,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/employee_statistics_service.dart';
 import '../../core/services/realtime_request_service.dart';
+import '../../core/utils/distance_calculator.dart';
 import '../../data/models/employee_statistics.dart';
 import '../../data/models/mission_model.dart';
 import '../../data/models/client_model.dart';
@@ -108,6 +109,7 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
   // Employés acceptés (gérés par stream temps réel)
   final ValueNotifier<List<EmployeeModel>> _acceptedEmployeesNotifier = ValueNotifier<List<EmployeeModel>>([]);
   final Map<String, EmployeeStatistics> _employeeStatistics = {};
+  final Map<String, double> _employeeDistances = {}; // Distance en km pour chaque employé
   final ValueNotifier<bool> _isLoadingEmployees = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _isConnected = ValueNotifier<bool>(true);
   
@@ -255,6 +257,42 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
     _employeesStreamSubscription = _realtimeService!.employeesStream.listen(
       (employees) async {
         if (!mounted) return;
+
+        // Calculer les distances pour chaque employé
+        if (_currentRequestForAnimation != null) {
+          final request = _currentRequestForAnimation!;
+          final clientLat = request.latitude;
+          final clientLon = request.longitude;
+          
+          for (final employee in employees) {
+            double? distance;
+            try {
+              // Priorité 1: Utiliser acceptedEmployeeLocations
+              if (request.acceptedEmployeeLocations.containsKey(employee.id)) {
+                final location = request.acceptedEmployeeLocations[employee.id]!;
+                final employeeLat = location['latitude'];
+                final employeeLon = location['longitude'];
+                if (employeeLat != null && employeeLon != null) {
+                  distance = DistanceCalculator.calculateDistance(
+                    clientLat, clientLon, employeeLat, employeeLon,
+                  );
+                }
+              }
+              // Priorité 2: Utiliser les coordonnées GPS du document employé
+              else if (employee.latitude != null && employee.longitude != null) {
+                distance = DistanceCalculator.calculateDistance(
+                  clientLat, clientLon, employee.latitude!, employee.longitude!,
+                );
+              }
+            } catch (e) {
+              debugPrint('Erreur lors du calcul de distance pour ${employee.id}: $e');
+            }
+            
+            if (distance != null) {
+              _employeeDistances[employee.id] = distance;
+            }
+          }
+        }
 
         // Mettre à jour la liste immédiatement pour un feedback visuel rapide
         _acceptedEmployeesNotifier.value = employees;
@@ -1896,6 +1934,35 @@ class _ClientHomeScreenState extends State<_ClientHomeScreen> with WidgetsBindin
                               color: Colors.white70,
                             ),
                           ),
+                          if (_employeeDistances.containsKey(employee.id)) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.navigation,
+                                    size: 12,
+                                    color: AppColors.primaryLight,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    DistanceCalculator.formatDistance(_employeeDistances[employee.id]!),
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: AppColors.primaryLight,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],

@@ -5,9 +5,11 @@ import '../../controllers/mission_controller.dart';
 import '../../controllers/employee_controller.dart';
 import '../../controllers/request_controller.dart';
 import '../../data/models/mission_model.dart';
+import '../../data/repositories/employee_repository.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart' as AppRoutes;
+import '../../core/services/location_service.dart' show LocationService, LocationException;
 import '../../core/helpers/snackbar_helper.dart';
 import '../../components/loading_widget.dart';
 import '../../components/empty_state.dart';
@@ -33,14 +35,18 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
   final RequestController _requestController = Get.put(RequestController());
   final AuthController _authController = Get.find<AuthController>();
   final EmployeeController _employeeController = Get.put(EmployeeController());
+  final EmployeeRepository _employeeRepository = EmployeeRepository();
+  final LocationService _locationService = LocationService();
   String? _loadedUserId;
   String? _currentCategorieId;
+  bool _locationUpdateAttempted = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeStreaming();
+      _updateEmployeeLocation();
     });
   }
   
@@ -81,6 +87,123 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
       }
     } catch (e) {
       debugPrint('[EmployeeDashboard] Error initializing stream: $e');
+    }
+  }
+
+  /// Mettre à jour la localisation GPS de l'employé
+  Future<void> _updateEmployeeLocation() async {
+    // Ne mettre à jour qu'une seule fois par session
+    if (_locationUpdateAttempted) return;
+    
+    final user = _authController.currentUser.value;
+    if (user == null || user.type.toLowerCase() != 'employee') return;
+    
+    _locationUpdateAttempted = true;
+    
+    try {
+      // Vérifier si le GPS est activé
+      final isGpsEnabled = await _locationService.isLocationServiceEnabled();
+      if (!isGpsEnabled) {
+        debugPrint('[EmployeeDashboard] GPS désactivé, impossible de mettre à jour la localisation');
+        // Afficher une boîte de dialogue pour demander d'activer le GPS
+        await _showGpsDisabledDialog();
+        return;
+      }
+      
+      // Vérifier et demander les permissions
+      try {
+        await _locationService.requestLocationPermission();
+      } catch (e) {
+        debugPrint('[EmployeeDashboard] Permissions de localisation non accordées: $e');
+        // Si c'est une LocationException, afficher la boîte de dialogue
+        if (e is LocationException && e.canOpenSettings) {
+          await _showLocationErrorDialog(e.message);
+        }
+        return;
+      }
+      
+      // Obtenir la localisation
+      final locationData = await _locationService.getCurrentLocationWithAddress();
+      
+      final latitude = locationData['latitude'] as double;
+      final longitude = locationData['longitude'] as double;
+      
+      // Récupérer l'employé
+      final employee = await _employeeRepository.getEmployeeByUserId(user.id);
+      if (employee != null) {
+        // Mettre à jour la localisation GPS
+        final updatedEmployee = employee.copyWith(
+          latitude: latitude,
+          longitude: longitude,
+          updatedAt: DateTime.now(),
+        );
+        
+        await _employeeRepository.updateEmployee(updatedEmployee);
+        debugPrint('[EmployeeDashboard] Localisation GPS de l\'employé mise à jour: $latitude, $longitude');
+      }
+    } catch (e) {
+      debugPrint('[EmployeeDashboard] Erreur lors de la mise à jour de la localisation GPS: $e');
+      // Ne pas bloquer si la localisation échoue
+    }
+  }
+
+  /// Afficher une boîte de dialogue si le GPS est désactivé
+  Future<void> _showGpsDisabledDialog() async {
+    final result = await Get.dialog<bool>(
+      AlertDialog(
+        title: Text('location_required_title'.tr),
+        content: Text('location_gps_disabled'.tr),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text('cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+            ),
+            child: Text('open_settings'.tr),
+          ),
+        ],
+      ),
+    );
+    
+    if (result == true) {
+      await _locationService.openLocationSettings();
+    }
+  }
+
+  /// Afficher une boîte de dialogue pour les erreurs de localisation
+  Future<void> _showLocationErrorDialog(String message) async {
+    final result = await Get.dialog<bool>(
+      AlertDialog(
+        title: Text('location_required_title'.tr),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text('cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+            ),
+            child: Text('open_settings'.tr),
+          ),
+        ],
+      ),
+    );
+    
+    if (result == true) {
+      // Vérifier si le GPS est désactivé, puis ouvrir les paramètres appropriés
+      final isGpsEnabled = await _locationService.isLocationServiceEnabled();
+      if (!isGpsEnabled) {
+        await _locationService.openLocationSettings();
+      } else {
+        await _locationService.openAppSettings();
+      }
     }
   }
 
@@ -472,11 +595,13 @@ class _EmployeeHomeScreenState extends State<_EmployeeHomeScreen> {
                                                 ),
                                               ),
                                               const SizedBox(width: 12),
-                                              Text(
-                                                '${'mission'.tr} #${mission.id.substring(0, 8)}',
-                                                style: AppTextStyles.h4.copyWith(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
+                                              Expanded(
+                                                child: Text(
+                                                  '${'mission'.tr} #${mission.id.substring(0, 8)}',
+                                                  style: AppTextStyles.h4.copyWith(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
                                                 ),
                                               ),
                                             ],

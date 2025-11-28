@@ -64,6 +64,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   Set<String> _previousAcceptedEmployeeIds = {}; // Track previous accepted employees
   final EmployeeStatisticsService _statisticsService = EmployeeStatisticsService();
   final Map<String, EmployeeStatistics> _employeeStatistics = {}; // Cache des statistiques
+  final Map<String, double> _employeeDistances = {}; // Distance en km pour chaque employé
 
   @override
   void initState() {
@@ -221,14 +222,21 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         double? employeeLat;
         double? employeeLon;
         
-        // Essayer d'abord d'utiliser les coordonnées GPS stockées dans la demande
+        // Priorité 1: Utiliser les coordonnées GPS stockées dans acceptedEmployeeLocations (localisation au moment de l'acceptation)
         if (_request!.acceptedEmployeeLocations.containsKey(employee.id)) {
           final location = _request!.acceptedEmployeeLocations[employee.id]!;
           employeeLat = location['latitude'];
           employeeLon = location['longitude'];
-          debugPrint('[RequestDetailScreen] Utilisation des coordonnées GPS stockées pour ${employee.nomComplet}');
-        } else {
-          // Si pas de coordonnées stockées, géocoder la localisation de l'employé
+          debugPrint('[RequestDetailScreen] Utilisation des coordonnées GPS de acceptedEmployeeLocations pour ${employee.nomComplet}');
+        }
+        // Priorité 2: Utiliser les coordonnées GPS stockées dans le document de l'employé (fallback)
+        else if (employee.latitude != null && employee.longitude != null) {
+          employeeLat = employee.latitude;
+          employeeLon = employee.longitude;
+          debugPrint('[RequestDetailScreen] Utilisation des coordonnées GPS du document employé pour ${employee.nomComplet}');
+        }
+        // Priorité 3: Géocoder la localisation de l'employé (dernier recours)
+        else {
           final locationString = employee.ville.isNotEmpty 
               ? employee.ville 
               : employee.localisation;
@@ -266,6 +274,15 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
     // Trier par distance (croissante)
     employeesWithDistance.sort((a, b) => a.value.compareTo(b.value));
+
+    // Stocker les distances pour l'affichage
+    for (final entry in employeesWithDistance) {
+      final employee = entry.key;
+      final distance = entry.value;
+      if (distance != double.maxFinite) {
+        _employeeDistances[employee.id] = distance;
+      }
+    }
 
     // Retourner seulement les employés (sans les distances)
     return employeesWithDistance.map((entry) => entry.key).toList();
@@ -925,6 +942,35 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                                           color: AppColors.textSecondary,
                                                         ),
                                                       ),
+                                                      if (_employeeDistances.containsKey(employee.id)) ...[
+                                                        const SizedBox(width: 8),
+                                                        Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                          decoration: BoxDecoration(
+                                                            color: AppColors.primary.withOpacity(0.2),
+                                                            borderRadius: BorderRadius.circular(12),
+                                                          ),
+                                                          child: Row(
+                                                            mainAxisSize: MainAxisSize.min,
+                                                            children: [
+                                                              Icon(
+                                                                Icons.navigation,
+                                                                size: 12,
+                                                                color: AppColors.primary,
+                                                              ),
+                                                              const SizedBox(width: 4),
+                                                              Text(
+                                                                DistanceCalculator.formatDistance(_employeeDistances[employee.id]!),
+                                                                style: AppTextStyles.bodySmall.copyWith(
+                                                                  color: AppColors.primary,
+                                                                  fontWeight: FontWeight.w600,
+                                                                  fontSize: 11,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ],
                                                   ),
                                                 ],

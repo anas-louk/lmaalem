@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'dart:async';
 import '../../data/models/request_model.dart';
 import '../../data/repositories/request_repository.dart';
@@ -13,7 +14,8 @@ import '../../data/models/cancellation_report_model.dart';
 import '../../core/utils/logger.dart';
 import '../../core/services/local_notification_service.dart';
 import '../../core/services/qr_code_service.dart';
-import '../../core/services/location_service.dart';
+import '../../core/services/location_service.dart' show LocationService, LocationException;
+import '../../core/constants/app_colors.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../components/employee_cancellation_report_form_dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -877,12 +879,44 @@ class RequestController extends GetxController {
       Map<String, double>? employeeLocation;
       try {
         final locationService = LocationService();
-        final locationData = await locationService.getCurrentLocationWithAddress();
-        employeeLocation = {
-          'latitude': locationData['latitude'] as double,
-          'longitude': locationData['longitude'] as double,
-        };
-        debugPrint('[RequestController] Localisation GPS de l\'employé capturée: ${employeeLocation['latitude']}, ${employeeLocation['longitude']}');
+        
+        // Vérifier si le GPS est activé
+        final isGpsEnabled = await locationService.isLocationServiceEnabled();
+        if (!isGpsEnabled) {
+          debugPrint('[RequestController] GPS désactivé, impossible de capturer la localisation');
+          // Afficher une boîte de dialogue pour demander d'activer le GPS
+          await _showGpsDisabledDialog(locationService);
+          // Continuer sans localisation GPS
+        } else {
+          // Vérifier et demander les permissions
+          try {
+            await locationService.requestLocationPermission();
+            
+            // Obtenir la localisation
+            final locationData = await locationService.getCurrentLocationWithAddress();
+            employeeLocation = {
+              'latitude': locationData['latitude'] as double,
+              'longitude': locationData['longitude'] as double,
+            };
+            debugPrint('[RequestController] Localisation GPS de l\'employé capturée: ${employeeLocation['latitude']}, ${employeeLocation['longitude']}');
+            
+            // Mettre à jour la localisation GPS dans le document de l'employé
+            final updatedEmployee = employee.copyWith(
+              latitude: employeeLocation['latitude'],
+              longitude: employeeLocation['longitude'],
+              updatedAt: DateTime.now(),
+            );
+            await employeeRepository.updateEmployee(updatedEmployee);
+            debugPrint('[RequestController] Localisation GPS mise à jour dans le document de l\'employé');
+          } catch (e) {
+            debugPrint('[RequestController] Permissions de localisation non accordées ou erreur: $e');
+            // Si c'est une LocationException, afficher la boîte de dialogue
+            if (e is LocationException && e.canOpenSettings) {
+              await _showLocationErrorDialog(e.message, locationService);
+            }
+            // Continuer sans localisation GPS
+          }
+        }
       } catch (e) {
         debugPrint('[RequestController] Erreur lors de la capture de la localisation GPS: $e');
         // Continuer même si la localisation n'a pas pu être capturée
@@ -1271,6 +1305,66 @@ class RequestController extends GetxController {
       return false;
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /// Afficher une boîte de dialogue si le GPS est désactivé
+  Future<void> _showGpsDisabledDialog(LocationService locationService) async {
+    final result = await Get.dialog<bool>(
+      AlertDialog(
+        title: Text('location_required_title'.tr),
+        content: Text('location_gps_disabled'.tr),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text('cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+            ),
+            child: Text('open_settings'.tr),
+          ),
+        ],
+      ),
+    );
+    
+    if (result == true) {
+      await locationService.openLocationSettings();
+    }
+  }
+
+  /// Afficher une boîte de dialogue pour les erreurs de localisation
+  Future<void> _showLocationErrorDialog(String message, LocationService locationService) async {
+    final result = await Get.dialog<bool>(
+      AlertDialog(
+        title: Text('location_required_title'.tr),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text('cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+            ),
+            child: Text('open_settings'.tr),
+          ),
+        ],
+      ),
+    );
+    
+    if (result == true) {
+      // Vérifier si le GPS est désactivé, puis ouvrir les paramètres appropriés
+      final isGpsEnabled = await locationService.isLocationServiceEnabled();
+      if (!isGpsEnabled) {
+        await locationService.openLocationSettings();
+      } else {
+        await locationService.openAppSettings();
+      }
     }
   }
 }

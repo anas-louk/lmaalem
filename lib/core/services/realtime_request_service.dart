@@ -280,14 +280,21 @@ class RealtimeRequestService {
         double? employeeLat;
         double? employeeLon;
         
-        // Essayer d'abord d'utiliser les coordonnées GPS stockées dans la demande
+        // Priorité 1: Utiliser les coordonnées GPS stockées dans acceptedEmployeeLocations (localisation au moment de l'acceptation)
         if (employeeLocations != null && employeeLocations.containsKey(employee.id)) {
           final location = employeeLocations[employee.id]!;
           employeeLat = location['latitude'];
           employeeLon = location['longitude'];
-          debugPrint('[RealtimeRequestService] Utilisation des coordonnées GPS stockées pour ${employee.nomComplet}');
-        } else {
-          // Si pas de coordonnées stockées, géocoder la localisation de l'employé
+          debugPrint('[RealtimeRequestService] Utilisation des coordonnées GPS de acceptedEmployeeLocations pour ${employee.nomComplet}');
+        }
+        // Priorité 2: Utiliser les coordonnées GPS stockées dans le document de l'employé (fallback)
+        else if (employee.latitude != null && employee.longitude != null) {
+          employeeLat = employee.latitude;
+          employeeLon = employee.longitude;
+          debugPrint('[RealtimeRequestService] Utilisation des coordonnées GPS du document employé pour ${employee.nomComplet}');
+        }
+        // Priorité 3: Géocoder la localisation de l'employé (dernier recours)
+        else {
           final locationString = employee.ville.isNotEmpty 
               ? employee.ville 
               : employee.localisation;
