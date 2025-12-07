@@ -1,9 +1,10 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'core/firebase/firebase_init.dart';
 import 'routes/app_routes.dart';
-import 'theme/light_theme.dart';
 import 'theme/dark_theme.dart';
 import 'controllers/auth_controller.dart';
 import 'controllers/call_controller.dart';
@@ -18,6 +19,13 @@ import 'core/helpers/snackbar_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Configurer le mode plein écran pour utiliser tout l'espace disponible
+  // La barre de statut et les boutons de navigation seront transparents
+  // et s'adapteront au thème via AnnotatedRegion dans le build
+  await SystemChrome.setEnabledSystemUIMode(
+    SystemUiMode.edgeToEdge,
+  );
 
   // Notifications: Using Firestore streams + local notifications + background polling
   // - Foreground: Firestore streams detect changes and show local notifications
@@ -59,6 +67,35 @@ void main() async {
   // On l'initialisera après que GetX soit prêt dans initialBinding
 
   runApp(const MyApp());
+}
+
+/// Fonction helper pour mettre à jour le style système (mode sombre uniquement)
+void _updateSystemUIOverlayStyle(ThemeMode themeMode) {
+  // L'application utilise uniquement le mode sombre
+  final SystemUiOverlayStyle systemUiOverlayStyle;
+  
+  if (Platform.isAndroid) {
+    // Mode sombre : icônes claires
+    systemUiOverlayStyle = SystemUiOverlayStyle.light.copyWith(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
+    );
+  } else {
+    // Pour iOS
+    systemUiOverlayStyle = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.light,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
+    );
+  }
+  
+  SystemChrome.setSystemUIOverlayStyle(systemUiOverlayStyle);
 }
 
 class MyApp extends StatefulWidget {
@@ -118,7 +155,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     // Initialiser les contrôleurs
     final languageController = Get.put(LanguageController());
-    final themeController = Get.put(ThemeController());
+    Get.put(ThemeController()); // Initialiser le contrôleur de thème
     
     return Obx(
       () {
@@ -132,20 +169,47 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           title: 'Lmaalem',
           debugShowCheckedModeBanner: false,
           scaffoldMessengerKey: SnackbarHelper.scaffoldMessengerKey,
-          theme: LightTheme.theme,
+          theme: DarkTheme.theme, // Utiliser uniquement le thème sombre
           darkTheme: DarkTheme.theme,
-          themeMode: themeController.themeMode.value,
+          themeMode: ThemeMode.dark, // Forcer le mode sombre
           
           // Translations
           translations: AppTranslations(),
           locale: locale,
           fallbackLocale: const Locale('fr', 'FR'),
           
-          // RTL Support for Arabic
+          // RTL Support for Arabic + System UI Overlay Style (mode sombre uniquement)
           builder: (context, child) {
-            return Directionality(
-              textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
-              child: child!,
+            // L'application utilise uniquement le mode sombre
+            final SystemUiOverlayStyle systemUiOverlayStyle;
+            
+            if (Platform.isAndroid) {
+              // Mode sombre : icônes claires
+              systemUiOverlayStyle = SystemUiOverlayStyle.light.copyWith(
+                statusBarColor: Colors.transparent,
+                systemNavigationBarColor: Colors.transparent,
+                systemNavigationBarDividerColor: Colors.transparent,
+                systemNavigationBarContrastEnforced: false,
+              );
+            } else {
+              // Pour iOS
+              systemUiOverlayStyle = SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness: Brightness.light,
+                statusBarBrightness: Brightness.light,
+                systemNavigationBarColor: Colors.transparent,
+                systemNavigationBarIconBrightness: Brightness.light,
+                systemNavigationBarDividerColor: Colors.transparent,
+                systemNavigationBarContrastEnforced: false,
+              );
+            }
+            
+            return AnnotatedRegion<SystemUiOverlayStyle>(
+              value: systemUiOverlayStyle,
+              child: Directionality(
+                textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
+                child: child!,
+              ),
             );
           },
           
@@ -157,6 +221,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           initialBinding: BindingsBuilder(() {
             Get.put(AuthController());
             final callController = Get.put(CallController());
+            
+            // Mettre à jour le style système (mode sombre uniquement)
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _updateSystemUIOverlayStyle(ThemeMode.dark);
+            });
+            
             // Start listening for incoming calls when user is authenticated
             final authController = Get.find<AuthController>();
             ever(authController.currentUser, (user) {

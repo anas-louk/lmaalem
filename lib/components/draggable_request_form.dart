@@ -33,10 +33,6 @@ class DraggableRequestForm extends StatefulWidget {
 class _DraggableRequestFormState extends State<DraggableRequestForm> {
   @override
   Widget build(BuildContext context) {
-    // Obtenir les safe areas pour les boutons de navigation système
-    final mediaQuery = MediaQuery.of(context);
-    final systemBottomPadding = mediaQuery.padding.bottom;
-    
     return DraggableScrollableSheet(
       initialChildSize: 0.4,
       minChildSize: 0.3,
@@ -59,83 +55,92 @@ class _DraggableRequestFormState extends State<DraggableRequestForm> {
               ),
             ],
           ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return Column(
-                children: [
-                  // Handle pour glisser
-                  Container(
-                    margin: const EdgeInsets.only(top: 12, bottom: 8),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(2),
+          child: SafeArea(
+            top: false,
+            bottom: true,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Column(
+                  children: [
+                    // Handle pour glisser
+                    Container(
+                      margin: const EdgeInsets.only(top: 12, bottom: 8),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                  ),
-                  // Titre
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.primary.withOpacity(0.3),
-                              width: 1,
+                    // Titre
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppColors.primary.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.add_circle_outline_rounded,
+                                  size: 20,
+                                  color: AppColors.primaryLight,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'new_request'.tr,
+                                  style: AppTextStyles.h3.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                        ],
+                      ),
+                    ),
+                    // Contenu scrollable
+                    Expanded(
+                      child: SingleChildScrollView(
+                        controller: scrollController,
+                        padding: const EdgeInsets.fromLTRB(
+                          24,
+                          16,
+                          24,
+                          24,
+                        ),
+                        child: Form(
+                          key: widget.formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Icon(
-                                Icons.add_circle_outline_rounded,
-                                size: 20,
-                                color: AppColors.primaryLight,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'new_request'.tr,
-                                style: AppTextStyles.h3.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurface,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                              // Sélecteur de catégories
+                              _buildCategorySelector(),
+                              const SizedBox(height: 24),
+                              // Formulaire de description
+                              _buildDescriptionForm(),
+                              const SizedBox(height: 24),
+                              // Bouton de soumission
+                              _buildSubmitButton(),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  // Contenu scrollable
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: scrollController,
-                      padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + systemBottomPadding),
-                      child: Form(
-                        key: widget.formKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            // Sélecteur de catégories
-                            _buildCategorySelector(),
-                            const SizedBox(height: 24),
-                            // Formulaire de description
-                            _buildDescriptionForm(),
-                            const SizedBox(height: 24),
-                            // Bouton de soumission
-                            _buildSubmitButton(),
-                          ],
-                        ),
                       ),
                     ),
-                  ),
-                ],
-              );
-            },
+                  ],
+                );
+              },
+            ),
           ),
         );
       },

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/auth_controller.dart';
@@ -14,21 +15,31 @@ class AppSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final AuthController _authController = Get.find<AuthController>();
     final colorScheme = Theme.of(context).colorScheme;
+    final mediaQuery = MediaQuery.of(context);
+    final bottomPadding = mediaQuery.padding.bottom;
+    final systemGestureInsets = mediaQuery.systemGestureInsets;
 
+    final topPadding = mediaQuery.padding.top;
+    final screenHeight = mediaQuery.size.height;
+    
     return Drawer(
       backgroundColor: colorScheme.background,
       width: MediaQuery.of(context).size.width * 0.85,
-      child: SafeArea(
-        child: Column(
-          children: [
-            // Header avec avatar et nom (design ultra-moderne)
-            Obx(
-              () {
-                final user = _authController.currentUser.value;
-                return Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(0, 32, 0, 24),
-                  decoration: BoxDecoration(
+      child: MediaQuery.removePadding(
+        context: context,
+        removeBottom: true, // Retirer le padding en bas pour s'étendre jusqu'aux boutons de navigation
+        child: SizedBox(
+          height: screenHeight, // Forcer la hauteur à la hauteur totale de l'écran
+          child: Column(
+            children: [
+          // Header avec avatar et nom (design ultra-moderne)
+          Obx(
+            () {
+              final user = _authController.currentUser.value;
+              return Container(
+                width: double.infinity,
+                padding: EdgeInsets.fromLTRB(0, topPadding + 32, 0, 24),
+                decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -229,13 +240,18 @@ class AppSidebar extends StatelessWidget {
                     ],
                   ),
                 ),
-                );
-              },
-            ),
-            // Menu items (design moderne)
-            Expanded(
+              );
+            },
+          ),
+          // Menu items (design moderne)
+          Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                padding: const EdgeInsets.only(
+                  top: 16,
+                  bottom: 16,
+                  left: 12,
+                  right: 12,
+                ),
                 children: [
                   // Section title
                   Padding(
@@ -290,8 +306,14 @@ class AppSidebar extends StatelessWidget {
               ),
             ),
             // Déconnexion button (design moderne)
+            // Padding minimal en bas pour positionner le bouton juste au-dessus des boutons de navigation
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                8,
+                20,
+                math.max(16, bottomPadding + 8), // Padding minimal pour être juste au-dessus
+              ),
               child: Obx(
                 () => Container(
                   decoration: BoxDecoration(
@@ -371,6 +393,7 @@ class AppSidebar extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );
@@ -478,5 +501,4 @@ class AppSidebar extends StatelessWidget {
     );
   }
 }
-
 
