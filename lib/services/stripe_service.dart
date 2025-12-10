@@ -32,6 +32,9 @@ class StripeService {
     Map<String, dynamic>? metadata,
   }) async {
     try {
+      print('[StripeService] Création du PaymentIntent: amount=$amount, currency=$currency');
+      print('[StripeService] Endpoint: ${StripeConfig.createPaymentIntentEndpoint}');
+      
       final response = await http.post(
         Uri.parse(StripeConfig.createPaymentIntentEndpoint),
         headers: {
@@ -47,14 +50,22 @@ class StripeService {
         }),
       );
 
+      print('[StripeService] Réponse du backend: ${response.statusCode}');
+      print('[StripeService] Body: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        return data['clientSecret'] as String;
+        final clientSecret = data['clientSecret'] as String;
+        print('[StripeService] ✅ PaymentIntent créé avec succès');
+        return clientSecret;
       } else {
         final error = jsonDecode(response.body) as Map<String, dynamic>;
-        throw error['message'] ?? 'Erreur lors de la création du PaymentIntent';
+        final errorMessage = error['message'] ?? 'Erreur lors de la création du PaymentIntent';
+        print('[StripeService] ❌ Erreur backend: $errorMessage');
+        throw errorMessage;
       }
     } catch (e) {
+      print('[StripeService] ❌ Erreur réseau: $e');
       throw 'Erreur réseau: $e';
     }
   }
@@ -68,6 +79,8 @@ class StripeService {
     Map<String, dynamic>? metadata,
   }) async {
     try {
+      print('[StripeService] Initialisation du PaymentSheet avec clientSecret: ${clientSecret.substring(0, 20)}...');
+      
       // Initialiser PaymentSheet
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
@@ -83,11 +96,17 @@ class StripeService {
         ),
       );
 
+      print('[StripeService] PaymentSheet initialisé, présentation...');
+
       // Afficher PaymentSheet
       await Stripe.instance.presentPaymentSheet();
 
+      print('[StripeService] PaymentSheet présenté avec succès');
+
       // Récupérer les détails du PaymentIntent
       final paymentIntent = await Stripe.instance.retrievePaymentIntent(clientSecret);
+
+      print('[StripeService] PaymentIntent récupéré, statut: ${paymentIntent.status}');
 
       // Enregistrer le paiement dans Firestore
       // Le statut est une String: 'succeeded', 'processing', 'requires_payment_method', etc.
@@ -101,15 +120,21 @@ class StripeService {
           status: 'succeeded',
           metadata: metadata,
         );
+        print('[StripeService] Paiement enregistré dans Firestore');
+      } else {
+        print('[StripeService] ⚠️ Statut du paiement: $status (attendu: succeeded)');
       }
     } on StripeException catch (e) {
+      print('[StripeService] ❌ Erreur Stripe: ${e.error.code} - ${e.error.message}');
       // Gérer les erreurs Stripe
       if (e.error.code == FailureCode.Canceled) {
         throw 'Paiement annulé par l\'utilisateur';
       } else {
         throw 'Erreur de paiement: ${e.error.message ?? "Erreur inconnue"}';
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('[StripeService] ❌ Erreur lors de la confirmation: $e');
+      print('[StripeService] Stack trace: $stackTrace');
       throw 'Erreur lors de la confirmation du paiement: $e';
     }
   }

@@ -50,4 +50,6 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    // AppCompat pour Stripe PaymentSheet
+    implementation("androidx.appcompat:appcompat:1.6.1")
 }

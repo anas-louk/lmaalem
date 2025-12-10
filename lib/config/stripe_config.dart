@@ -22,7 +22,7 @@ class StripeConfig {
   static const String backendUrl = 'https://lmaalem.vercel.app';
 
   /// Endpoint pour créer un PaymentIntent
-  static String get createPaymentIntentEndpoint => '$backendUrl/create-payment-intent';
+  static String get createPaymentIntentEndpoint => '$backendUrl/api/create-payment-intent';
 
   /// Merchant Identifier pour Apple Pay (iOS uniquement)
   /// 
