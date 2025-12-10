@@ -15,6 +15,7 @@ import '../views/screens/chat_screen.dart';
 import '../views/screens/call/incoming_call_screen.dart';
 import '../views/screens/call/call_screen.dart';
 import '../views/screens/qr_scanner_screen.dart';
+import '../views/screens/payment_screen.dart';
 import '../core/constants/app_routes.dart' as route_constants;
 
 /// Gestionnaire de routes de l'application
@@ -134,6 +135,16 @@ class AppRoutes {
       GetPage(
         name: route_constants.AppRoutes.qrScanner,
         page: () => const QRScannerScreen(),
+      ),
+      GetPage(
+        name: route_constants.AppRoutes.payment,
+        page: () {
+          final args = Get.arguments as Map<String, dynamic>?;
+          return PaymentScreen(
+            initialAmount: args?['amount'] as double?,
+            metadata: args?['metadata'] as Map<String, dynamic>?,
+          );
+        },
       ),
       // Ajouter d'autres routes ici
     ];

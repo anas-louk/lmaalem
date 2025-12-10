@@ -90,6 +90,10 @@ dependencies:
   # QR Code
   qr_flutter: ^4.1.0
   mobile_scanner: ^5.2.3
+  
+  # Stripe Payments
+  flutter_stripe: ^11.1.0
+  http: ^1.2.2
 
 dev_dependencies:
   flutter_test:

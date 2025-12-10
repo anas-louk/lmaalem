@@ -16,6 +16,9 @@ import 'core/services/background_notification_service.dart';
 import 'core/services/push_notifications.dart';
 import 'core/services/chat_notification_service.dart';
 import 'core/helpers/snackbar_helper.dart';
+import 'utils/battery_optimization.dart';
+import 'services/stripe_service.dart';
+import 'config/stripe_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +50,18 @@ void main() async {
     await LocalNotificationService().initialize();
   } catch (e) {
     debugPrint('Erreur lors de l\'initialisation des notifications: $e');
+  }
+
+  // Initialiser Stripe
+  try {
+    if (StripeConfig.isConfigured) {
+      await StripeService().initialize();
+      debugPrint('Stripe initialisé avec succès');
+    } else {
+      debugPrint('⚠️ Stripe non configuré. Veuillez configurer StripeConfig.');
+    }
+  } catch (e) {
+    debugPrint('Erreur lors de l\'initialisation de Stripe: $e');
   }
 
   // Initialiser le service FCM (foreground + onMessageOpenedApp)
@@ -133,6 +148,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         // App is in foreground - stop polling, streams will handle notifications
         _backgroundService.stopBackgroundPolling();
         debugPrint('[MyApp] App resumed - stopping background polling');
+        // Check battery optimization status if user returned from settings
+        BatteryOptimization.checkStatusOnResume();
         break;
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:

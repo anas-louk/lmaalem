@@ -45,4 +45,7 @@ class AppRoutes {
 
   // QR Code Routes
   static const String qrScanner = '/qr-scanner';
+
+  // Payment Routes
+  static const String payment = '/payment';
 }
