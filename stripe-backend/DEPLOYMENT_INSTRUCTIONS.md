@@ -28,8 +28,6 @@ Assurez-vous que `STRIPE_SECRET_KEY` est configurée sur Vercel :
 2. Sélectionnez votre projet **lmaalem**
 3. **Settings** → **Environment Variables**
 4. Vérifiez que `STRIPE_SECRET_KEY` existe avec votre clé secrète Stripe (commence par `sk_test_` pour les tests)
-   
-   ⚠️ **IMPORTANT** : Ne partagez JAMAIS votre clé secrète dans le code ou la documentation. Utilisez uniquement les variables d'environnement.
 
 ## 🚀 Étape 2 : Déployer sur Vercel
 
